@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "cz.movly",
+      "sha256_cert_fingerprints": [
+        "F4:57:91:7E:C2:8F:1B:46:22:AC:96:43:8E:14:31:4C:9A:85:58:07:63:0F:9A:59:73:25:F4:31:1E:CB:64:0A"
+      ]
+    }
+  }
+]

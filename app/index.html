@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#0c0d12" />
+    <title>Movly — Objevuj svůj další příběh</title>
+    <link rel="icon" href="/assets/movly-icon.svg" />
+    <link rel="stylesheet" href="/app/styles.css" />
+    <script type="module" src="/app/main.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Přejít k obsahu</a>
+    <header class="header">
+      <a class="brand" href="#home" aria-label="Movly — domů"
+        ><img src="/assets/movly-mark.svg" alt="" width="34" height="34" /><span
+          >Movly</span
+        ></a
+      >
+      <nav id="navigation" aria-label="Hlavní navigace" hidden>
+        <a href="#home" data-page="home">Objevovat</a
+        ><a href="#movies" data-page="movies">Filmy</a
+        ><a href="#series" data-page="series">Seriály</a
+        ><a href="#lists" data-page="lists">Moje seznamy</a
+        ><a href="#admin" data-page="admin" id="admin-link" hidden>Nahlášení</a>
+      </nav>
+      <div class="header-actions" id="header-actions" hidden>
+        <a
+          class="icon-button"
+          href="#search"
+          aria-label="Hledat"
+          id="search-link"
+        ></a>
+        <button
+          class="profile-button"
+          id="profile-button"
+          aria-label="Vybrat profil"
+        >
+          <span class="avatar" id="avatar">M</span
+          ><span id="profile-name"></span>
+        </button>
+        <button
+          class="icon-button"
+          id="account-button"
+          aria-label="Účet a nastavení"
+          aria-expanded="false"
+        ></button>
+        <div class="account-menu" id="account-menu" hidden>
+          <strong id="account-name"></strong
+          ><button id="switch-profile">Změnit profil</button
+          ><a href="/devices">Správa zařízení</a
+          ><a href="/">Stáhnout aplikaci</a
+          ><button id="logout">Odhlásit se</button>
+        </div>
+      </div>
+    </header>
+    <main id="content" tabindex="-1">
+      <div class="loading" role="status">Načítám Movly…</div>
+    </main>
+    <footer>
+      Movly <span>Všechny tvé příběhy na jednom místě.</span
+      ><a href="/privacy.html">Soukromí</a>
+    </footer>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <dialog id="dialog" aria-labelledby="dialog-title">
+      <button class="dialog-close icon-button" aria-label="Zavřít"></button>
+      <div id="dialog-content"></div>
+    </dialog>
+  </body>
+</html>

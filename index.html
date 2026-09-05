@@ -1,936 +1,984 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Movly — tvůj filmový a seriálový společník</title>
-<meta name="description" content="Movly je prémiový tmavý společník pro filmy a seriály. Sleduj, co chceš vidět, spravuj seznamy, tvoř playlisty a stáhni aplikaci pro Windows nebo macOS." />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Movly — filmový a seriálový společník</title>
+<meta name="description" content="Movly drží tvůj filmový život pohromadě. Sleduj filmy a seriály, spravuj seznamy, playlisty a stáhni aplikaci pro Windows nebo macOS." />
 <meta name="theme-color" content="#0A0A12" />
 <link rel="icon" type="image/svg+xml" href="assets/movly-icon.svg" />
-<meta property="og:title" content="Movly — tvůj filmový a seriálový společník" />
-<meta property="og:description" content="Sleduj filmy a seriály, spravuj seznamy a playlisty, pouštěj trailery a stáhni aplikaci pro Windows nebo macOS." />
+<meta property="og:title" content="Movly — filmový a seriálový společník" />
+<meta property="og:description" content="Sleduj filmy a seriály, spravuj seznamy, playlisty a stáhni aplikaci pro Windows nebo macOS." />
 <meta property="og:type" content="website" />
-<style>
-  :root{
-    --bg-base:#0A0A12;
-    --bg-surface:#14141F;
-    --bg-raised:#1C1C2A;
-    --stroke:rgba(255,255,255,.08);
-    --stroke-strong:rgba(255,255,255,.14);
-    --text-primary:#FFFFFF;
-    --text-secondary:#A0A0B2;
-    --text-tertiary:#6C6C7E;
-    --violet-light:#A78BFA;
-    --violet:#8B5CF6;
-    --fuchsia:#C026D3;
-    --pink:#EC4899;
-    --success:#34D399;
-    --grad-brand:linear-gradient(135deg,#A78BFA 0%,#8B5CF6 50%,#EC4899 100%);
-    --maxw:1120px;
-    --radius:24px;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  [hidden]{display:none!important}
-  html{scroll-behavior:smooth}
-  body{
-    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro","Segoe UI",Roboto,system-ui,sans-serif;
-    background:var(--bg-base);
-    color:var(--text-primary);
-    line-height:1.5;
-    -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
-  }
-  a{color:inherit;text-decoration:none}
-  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
-  .grad-text{
-    background:var(--grad-brand);
-    -webkit-background-clip:text;background-clip:text;
-    -webkit-text-fill-color:transparent;color:transparent;
-  }
-
-  /* scroll reveal */
-  .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
-  .reveal.in{opacity:1;transform:none}
-
-  /* Ambient cinematic glow */
-  .glow{position:fixed;border-radius:50%;filter:blur(120px);z-index:0;pointer-events:none;opacity:.5}
-  .glow-1{top:-200px;left:-120px;width:560px;height:560px;background:radial-gradient(circle,#7C3AED,transparent 70%)}
-  .glow-2{top:420px;right:-180px;width:520px;height:520px;background:radial-gradient(circle,#EC4899,transparent 70%);opacity:.3}
-  .glow-3{top:1500px;left:-160px;width:480px;height:480px;background:radial-gradient(circle,#7C3AED,transparent 70%);opacity:.22}
-
-  /* ---------- NAV ---------- */
-  header{position:sticky;top:0;z-index:50;backdrop-filter:blur(18px);background:rgba(10,10,18,.72);border-bottom:1px solid var(--stroke)}
-  nav{display:flex;align-items:center;justify-content:space-between;height:64px}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:22px;letter-spacing:-.5px}
-  .brand svg{height:30px;width:auto;display:block}
-  .nav-links{display:flex;align-items:center;gap:30px}
-  .nav-links a{color:var(--text-secondary);font-size:15px;font-weight:500;transition:color .2s}
-  .nav-links a:hover{color:var(--text-primary)}
-  .lang-switch{display:inline-flex;border:1px solid var(--stroke-strong);border-radius:999px;overflow:hidden}
-  .lang-switch a{padding:6px 12px;font-size:13px;font-weight:700;color:var(--text-secondary)}
-  .lang-switch a.active{background:var(--grad-brand);color:#fff}
-  .btn{
-    display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:15px;
-    padding:11px 22px;border-radius:999px;border:1px solid transparent;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s;white-space:nowrap;
-  }
-  .btn-primary{background:#fff;color:#0A0A12}
-  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(255,255,255,.18)}
-  .btn-ghost{background:rgba(255,255,255,.06);color:#fff;border-color:var(--stroke)}
-  .btn-ghost:hover{background:rgba(255,255,255,.12)}
-  .btn-grad{background:var(--grad-brand);color:#fff}
-  .btn-grad:hover{transform:translateY(-1px);box-shadow:0 10px 32px rgba(139,92,246,.45)}
-  @media(max-width:780px){.nav-links a:not(.btn){display:none}}
-
-  /* ---------- HERO ---------- */
-  .hero{position:relative;z-index:1;padding:96px 0 56px;text-align:center}
-  .pill{
-    display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--violet-light);
-    background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);padding:6px 14px;border-radius:999px;margin-bottom:28px;
-  }
-  .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 10px var(--success)}
-  .hero h1{font-size:clamp(40px,6.5vw,72px);font-weight:900;letter-spacing:-2px;line-height:1.04;margin-bottom:22px}
-  .hero p.lead{max-width:620px;margin:0 auto 36px;font-size:clamp(17px,2.4vw,20px);color:var(--text-secondary)}
-  .hero-cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-  .hero-note{margin-top:18px;font-size:13px;color:var(--text-tertiary)}
-
-  /* device mock */
-  .mock{position:relative;margin:64px auto 0;max-width:960px;z-index:1}
-  .mock-frame{
-    border-radius:20px;border:1px solid var(--stroke);overflow:hidden;
-    background:linear-gradient(180deg,#14141F,#0A0A12);
-    box-shadow:0 40px 120px -30px rgba(124,58,237,.45),0 0 0 1px rgba(255,255,255,.03);
-  }
-  .mock-bar{display:flex;align-items:center;gap:7px;padding:14px 16px;border-bottom:1px solid var(--stroke)}
-  .mock-bar i{width:11px;height:11px;border-radius:50%;background:#2a2a3a;display:inline-block}
-  .mock-bar i:nth-child(1){background:#ff5f57}.mock-bar i:nth-child(2){background:#febc2e}.mock-bar i:nth-child(3){background:#28c840}
-  .mock-body{padding:28px;display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
-  .poster{aspect-ratio:2/3;border-radius:12px;border:1px solid var(--stroke);background:var(--bg-raised);position:relative;overflow:hidden}
-  .poster::after{content:"";position:absolute;inset:0;background:var(--grad-brand);opacity:.14}
-  .poster:nth-child(2n)::after{opacity:.22}
-  .poster:nth-child(3n)::after{background:linear-gradient(135deg,#3B82F6,#14B8A6);opacity:.18}
-  .mock-row-title{grid-column:1/-1;font-size:14px;font-weight:700;color:var(--text-secondary);margin:6px 0 -4px;text-align:left}
-  @media(max-width:680px){.mock-body{grid-template-columns:repeat(3,1fr)}}
-
-  /* ---------- STATS ---------- */
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:8px}
-  @media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
-  .stat{text-align:center;padding:26px 16px;background:var(--bg-surface);border:1px solid var(--stroke);border-radius:16px}
-  .stat .num{font-size:34px;font-weight:900;letter-spacing:-1px;line-height:1}
-  .stat .lbl{margin-top:8px;font-size:14px;color:var(--text-secondary)}
-
-  /* ---------- SECTION ---------- */
-  section{position:relative;z-index:1;padding:84px 0}
-  .sec-head{text-align:center;max-width:660px;margin:0 auto 56px}
-  .sec-head .kicker{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--violet-light);margin-bottom:14px}
-  .sec-head h2{font-size:clamp(30px,4.5vw,44px);font-weight:900;letter-spacing:-1px;margin-bottom:14px}
-  .sec-head p{color:var(--text-secondary);font-size:17px}
-
-  /* features */
-  .features{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-  @media(max-width:880px){.features{grid-template-columns:repeat(2,1fr)}}
-  @media(max-width:560px){.features{grid-template-columns:1fr}}
-  .card{
-    background:var(--bg-surface);border:1px solid var(--stroke);border-radius:16px;padding:28px;
-    transition:transform .25s,border-color .25s,background .25s;
-  }
-  .card:hover{transform:translateY(-4px);border-color:rgba(139,92,246,.4);background:var(--bg-raised)}
-  .card .ico{
-    width:48px;height:48px;border-radius:13px;display:flex;align-items:center;justify-content:center;
-    background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.28);margin-bottom:18px;
-  }
-  .card .ico svg{width:24px;height:24px;stroke:var(--violet-light);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  .card h3{font-size:18px;font-weight:700;margin-bottom:9px}
-  .card p{color:var(--text-secondary);font-size:15px}
-
-  /* steps */
-  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-  @media(max-width:760px){.steps{grid-template-columns:1fr}}
-  .step{position:relative;background:var(--bg-surface);border:1px solid var(--stroke);border-radius:16px;padding:30px 28px}
-  .step .n{font-size:54px;font-weight:900;line-height:.8;letter-spacing:-2px;margin-bottom:18px;display:inline-block}
-  .step h3{font-size:18px;font-weight:700;margin-bottom:9px}
-  .step p{color:var(--text-secondary);font-size:15px}
-
-  /* showcase split */
-  .split{display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center}
-  @media(max-width:880px){.split{grid-template-columns:1fr;gap:36px}}
-  .split h2{font-size:clamp(28px,4vw,38px);font-weight:900;letter-spacing:-1px;margin-bottom:18px}
-  .split .kicker{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--violet-light);margin-bottom:14px}
-  .checklist{list-style:none;margin-top:22px;display:grid;gap:14px}
-  .checklist li{display:flex;gap:12px;align-items:flex-start;color:var(--text-secondary);font-size:16px}
-  .checklist .ck{flex:0 0 22px;width:22px;height:22px;border-radius:7px;background:rgba(52,211,153,.14);border:1px solid rgba(52,211,153,.35);display:flex;align-items:center;justify-content:center;margin-top:2px}
-  .checklist .ck svg{width:13px;height:13px;stroke:var(--success);fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
-  .checklist strong{color:#fff;font-weight:600}
-
-  /* phone mock for split */
-  .phone{justify-self:center;width:280px;max-width:100%;border-radius:34px;border:1px solid var(--stroke-strong);background:linear-gradient(180deg,#14141F,#0A0A12);padding:12px;box-shadow:0 40px 100px -30px rgba(124,58,237,.5)}
-  .phone .scr{border-radius:24px;overflow:hidden;border:1px solid var(--stroke);background:var(--bg-base)}
-  .phone .hero-img{height:150px;background:linear-gradient(135deg,#8B5CF6,#EC4899);position:relative}
-  .phone .hero-img::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(10,10,18,.9))}
-  .phone .hero-img .b{position:absolute;left:14px;bottom:14px;z-index:2}
-  .phone .hero-img .t{display:block;font-weight:800;font-size:17px}
-  .phone .hero-img .s{display:block;font-size:11px;color:rgba(255,255,255,.8);margin-top:2px}
-  .phone .pgrid{padding:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-  .phone .pp{aspect-ratio:2/3;border-radius:9px;background:var(--bg-raised);position:relative;overflow:hidden}
-  .phone .pp::after{content:"";position:absolute;inset:0;background:var(--grad-brand);opacity:.16}
-  .phone .pp:nth-child(3n)::after{background:linear-gradient(135deg,#3B82F6,#14B8A6);opacity:.18}
-  .phone .rowlbl{font-size:12px;font-weight:700;color:var(--text-secondary);padding:2px 14px}
-
-  /* real screenshots */
-  .shot-frame{border-radius:14px;overflow:hidden;border:1px solid var(--stroke-strong);line-height:0;
-    box-shadow:0 40px 120px -30px rgba(124,58,237,.5),0 0 0 1px rgba(255,255,255,.03)}
-  .shot-frame img{width:100%;height:auto;display:block}
-  .phone-bezel{justify-self:center;width:270px;max-width:78vw;border-radius:42px;padding:9px;
-    background:linear-gradient(160deg,#26263400,#1b1b26);border:1px solid var(--stroke-strong);line-height:0;
-    box-shadow:0 40px 100px -28px rgba(124,58,237,.55)}
-  .phone-bezel img{width:100%;height:auto;display:block;border-radius:34px}
-  /* gallery */
-  .gallery{display:grid;grid-template-columns:1.55fr .8fr;gap:36px;align-items:center}
-  @media(max-width:880px){.gallery{grid-template-columns:1fr;gap:30px;justify-items:center}}
-
-  /* platforms */
-  .platforms{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-  @media(max-width:880px){.platforms{grid-template-columns:1fr}}
-  .plat{
-    background:linear-gradient(180deg,var(--bg-surface),var(--bg-base));
-    border:1px solid var(--stroke);border-radius:20px;padding:32px;text-align:center;transition:transform .25s,border-color .25s;
-  }
-  .plat:hover{transform:translateY(-4px);border-color:var(--stroke-strong)}
-  .plat .pico{width:56px;height:56px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center}
-  .plat .pico svg{width:44px;height:44px;fill:#fff}
-  .plat h3{font-size:20px;font-weight:800;margin-bottom:8px}
-  .plat .devs{color:var(--text-secondary);font-size:15px;margin-bottom:18px;min-height:44px}
-  .plat .badge{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--success);background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);padding:6px 13px;border-radius:999px}
-  .plat .badge .dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
-
-  /* downloads */
-  .download-shell{
-    background:linear-gradient(180deg,var(--bg-surface),rgba(20,20,31,.72));
-    border:1px solid var(--stroke-strong);
-    border-radius:24px;
-    overflow:hidden;
-    box-shadow:0 40px 120px -45px rgba(124,58,237,.45);
-  }
-  .download-top{
-    display:grid;
-    grid-template-columns:1fr 1.05fr;
-    gap:28px;
-    padding:34px;
-    border-bottom:1px solid var(--stroke);
-  }
-  @media(max-width:860px){.download-top{grid-template-columns:1fr;padding:26px}}
-  .download-copy h3{font-size:24px;font-weight:850;letter-spacing:-.4px;margin-bottom:10px}
-  .download-copy p{color:var(--text-secondary);font-size:15px;max-width:420px}
-  .auth-form{display:grid;gap:12px}
-  .auth-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  @media(max-width:620px){.auth-grid{grid-template-columns:1fr}}
-  .field{display:grid;gap:7px;color:var(--text-secondary);font-size:13px;font-weight:700}
-  .field input{
-    width:100%;
-    border:1px solid var(--stroke);
-    background:rgba(255,255,255,.06);
-    color:#fff;
-    border-radius:12px;
-    padding:13px 14px;
-    font:inherit;
-    outline:none;
-  }
-  .field input:focus{border-color:rgba(167,139,250,.8);box-shadow:0 0 0 4px rgba(139,92,246,.18)}
-  .auth-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:2px}
-  .auth-actions .btn{border:0}
-  .account-panel{
-    background:rgba(255,255,255,.05);
-    border:1px solid var(--stroke);
-    border-radius:16px;
-    padding:18px;
-  }
-  .account-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-  .account-name{font-size:20px;font-weight:800;letter-spacing:-.2px}
-  .account-meta{color:var(--text-secondary);font-size:14px;margin-top:2px}
-  .account-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-  .mini-badge{
-    display:inline-flex;align-items:center;gap:6px;
-    border:1px solid var(--stroke);
-    background:rgba(255,255,255,.06);
-    color:#fff;
-    border-radius:999px;
-    padding:6px 10px;
-    font-size:12px;
-    font-weight:800;
-    text-transform:uppercase;
-    letter-spacing:.4px;
-  }
-  .mini-badge.good{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.32);color:#9CF5C9}
-  .mini-badge.warn{background:rgba(236,72,153,.12);border-color:rgba(236,72,153,.35);color:#FFB7DF}
-  .download-status{
-    margin:24px 34px 0;
-    border:1px solid var(--stroke);
-    background:rgba(255,255,255,.05);
-    color:var(--text-secondary);
-    border-radius:14px;
-    padding:14px 16px;
-    font-size:14px;
-  }
-  @media(max-width:860px){.download-status{margin:20px 26px 0}}
-  .download-status.ok{border-color:rgba(52,211,153,.34);background:rgba(52,211,153,.1);color:#B8F7D7}
-  .download-status.error{border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.1);color:#FFC1C1}
-  .download-locked{padding:34px;color:var(--text-secondary)}
-  @media(max-width:860px){.download-locked{padding:26px}}
-  .download-locked strong{display:block;color:#fff;font-size:18px;margin-bottom:6px}
-  .download-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:34px}
-  @media(max-width:760px){.download-grid{grid-template-columns:1fr;padding:26px}}
-  .download-card{
-    background:rgba(10,10,18,.72);
-    border:1px solid var(--stroke);
-    border-radius:18px;
-    padding:20px;
-    display:grid;
-    gap:16px;
-  }
-  .download-card.missing{opacity:.68}
-  .download-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
-  .download-card h3{font-size:20px;font-weight:850;letter-spacing:-.3px}
-  .download-card p{color:var(--text-secondary);font-size:14px;margin-top:4px}
-  .download-card .platform-tag{
-    flex:0 0 auto;
-    font-size:12px;
-    color:var(--violet-light);
-    border:1px solid rgba(167,139,250,.35);
-    background:rgba(139,92,246,.12);
-    border-radius:999px;
-    padding:5px 10px;
-    font-weight:800;
-  }
-  .download-facts{display:flex;gap:8px;flex-wrap:wrap}
-  .download-facts span{
-    color:#fff;
-    background:rgba(255,255,255,.06);
-    border:1px solid var(--stroke);
-    border-radius:999px;
-    padding:6px 10px;
-    font-size:12px;
-    font-weight:700;
-  }
-  .download-card .btn{justify-content:center}
-  .download-card .btn[disabled]{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
-
-  /* FAQ */
-  .faq{max-width:760px;margin:0 auto;display:grid;gap:12px}
-  details{background:var(--bg-surface);border:1px solid var(--stroke);border-radius:14px;padding:4px 22px;transition:border-color .2s}
-  details[open]{border-color:rgba(139,92,246,.35)}
-  summary{cursor:pointer;list-style:none;padding:18px 0;font-weight:600;font-size:17px;display:flex;justify-content:space-between;align-items:center;gap:16px}
-  summary::-webkit-details-marker{display:none}
-  summary .chev{flex:0 0 auto;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--violet-light);transition:transform .25s;font-size:18px}
-  details[open] summary .chev{transform:rotate(45deg)}
-  details p{color:var(--text-secondary);font-size:15px;padding:0 0 20px;margin:0}
-
-  /* about / cta band */
-  .band{background:linear-gradient(135deg,rgba(139,92,246,.14),rgba(236,72,153,.1));border:1px solid var(--stroke);border-radius:var(--radius);padding:60px 40px;text-align:center;position:relative;overflow:hidden}
-  .band::before{content:"";position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:500px;height:300px;background:radial-gradient(circle,rgba(139,92,246,.4),transparent 70%);filter:blur(40px)}
-  .band > *{position:relative;z-index:1}
-  .band h2{font-size:clamp(28px,4vw,42px);font-weight:900;letter-spacing:-1px;margin-bottom:16px}
-  .band p{color:var(--text-secondary);max-width:560px;margin:0 auto 30px;font-size:17px}
-
-  /* footer */
-  footer{border-top:1px solid var(--stroke);padding:56px 0 40px;position:relative;z-index:1}
-  .foot-top{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:32px;margin-bottom:40px}
-  @media(max-width:680px){.foot-top{grid-template-columns:1fr;gap:28px}}
-  .foot-col h4{font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:16px}
-  .foot-col a{display:block;color:var(--text-secondary);font-size:15px;margin-bottom:10px;transition:color .2s}
-  .foot-col a:hover{color:#fff}
-  .foot-brand .brand{font-size:20px;margin-bottom:14px}
-  .foot-brand .brand svg{height:26px}
-  .foot-brand p{color:var(--text-secondary);font-size:15px;max-width:300px}
-  .foot-bottom{border-top:1px solid var(--stroke);padding-top:24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
-  .foot-bottom p{color:var(--text-tertiary);font-size:13px}
-  .foot-bottom .legal a{color:var(--text-secondary);font-size:13px;margin-left:18px}
-  .foot-bottom .legal a:hover{color:#fff}
-</style>
+<script src="./support.js"></script>
+<script>
+  (() => {
+    const runtimeReady = () => Boolean(document.querySelector('#dc-root .sc-host'));
+    const removeRuntimeNotice = () => document.getElementById('mvRuntimeNotice')?.remove();
+    const showRuntimeNotice = (failed = false) => {
+      if (!document.body || runtimeReady()) return;
+      let notice = document.getElementById('mvRuntimeNotice');
+      if (!notice) {
+        notice = document.createElement('div');
+        notice.id = 'mvRuntimeNotice';
+        notice.style.cssText = 'position:relative;z-index:1000;margin:24px auto;padding:16px 20px;max-width:760px;border-radius:14px;background:#14141F;border:1px solid rgba(255,255,255,.14);color:#fff;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;';
+        document.body.prepend(notice);
+      }
+      notice.setAttribute('role', failed ? 'alert' : 'status');
+      notice.setAttribute('aria-live', failed ? 'assertive' : 'polite');
+      notice.textContent = failed
+        ? 'Interaktivní část stránky se nepodařila načíst. Obnov stránku; pokud problém trvá, kontaktuj podporu.'
+        : 'Načítám interaktivní část stránky…';
+    };
+    const reportRuntimeFailure = () => showRuntimeNotice(true);
+    window.addEventListener('error', event => {
+      const source = event.target?.src || '';
+      if (source.includes('support.js') || source.includes('unpkg.com/react')) reportRuntimeFailure();
+    }, true);
+    window.addEventListener('unhandledrejection', event => {
+      const message = String(event.reason?.message || event.reason || '');
+      if (message.includes('failed to load') || message.includes('dc-runtime')) reportRuntimeFailure();
+    });
+    document.addEventListener('DOMContentLoaded', () => {
+      if (runtimeReady()) return;
+      showRuntimeNotice(false);
+      const observer = new MutationObserver(() => {
+        if (!runtimeReady()) return;
+        observer.disconnect();
+        removeRuntimeNotice();
+      });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+      window.setTimeout(() => {
+        if (!runtimeReady()) reportRuntimeFailure();
+      }, 10000);
+    });
+  })();
+</script>
 </head>
 <body>
-<div class="glow glow-1"></div>
-<div class="glow glow-2"></div>
-<div class="glow glow-3"></div>
+<x-dc>
+<helmet>
+<style>
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  html,body{margin:0;padding:0;}
+  body{background:#0A0A12;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;color:#fff;}
+  a{color:inherit;text-decoration:none;}
+  ::-webkit-scrollbar{width:11px;}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px;}
+  ::-webkit-scrollbar-track{background:#0A0A12;}
+  @keyframes mvFloat{0%,100%{transform:translateY(0) rotate(-.4deg);}50%{transform:translateY(-16px) rotate(.4deg);}}
+  @keyframes mvFloat2{0%,100%{transform:translateY(0);}50%{transform:translateY(-12px);}}
+  @keyframes mvShimmer{0%{background-position:0% 50%;}100%{background-position:200% 50%;}}
+  @keyframes mvDrift{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(40px,26px) scale(1.12);}}
+  @keyframes mvDrift2{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-34px,22px) scale(1.14);}}
+  @keyframes mvAurora{0%{transform:rotate(0deg) scale(1.4);}100%{transform:rotate(360deg) scale(1.4);}}
+  @keyframes mvPulse{0%,100%{box-shadow:0 10px 34px rgba(139,92,246,.4);}50%{box-shadow:0 12px 54px rgba(236,72,153,.6);}}
+  @keyframes mvUpDown{0%,100%{transform:translateY(0);}50%{transform:translateY(6px);}}
+  @keyframes mvMarqueeL{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+  @keyframes mvMarqueeR{0%{transform:translateX(-50%);}100%{transform:translateX(0);}}
+  @keyframes mvBlink{0%,45%{opacity:1;}50%,95%{opacity:.25;}100%{opacity:1;}}
+  @media(max-width:900px){
+    #mvDownloadGrid,
+    #mvLandingRoot .mv-three-column{grid-template-columns:1fr!important;}
+    #mvLandingRoot nav{display:none!important;}
+  }
+  @media(max-width:600px){
+    #mvLandingRoot .mv-mobile-fluid{min-width:0!important;width:100%!important;max-width:100%!important;flex-basis:100%!important;}
+    #mvLandingRoot .mv-mobile-frame{width:min(284px,100%)!important;height:auto!important;aspect-ratio:284/578;}
+    #mvLandingRoot .mv-download-panel{padding:36px 20px!important;}
+    #mvLandingRoot h1{font-size:clamp(40px,13vw,54px)!important;letter-spacing:-1.4px!important;}
+    #mvPlatformsLabel{display:none!important;}
+    #mvNav>div{padding-left:18px!important;padding-right:18px!important;gap:12px!important;}
+  }
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto;}
+    #mvLandingRoot *,#mvLandingRoot *::before,#mvLandingRoot *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}
+  }
+  @property --mvA{syntax:'<angle>';initial-value:0deg;inherits:false;}
+  @keyframes mvBorderSpin{to{--mvA:360deg;}}
+</style>
+</helmet>
+<div id="mvLandingRoot" style="width:100%;overflow-x:hidden;background:#0A0A12;position:relative;">
 
-<header>
-  <nav class="wrap">
-    <a class="brand" href="#top">
-      <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs><linearGradient id="bm" x1="300" y1="280" x2="724" y2="744" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stop-color="#A78BFA"/><stop offset="0.5" stop-color="#8B5CF6"/><stop offset="1" stop-color="#EC4899"/>
-        </linearGradient></defs>
-        <path d="M 304 752 L 304 300 L 512 540 L 720 300 L 720 752" fill="none" stroke="url(#bm)" stroke-width="132" stroke-linejoin="round" stroke-linecap="round"/>
-      </svg>
-      <span>Movly</span>
-    </a>
-    <div class="nav-links">
-      <a href="#funkce">Funkce</a>
-      <a href="#jak-to-funguje">Jak to funguje</a>
-      <a href="#platformy">Platformy</a>
-      <a href="#stahnout">Stáhnout</a>
-      <a href="#nahledy">Náhledy</a>
-      <a href="#faq">FAQ</a>
-      <span class="lang-switch"><a class="active" href="index.html">CS</a><a href="en/index.html">EN</a></span>
-      <a class="btn btn-grad" href="#stahnout">Instalačky</a>
-    </div>
-  </nav>
-</header>
+  <!-- scroll progress -->
+  <div id="mvProgress" style="position:fixed;top:0;left:0;height:3px;width:0%;z-index:60;background:linear-gradient(90deg,#8B5CF6,#EC4899);box-shadow:0 0 12px rgba(236,72,153,.6);"></div>
 
-<a id="top"></a>
-<main>
-  <!-- HERO -->
-  <section class="hero wrap">
-    <span class="pill reveal"><span class="dot"></span> Apple · Android · Windows</span>
-    <h1 class="reveal">Tvůj filmový a seriálový<br><span class="grad-text">společník</span></h1>
-    <p class="lead reveal">Movly drží tvůj filmový život pohromadě. Sleduj, co chceš vidět, spravuj seznamy, skládej playlisty, pouštěj trailery a měj přehled, kde se dá co sledovat — vše v jedné prémiové tmavé aplikaci, na všech tvých zařízeních.</p>
-    <div class="hero-cta reveal">
-      <a class="btn btn-primary" href="#stahnout">Stáhnout aplikaci</a>
-      <a class="btn btn-ghost" href="#funkce">Co Movly umí ▾</a>
-    </div>
-    <p class="hero-note reveal">Aktuální buildy pro Windows a macOS najdeš po přihlášení.</p>
-
-    <!-- real screenshot: macOS home -->
-    <div class="mock reveal">
-      <div class="shot-frame">
-        <img src="assets/shots/mac-home.png" alt="Movly na Macu — domovská obrazovka s hero bannerem, kolekcemi a Top 10" loading="lazy" />
-      </div>
-    </div>
-  </section>
-
-  <!-- STATS -->
-  <section style="padding-top:24px">
-    <div class="wrap">
-      <div class="stats">
-        <div class="stat reveal"><div class="num grad-text">3</div><div class="lbl">platformy, jeden účet</div></div>
-        <div class="stat reveal"><div class="num grad-text">7</div><div class="lbl">typů zařízení</div></div>
-        <div class="stat reveal"><div class="num grad-text">∞</div><div class="lbl">seznamů a playlistů</div></div>
-        <div class="stat reveal"><div class="num grad-text">100&nbsp;%</div><div class="lbl">tmavý cinematický design</div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FEATURES -->
-  <section id="funkce">
-    <div class="wrap">
-      <div class="sec-head reveal">
-        <div class="kicker">Funkce</div>
-        <h2>Vše pro tvůj přehled na jednom místě</h2>
-        <p>Žádný chaos v záložkách a poznámkách. Movly ti dá pořádek v tom, co jsi viděl, co chceš vidět a kdy to vyjde.</p>
-      </div>
-      <div class="features">
-        <div class="card reveal">
-          <div class="ico"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></div>
-          <h3>Sledování filmů a seriálů</h3>
-          <p>Označ, co máš za sebou, a sleduj svůj postup epizodu po epizodě napříč seriály.</p>
-        </div>
-        <div class="card reveal">
-          <div class="ico"><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/><circle cx="19" cy="17" r="2.4"/></svg></div>
-          <h3>Seznamy a playlisty</h3>
-          <p>Skládej vlastní seznamy a tématické playlisty — „Na víkend", „Sci-fi klasika", cokoli tě napadne.</p>
-        </div>
-        <div class="card reveal">
-          <div class="ico"><svg viewBox="0 0 24 24"><polygon points="10 8 16 12 10 16 10 8"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg></div>
-          <h3>Trailery na dotek</h3>
-          <p>Pusť si oficiální upoutávky přímo v aplikaci, ať víš, do čeho jdeš, ještě než přidáš do seznamu.</p>
-        </div>
-        <div class="card reveal">
-          <div class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div>
-          <h3>Kde to sledovat</h3>
-          <p>Přehledně ti ukáže dostupnost titulu, ať se snadno zorientuješ a najdeš, kam zamířit dál.</p>
-        </div>
-        <div class="card reveal">
-          <div class="ico"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
-          <h3>Upozornění na novinky</h3>
-          <p>Měj přehled o premiérách a nových epizodách u titulů, které sleduješ.</p>
-        </div>
-        <div class="card reveal">
-          <div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
-          <h3>Profily pro celou rodinu</h3>
-          <p>Každý má vlastní profil se svými seznamy a postupem. „Kdo se dívá?" jako doma na gauči.</p>
-        </div>
-        <div class="card reveal">
-          <div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/><path d="m10 9 4 2-4 2z"/></svg></div>
-          <h3>Objevuj podle nálady</h3>
-          <p>Procházej žánry a kurátorské řady, ať vždy najdeš to pravé na dnešní večer.</p>
-        </div>
-        <div class="card reveal">
-          <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg></div>
-          <h3>Bohatá metadata</h3>
-          <p>Obsazení, hodnocení, délka, rok a synopse u každého titulu — vše přehledně pohromadě.</p>
-        </div>
-        <div class="card reveal">
-          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18" opacity="0"/><path d="M21 12a9 9 0 1 1-9-9"/><path d="M16 3h5v5"/><path d="M21 3l-9 9"/></svg></div>
-          <h3>Synchronizace všude</h3>
-          <p>Jeden účet, všechna zařízení. Co přidáš na telefonu, máš na televizi i na počítači.</p>
-        </div>
-        <div class="card reveal">
-          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-          <h3>Soukromí na prvním místě</h3>
-          <p>Sbíráme jen to nutné, data neprodáváme a kdykoli můžeš požádat o jejich smazání.</p>
-        </div>
+  <!-- ============ NAV ============ -->
+  <header id="mvNav" style="position:sticky;top:0;z-index:50;background:rgba(10,10,18,.72);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.07);transition:box-shadow .3s,background .3s;">
+    <div style="max-width:1200px;margin:0 auto;padding:15px 28px;display:flex;align-items:center;gap:28px;">
+      <a href="#top" style="font-size:23px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(120deg,#8B5CF6,#EC4899,#8B5CF6);background-size:200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:mvShimmer 5s linear infinite;">Movly</a>
+      <nav style="display:flex;gap:26px;margin-left:14px;font-size:14px;font-weight:500;color:#A0A0B2;">
+        <a href="#funkce" style="transition:color .15s;" style-hover="color:#fff;">Funkce</a>
+        <a href="#jak" style="transition:color .15s;" style-hover="color:#fff;">Jak to funguje</a>
+        <a href="#platformy" style="transition:color .15s;" style-hover="color:#fff;">Platformy</a>
+        <a href="#nahledy" style="transition:color .15s;" style-hover="color:#fff;">Náhledy</a>
+        <a href="/devices" style="transition:color .15s;" style-hover="color:#fff;">Zařízení</a>
+        <a href="#faq" style="transition:color .15s;" style-hover="color:#fff;">FAQ</a>
+      </nav>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:18px;">
+        <span id="mvPlatformsLabel" style="font-size:12px;font-weight:600;color:#6C6C7E;letter-spacing:.2px;">Apple · Android · Windows</span>
+        <a href="#stahnout" style="font-size:14px;font-weight:700;padding:9px 18px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);box-shadow:0 6px 22px rgba(139,92,246,.3);transition:transform .15s;" style-hover="transform:translateY(-1px);">Stáhnout</a>
       </div>
     </div>
-  </section>
+  </header>
 
-  <!-- HOW IT WORKS -->
-  <section id="jak-to-funguje">
-    <div class="wrap">
-      <div class="sec-head reveal">
-        <div class="kicker">Jak to funguje</div>
-        <h2>Začneš za pár vteřin</h2>
-        <p>Bez složitého nastavování. Tři kroky a Movly je tvoje.</p>
-      </div>
-      <div class="steps">
-        <div class="step reveal">
-          <span class="n grad-text">1</span>
-          <h3>Založ si účet</h3>
-          <p>Rychlá registrace a vytvoření profilů pro celou domácnost — každý si hlídá to svoje.</p>
-        </div>
-        <div class="step reveal">
-          <span class="n grad-text">2</span>
-          <h3>Přidávej a třiď</h3>
-          <p>Najdi tituly, přidej je do seznamů a playlistů a pusť si trailer, ať víš, do čeho jdeš.</p>
-        </div>
-        <div class="step reveal">
-          <span class="n grad-text">3</span>
-          <h3>Měj přehled</h3>
-          <p>Sleduj svůj postup, dostávej upozornění na novinky a měj svá data na všech zařízeních.</p>
-        </div>
-      </div>
-    </div>
-  </section>
+  <!-- ============ HERO ============ -->
+  <section id="top" style="position:relative;padding:90px 28px 40px;overflow:hidden;">
+    <!-- aurora mesh -->
+    <div style="position:absolute;top:-40%;left:50%;margin-left:-700px;width:1400px;height:1100px;pointer-events:none;opacity:.6;background:conic-gradient(from 0deg at 50% 50%, rgba(139,92,246,.0), rgba(139,92,246,.35), rgba(236,72,153,.3), rgba(59,130,246,.25), rgba(139,92,246,.0));filter:blur(60px);animation:mvAurora 28s linear infinite;"></div>
+    <div data-parallax="0.16" style="position:absolute;top:-160px;left:46%;margin-left:-550px;width:1100px;height:700px;background:radial-gradient(50% 50% at 50% 50%, rgba(139,92,246,.32), transparent 70%);pointer-events:none;animation:mvDrift 16s ease-in-out infinite;"></div>
+    <div data-parallax="0.09" style="position:absolute;top:-60px;right:4%;width:620px;height:540px;background:radial-gradient(50% 50% at 60% 40%, rgba(236,72,153,.26), transparent 70%);pointer-events:none;animation:mvDrift2 19s ease-in-out infinite;"></div>
+    <!-- cursor spotlight -->
+    <div id="mvSpot" style="position:absolute;left:50%;top:30%;width:520px;height:520px;margin-left:-260px;margin-top:-260px;border-radius:50%;background:radial-gradient(50% 50% at 50% 50%, rgba(167,139,250,.18), transparent 70%);pointer-events:none;opacity:0;transition:opacity .4s;mix-blend-mode:screen;"></div>
 
-  <!-- SHOWCASE SPLIT -->
-  <section>
-    <div class="wrap split">
-      <div class="reveal">
-        <div class="kicker">Pořádek v sledování</div>
-        <h2>Konečně víš, <span class="grad-text">u čeho jsi skončil</span></h2>
-        <p style="color:var(--text-secondary);font-size:17px">Movly si pamatuje tvůj postup napříč seriály i filmy. Žádné dohledávání, kterou epizodu sis pustil naposledy.</p>
-        <ul class="checklist">
-          <li><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-11"/></svg></span><span><strong>Pokračovat ve sledování</strong> — řada s přesně tím, kde jsi přestal.</span></li>
-          <li><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-11"/></svg></span><span><strong>Postup po epizodách</strong> — přehled o každém seriálu, sezoně i epizodě.</span></li>
-          <li><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-11"/></svg></span><span><strong>Vlastní playlisty</strong> — vytvoř si je na míru a sdílej je v rámci profilů.</span></li>
-          <li><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-11"/></svg></span><span><strong>Synchronizace</strong> — vše tě následuje z telefonu na televizi i počítač.</span></li>
-        </ul>
-      </div>
-      <div class="phone-bezel reveal">
-        <img src="assets/shots/ios-home.png" alt="Movly na iPhonu — domovská obrazovka" loading="lazy" />
-      </div>
-    </div>
-  </section>
-
-  <!-- PLATFORMS -->
-  <section id="platformy">
-    <div class="wrap">
-      <div class="sec-head reveal">
-        <div class="kicker">Platformy</div>
-        <h2>Nativní na každém zařízení</h2>
-        <p>Stejný design, stejná data — vyladěné pro ovládání každé platformy. Tvé seznamy tě následují všude.</p>
-      </div>
-      <div class="platforms">
-        <div class="plat reveal">
-          <div class="pico"><svg viewBox="0 0 24 24"><path d="M16.4 12.7c0-2 1.6-3 1.7-3a3.7 3.7 0 0 0-2.9-1.6c-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7A4 4 0 0 0 6.2 10c-1.5 2.6-.4 6.4 1 8.5.7 1 1.5 2.2 2.6 2.1 1-.04 1.4-.7 2.7-.7s1.6.7 2.6.6c1.1 0 1.8-1 2.5-2a8.5 8.5 0 0 0 1.1-2.3c-.03-.01-2.2-.85-2.2-3.4zM14.3 5.7A3.6 3.6 0 0 0 15.1 3a3.7 3.7 0 0 0-2.4 1.2A3.4 3.4 0 0 0 11.9 7a3 3 0 0 0 2.4-1.3z"/></svg></div>
-          <h3>Apple</h3>
-          <p class="devs">iPhone · iPad · Mac · Apple&nbsp;TV<br>Nativní SwiftUI, sidebar a focus na TV</p>
-          <span class="badge"><span class="dot"></span> UI hotové</span>
+    <div style="position:relative;max-width:1200px;margin:0 auto;display:flex;gap:48px;align-items:center;flex-wrap:wrap;">
+      <div class="mv-mobile-fluid" style="flex:1;min-width:360px;">
+        <div data-reveal style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#C9C9D6;padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);margin-bottom:26px;">
+          <span style="width:7px;height:7px;border-radius:50%;background:#34D399;box-shadow:0 0 10px #34D399;"></span>
+          Apple · Android · Windows
         </div>
-        <div class="plat reveal">
-          <div class="pico"><svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0v8a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zM9.5 6.5 8 4.5M14.5 6.5 16 4.5"/><circle cx="9.3" cy="8.3" r=".4" fill="#fff" stroke="none"/><circle cx="14.7" cy="8.3" r=".4" fill="#fff" stroke="none"/><path d="M4 11v5M20 11v5" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/></svg></div>
-          <h3>Android</h3>
-          <p class="devs">Telefon · Tablet · Android&nbsp;TV<br>Jeden APK, D-pad ovládání na TV</p>
-          <span class="badge"><span class="dot"></span> UI hotové</span>
+        <h1 data-reveal data-delay="60" style="font-size:64px;line-height:1.03;font-weight:800;letter-spacing:-2.2px;margin:0 0 22px;">Tvůj filmový a seriálový <span style="background:linear-gradient(120deg,#8B5CF6,#EC4899,#8B5CF6);background-size:200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:mvShimmer 4s linear infinite;">společník</span></h1>
+        <p data-reveal data-delay="120" style="font-size:18px;line-height:1.6;color:#A0A0B2;max-width:520px;margin:0 0 32px;">Movly drží tvůj filmový život pohromadě. Sleduj, co chceš vidět, spravuj seznamy, skládej playlisty, pouštěj trailery a měj přehled, kde se dá co sledovat — vše v jedné tmavé aplikaci, na všech tvých zařízeních.</p>
+        <div data-reveal data-delay="180" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <a href="#stahnout" style="display:inline-flex;align-items:center;gap:9px;font-size:16px;font-weight:700;padding:15px 28px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);box-shadow:0 8px 26px rgba(139,92,246,.3);transition:transform .2s,box-shadow .2s;" style-hover="transform:translateY(-2px);box-shadow:0 12px 34px rgba(139,92,246,.45);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"></path></svg>
+            Stáhnout aplikaci
+          </a>
+          <a href="#funkce" style="display:inline-flex;align-items:center;gap:7px;font-size:16px;font-weight:600;padding:15px 24px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);transition:background .15s;" style-hover="background:rgba(255,255,255,.12);">Co Movly umí ▾</a>
         </div>
-        <div class="plat reveal">
-          <div class="pico"><svg viewBox="0 0 24 24"><path d="M3 5.5 11 4.3v7.2H3zM12.2 4.1 21 3v8.5h-8.8zM3 12.5h8v7.2L3 18.5zM12.2 12.5H21V21l-8.8-1.2z"/></svg></div>
-          <h3>Windows</h3>
-          <p class="devs">Desktop (WinUI&nbsp;3)<br>Nativní sidebar layout</p>
-          <span class="badge"><span class="dot"></span> UI hotové</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- DOWNLOADS -->
-  <section id="stahnout">
-    <div class="wrap">
-      <div class="sec-head reveal">
-        <div class="kicker">Instalačky</div>
-        <h2>Stáhni Movly pro Windows a macOS</h2>
-        <p>Přihlas se Movly účtem a stáhni si aktuální build pro svoje zařízení.</p>
+        <p data-reveal data-delay="240" style="font-size:13px;color:#6C6C7E;margin:18px 0 0;">Aktuální buildy pro Windows a macOS najdeš v části Stažení.</p>
       </div>
 
-      <div class="download-shell reveal" aria-live="polite">
-        <div class="download-top">
-          <div class="download-copy">
-            <h3>Movly účet</h3>
-            <p>Použij stejný účet jako v aplikaci. Po přihlášení se zobrazí dostupné instalačky.</p>
+      <!-- product shot: real mac-home with 3D tilt -->
+      <div class="mv-mobile-fluid" data-reveal data-delay="160" style="flex:1;min-width:440px;perspective:1300px;">
+        <div data-tilt style="transition:transform .3s ease-out;transform-style:preserve-3d;">
+          <div style="animation:mvFloat 7s ease-in-out infinite;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.12);box-shadow:0 60px 130px rgba(0,0,0,.72),0 0 70px rgba(139,92,246,.22);">
+            <img src="https://movly.sheri.cz/assets/shots/mac-home.png" alt="Movly na Macu — domovská obrazovka" width="1600" height="941" fetchpriority="high" decoding="async" style="display:block;width:100%;height:auto;" />
           </div>
+        </div>
+      </div>
+    </div>
 
-          <form id="download-login-form" class="auth-form">
-            <div class="auth-grid">
-              <label class="field">
-                Uživatelské jméno nebo e-mail
-                <input id="movly-login-user" name="username" autocomplete="username" required />
-              </label>
-              <label class="field">
-                Heslo
-                <input id="movly-login-password" name="password" type="password" autocomplete="current-password" required />
-              </label>
+    <!-- stats -->
+    <div style="max-width:1200px;margin:64px auto 0;display:flex;gap:20px;flex-wrap:wrap;">
+      <div data-reveal style="flex:1;min-width:200px;background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px 28px;transition:border-color .2s,transform .2s;" style-hover="border-color:rgba(139,92,246,.4);transform:translateY(-3px);">
+        <div data-count="3" style="font-size:42px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,#8B5CF6,#EC4899);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">3</div>
+        <div style="font-size:14px;color:#A0A0B2;margin-top:4px;">platformy, jeden účet</div>
+      </div>
+      <div data-reveal data-delay="80" style="flex:1;min-width:200px;background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px 28px;transition:border-color .2s,transform .2s;" style-hover="border-color:rgba(139,92,246,.4);transform:translateY(-3px);">
+        <div data-count="7" style="font-size:42px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,#8B5CF6,#EC4899);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">7</div>
+        <div style="font-size:14px;color:#A0A0B2;margin-top:4px;">typů zařízení</div>
+      </div>
+      <div data-reveal data-delay="160" style="flex:1;min-width:200px;background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px 28px;transition:border-color .2s,transform .2s;" style-hover="border-color:rgba(139,92,246,.4);transform:translateY(-3px);">
+        <div style="font-size:42px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,#8B5CF6,#EC4899);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">∞</div>
+        <div style="font-size:14px;color:#A0A0B2;margin-top:4px;">seznamů a playlistů</div>
+      </div>
+      <div data-reveal data-delay="240" style="flex:1;min-width:200px;background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px 28px;transition:border-color .2s,transform .2s;" style-hover="border-color:rgba(139,92,246,.4);transform:translateY(-3px);">
+        <div data-count="100" data-suffix=" %" style="font-size:42px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,#8B5CF6,#EC4899);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">100 %</div>
+        <div style="font-size:14px;color:#A0A0B2;margin-top:4px;">tmavý cinematický design</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ POSTER WALL ============ -->
+  <section style="padding:70px 0 40px;overflow:hidden;">
+    <div data-reveal style="max-width:1200px;margin:0 auto 34px;padding:0 28px;">
+      <h2 style="font-size:36px;font-weight:800;letter-spacing:-1px;margin:0 0 10px;">Tisíce filmů a seriálů na dosah</h2>
+      <p style="font-size:17px;color:#A0A0B2;margin:0;max-width:560px;">Od čerstvých novinek po kultovní klasiku — vše s bohatými metadaty z TMDB.</p>
+    </div>
+
+    <div style="position:relative;">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:120px;z-index:2;pointer-events:none;background:linear-gradient(90deg,#0A0A12,transparent);"></div>
+      <div style="position:absolute;right:0;top:0;bottom:0;width:120px;z-index:2;pointer-events:none;background:linear-gradient(270deg,#0A0A12,transparent);"></div>
+
+      <!-- ROW 1 -->
+      <div data-marquee style="display:flex;width:max-content;animation:mvMarqueeL 70s linear infinite;margin-bottom:18px;">
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg" alt="Duna: Část druhá" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Duna: Část druhá</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg" alt="Oppenheimer" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Oppenheimer</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/z2yahl2uefxDCl0nogcRBstwruJ.jpg" alt="Dům draka" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Dům draka</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/fqldf2t8ztc9aiwn3k6mlX3tvRT.jpg" alt="Arcane" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Arcane</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg" alt="John Wick 4" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">John Wick 4</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/uKvVjHNqB5VmOrdxqAt2F7J78ED.jpg" alt="The Last of Us" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">The Last of Us</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/9PFonBhy4cQy7Jz20NpMygczOkv.jpg" alt="Wednesday" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Wednesday</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/iuFNMS8U5cb6xfzi51Dbkovj7vM.jpg" alt="Barbie" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Barbie</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg" alt="Inception" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Inception</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg" alt="The Dark Knight" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">The Dark Knight</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/or06FN3Dka5tukK1e9sl16pB3iy.jpg" alt="Avengers: Endgame" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Avengers: Endgame</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg" alt="Spider-Man" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Spider-Man</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/voHUmluYmKyleFkTu3lOXQG702u.jpg" alt="Loki" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Loki</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/eU1i6eHXlzMOlEq0ku1Rzq7Y4wA.jpg" alt="The Mandalorian" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">The Mandalorian</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg" alt="Game of Thrones" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Game of Thrones</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg" alt="Duna: Část druhá" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Duna: Část druhá</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg" alt="Oppenheimer" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Oppenheimer</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/z2yahl2uefxDCl0nogcRBstwruJ.jpg" alt="Dům draka" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Dům draka</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/fqldf2t8ztc9aiwn3k6mlX3tvRT.jpg" alt="Arcane" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Arcane</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg" alt="John Wick 4" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">John Wick 4</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/uKvVjHNqB5VmOrdxqAt2F7J78ED.jpg" alt="The Last of Us" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">The Last of Us</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/9PFonBhy4cQy7Jz20NpMygczOkv.jpg" alt="Wednesday" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Wednesday</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/iuFNMS8U5cb6xfzi51Dbkovj7vM.jpg" alt="Barbie" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Barbie</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg" alt="Inception" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Inception</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg" alt="The Dark Knight" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">The Dark Knight</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/or06FN3Dka5tukK1e9sl16pB3iy.jpg" alt="Avengers: Endgame" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Avengers: Endgame</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg" alt="Spider-Man" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Spider-Man</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/voHUmluYmKyleFkTu3lOXQG702u.jpg" alt="Loki" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Loki</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/eU1i6eHXlzMOlEq0ku1Rzq7Y4wA.jpg" alt="The Mandalorian" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">The Mandalorian</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg" alt="Game of Thrones" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Game of Thrones</div></div></div></div></div>
+      </div>
+
+      <!-- ROW 2 -->
+      <div data-marquee style="display:flex;width:max-content;animation:mvMarqueeR 66s linear infinite;">
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg" alt="Interstellar" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Interstellar</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/kCGlIMHnOm8JPXq3rXM6c5wMxcT.jpg" alt="Chudáčci" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Chudáčci</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg" alt="Batman" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Batman</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg" alt="Blade Runner 2049" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Blade Runner 2049</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/5fhZdwP1DVJ0FyVH6vrFdHwpXIn.jpg" alt="Ted Lasso" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Ted Lasso</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/q54qEgagGOYCq5D1903eBVMNkbo.jpg" alt="Sandman" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Sandman</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/jtnfNzqZwN4E32FGGxx1YZaBWWf.jpg" alt="Euforie" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Euforie</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg" alt="Stranger Things" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Stranger Things</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/2cxhvwyEwRlysAmRH4iodkvo0z5.jpg" alt="Gladiator II" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Gladiator II</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg" alt="Avatar: The Way of Water" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Avatar: The Way of Water</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/jRXYjXNq0Cs2TcJjLkki24MLp7u.jpg" alt="Avatar" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Avatar</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRGt.jpg" alt="Breaking Bad" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Breaking Bad</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/2zmTngn1tYC1AvfnrFLhxeD82hz.jpg" alt="The Boys" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">The Boys</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/lFf6LLrQjYldcZItzOkGmMMigP7.jpg" alt="Severance" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Severance</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg" alt="Interstellar" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Interstellar</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/kCGlIMHnOm8JPXq3rXM6c5wMxcT.jpg" alt="Chudáčci" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Chudáčci</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg" alt="Batman" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Batman</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg" alt="Blade Runner 2049" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Blade Runner 2049</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/5fhZdwP1DVJ0FyVH6vrFdHwpXIn.jpg" alt="Ted Lasso" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Ted Lasso</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/q54qEgagGOYCq5D1903eBVMNkbo.jpg" alt="Sandman" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Sandman</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/jtnfNzqZwN4E32FGGxx1YZaBWWf.jpg" alt="Euforie" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Euforie</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg" alt="Stranger Things" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Stranger Things</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/2cxhvwyEwRlysAmRH4iodkvo0z5.jpg" alt="Gladiator II" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Gladiator II</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg" alt="Avatar: The Way of Water" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Avatar: The Way of Water</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/jRXYjXNq0Cs2TcJjLkki24MLp7u.jpg" alt="Avatar" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Avatar</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRGt.jpg" alt="Breaking Bad" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Breaking Bad</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/2zmTngn1tYC1AvfnrFLhxeD82hz.jpg" alt="The Boys" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">The Boys</div></div></div></div></div>
+        <div style="flex:none;width:152px;margin-right:16px;"><div style="position:relative;width:152px;height:224px;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s;" style-hover="transform:scale(1.08);box-shadow:0 22px 52px rgba(0,0,0,.7);"><img src="https://image.tmdb.org/t/p/w500/lFf6LLrQjYldcZItzOkGmMMigP7.jpg" alt="Severance" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.9) 4%,rgba(0,0,0,.25) 50%,transparent);opacity:0;transition:opacity .28s;" style-hover="opacity:1;"><div style="position:absolute;left:11px;right:11px;bottom:11px;"><div style="width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 6px 16px rgba(139,92,246,.5);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div><div style="font-size:12px;font-weight:700;line-height:1.15;">Severance</div></div></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FUNKCE ============ -->
+  <section id="funkce" style="padding:80px 28px 40px;">
+    <div style="max-width:1200px;margin:0 auto;">
+      <div data-reveal style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8B5CF6;margin-bottom:14px;">Funkce</div>
+      <h2 data-reveal data-delay="60" style="font-size:42px;font-weight:800;letter-spacing:-1.2px;margin:0 0 14px;max-width:680px;">Vše pro tvůj přehled na jednom místě</h2>
+      <p data-reveal data-delay="120" style="font-size:17px;color:#A0A0B2;max-width:560px;margin:0 0 44px;">Žádný chaos v záložkách a poznámkách. Movly ti dá pořádek v tom, co jsi viděl, co chceš vidět a kdy to vyjde.</p>
+
+      <div class="mv-three-column" style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;">
+        <div data-reveal style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px;transition:transform .18s,border-color .18s,box-shadow .18s;" style-hover="transform:translateY(-6px);border-color:rgba(139,92,246,.5);box-shadow:0 20px 50px rgba(0,0,0,.4);">
+          <div style="width:46px;height:46px;border-radius:13px;background:rgba(139,92,246,.14);display:flex;align-items:center;justify-content:center;color:#A78BFA;margin-bottom:18px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></div>
+          <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">Sledování filmů a seriálů</h3>
+          <p style="font-size:14px;line-height:1.55;color:#A0A0B2;margin:0;">Označ, co máš za sebou, a sleduj svůj postup epizodu po epizodě napříč seriály.</p>
+        </div>
+        <div data-reveal data-delay="60" style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px;transition:transform .18s,border-color .18s,box-shadow .18s;" style-hover="transform:translateY(-6px);border-color:rgba(139,92,246,.5);box-shadow:0 20px 50px rgba(0,0,0,.4);">
+          <div style="width:46px;height:46px;border-radius:13px;background:rgba(236,72,153,.14);display:flex;align-items:center;justify-content:center;color:#F472B6;margin-bottom:18px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path></svg></div>
+          <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">Seznamy a playlisty</h3>
+          <p style="font-size:14px;line-height:1.55;color:#A0A0B2;margin:0;">Skládej vlastní seznamy a tématické playlisty — „Na víkend", „Sci-fi klasika", cokoli tě napadne.</p>
+        </div>
+        <div data-reveal data-delay="120" style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px;transition:transform .18s,border-color .18s,box-shadow .18s;" style-hover="transform:translateY(-6px);border-color:rgba(139,92,246,.5);box-shadow:0 20px 50px rgba(0,0,0,.4);">
+          <div style="width:46px;height:46px;border-radius:13px;background:rgba(139,92,246,.14);display:flex;align-items:center;justify-content:center;color:#A78BFA;margin-bottom:18px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z"></path></svg></div>
+          <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">Trailery na dotek</h3>
+          <p style="font-size:14px;line-height:1.55;color:#A0A0B2;margin:0;">Pusť si oficiální upoutávky přímo v aplikaci, ať víš, do čeho jdeš, ještě než přidáš do seznamu.</p>
+        </div>
+        <div data-reveal style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px;transition:transform .18s,border-color .18s,box-shadow .18s;" style-hover="transform:translateY(-6px);border-color:rgba(139,92,246,.5);box-shadow:0 20px 50px rgba(0,0,0,.4);">
+          <div style="width:46px;height:46px;border-radius:13px;background:rgba(52,211,153,.14);display:flex;align-items:center;justify-content:center;color:#34D399;margin-bottom:18px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>
+          <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">Kde to sledovat</h3>
+          <p style="font-size:14px;line-height:1.55;color:#A0A0B2;margin:0;">Přehledně ti ukáže dostupnost titulu, ať se snadno zorientuješ a najdeš, kam zamířit dál.</p>
+        </div>
+        <div data-reveal data-delay="60" style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px;transition:transform .18s,border-color .18s,box-shadow .18s;" style-hover="transform:translateY(-6px);border-color:rgba(139,92,246,.5);box-shadow:0 20px 50px rgba(0,0,0,.4);">
+          <div style="width:46px;height:46px;border-radius:13px;background:rgba(251,191,36,.14);display:flex;align-items:center;justify-content:center;color:#FBBF24;margin-bottom:18px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg></div>
+          <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">Upozornění na novinky</h3>
+          <p style="font-size:14px;line-height:1.55;color:#A0A0B2;margin:0;">Měj přehled o premiérách a nových epizodách u titulů, které sleduješ.</p>
+        </div>
+        <div data-reveal data-delay="120" style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px;transition:transform .18s,border-color .18s,box-shadow .18s;" style-hover="transform:translateY(-6px);border-color:rgba(139,92,246,.5);box-shadow:0 20px 50px rgba(0,0,0,.4);">
+          <div style="width:46px;height:46px;border-radius:13px;background:rgba(59,130,246,.14);display:flex;align-items:center;justify-content:center;color:#60A5FA;margin-bottom:18px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"></path></svg></div>
+          <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">Profily pro celou rodinu</h3>
+          <p style="font-size:14px;line-height:1.55;color:#A0A0B2;margin:0;">Každý má vlastní profil se svými seznamy a postupem. „Kdo se dívá?" jako doma na gauči.</p>
+        </div>
+        <div data-reveal style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px;transition:transform .18s,border-color .18s,box-shadow .18s;" style-hover="transform:translateY(-6px);border-color:rgba(139,92,246,.5);box-shadow:0 20px 50px rgba(0,0,0,.4);">
+          <div style="width:46px;height:46px;border-radius:13px;background:rgba(236,72,153,.14);display:flex;align-items:center;justify-content:center;color:#F472B6;margin-bottom:18px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="m16.2 7.8-2.9 6.3-6.3 2.9 2.9-6.3 6.3-2.9z"></path></svg></div>
+          <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">Objevuj podle nálady</h3>
+          <p style="font-size:14px;line-height:1.55;color:#A0A0B2;margin:0;">Procházej žánry a kurátorské řady, ať vždy najdeš to pravé na dnešní večer.</p>
+        </div>
+        <div data-reveal data-delay="60" style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px;transition:transform .18s,border-color .18s,box-shadow .18s;" style-hover="transform:translateY(-6px);border-color:rgba(139,92,246,.5);box-shadow:0 20px 50px rgba(0,0,0,.4);">
+          <div style="width:46px;height:46px;border-radius:13px;background:rgba(139,92,246,.14);display:flex;align-items:center;justify-content:center;color:#A78BFA;margin-bottom:18px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"></path></svg></div>
+          <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">Bohatá metadata</h3>
+          <p style="font-size:14px;line-height:1.55;color:#A0A0B2;margin:0;">Obsazení, hodnocení, délka, rok a synopse u každého titulu — vše přehledně pohromadě.</p>
+        </div>
+        <div data-reveal data-delay="120" style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px;transition:transform .18s,border-color .18s,box-shadow .18s;" style-hover="transform:translateY(-6px);border-color:rgba(139,92,246,.5);box-shadow:0 20px 50px rgba(0,0,0,.4);">
+          <div style="width:46px;height:46px;border-radius:13px;background:rgba(52,211,153,.14);display:flex;align-items:center;justify-content:center;color:#34D399;margin-bottom:18px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"></path></svg></div>
+          <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">Synchronizace všude</h3>
+          <p style="font-size:14px;line-height:1.55;color:#A0A0B2;margin:0;">Jeden účet, všechna zařízení. Co přidáš na telefonu, máš na televizi i na počítači.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ JAK TO FUNGUJE ============ -->
+  <section id="jak" style="padding:80px 28px;">
+    <div style="max-width:1200px;margin:0 auto;">
+      <div data-reveal style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8B5CF6;margin-bottom:14px;">Jak to funguje</div>
+      <h2 data-reveal data-delay="60" style="font-size:42px;font-weight:800;letter-spacing:-1.2px;margin:0 0 14px;">Začneš za pár vteřin</h2>
+      <p data-reveal data-delay="120" style="font-size:17px;color:#A0A0B2;max-width:520px;margin:0 0 44px;">Bez složitého nastavování. Tři kroky a Movly je tvoje.</p>
+      <div class="mv-three-column" style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">
+        <div data-reveal style="background:linear-gradient(180deg,#16121f,#14141F);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:32px 28px;transition:transform .18s;" style-hover="transform:translateY(-5px);">
+          <div style="font-size:52px;font-weight:800;line-height:1;background:linear-gradient(135deg,#8B5CF6,#EC4899);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:18px;">1</div>
+          <h3 style="font-size:20px;font-weight:700;margin:0 0 10px;">Založ si účet</h3>
+          <p style="font-size:15px;line-height:1.55;color:#A0A0B2;margin:0;">Rychlá registrace a vytvoření profilů pro celou domácnost — každý si hlídá to svoje.</p>
+        </div>
+        <div data-reveal data-delay="100" style="background:linear-gradient(180deg,#16121f,#14141F);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:32px 28px;transition:transform .18s;" style-hover="transform:translateY(-5px);">
+          <div style="font-size:52px;font-weight:800;line-height:1;background:linear-gradient(135deg,#8B5CF6,#EC4899);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:18px;">2</div>
+          <h3 style="font-size:20px;font-weight:700;margin:0 0 10px;">Přidávej a třiď</h3>
+          <p style="font-size:15px;line-height:1.55;color:#A0A0B2;margin:0;">Najdi tituly, přidej je do seznamů a playlistů a pusť si trailer, ať víš, do čeho jdeš.</p>
+        </div>
+        <div data-reveal data-delay="200" style="background:linear-gradient(180deg,#16121f,#14141F);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:32px 28px;transition:transform .18s;" style-hover="transform:translateY(-5px);">
+          <div style="font-size:52px;font-weight:800;line-height:1;background:linear-gradient(135deg,#8B5CF6,#EC4899);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:18px;">3</div>
+          <h3 style="font-size:20px;font-weight:700;margin:0 0 10px;">Měj přehled</h3>
+          <p style="font-size:15px;line-height:1.55;color:#A0A0B2;margin:0;">Sleduj svůj postup, dostávej upozornění na novinky a měj svá data na všech zařízeních.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ POŘÁDEK VE SLEDOVÁNÍ ============ -->
+  <section style="padding:60px 28px;">
+    <div style="max-width:1200px;margin:0 auto;display:flex;gap:56px;align-items:center;flex-wrap:wrap;">
+      <div class="mv-mobile-fluid" data-reveal style="flex:1;min-width:340px;">
+        <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8B5CF6;margin-bottom:14px;">Pořádek v sledování</div>
+        <h2 style="font-size:40px;font-weight:800;letter-spacing:-1px;margin:0 0 16px;">Konečně víš, u čeho jsi skončil</h2>
+        <p style="font-size:17px;line-height:1.6;color:#A0A0B2;margin:0 0 28px;">Movly si pamatuje tvůj postup napříč seriály i filmy. Žádné dohledávání, kterou epizodu sis pustil naposledy.</p>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div style="display:flex;gap:13px;align-items:flex-start;"><span style="margin-top:2px;flex:none;color:#8B5CF6;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span><span style="font-size:15px;color:#D4D4DE;"><strong style="color:#fff;">Pokračovat ve sledování</strong> — řada s přesně tím, kde jsi přestal.</span></div>
+          <div style="display:flex;gap:13px;align-items:flex-start;"><span style="margin-top:2px;flex:none;color:#8B5CF6;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span><span style="font-size:15px;color:#D4D4DE;"><strong style="color:#fff;">Postup po epizodách</strong> — přehled o každém seriálu, sezoně i epizodě.</span></div>
+          <div style="display:flex;gap:13px;align-items:flex-start;"><span style="margin-top:2px;flex:none;color:#8B5CF6;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span><span style="font-size:15px;color:#D4D4DE;"><strong style="color:#fff;">Vlastní playlisty</strong> — vytvoř si je na míru a sdílej je v rámci profilů.</span></div>
+          <div style="display:flex;gap:13px;align-items:flex-start;"><span style="margin-top:2px;flex:none;color:#8B5CF6;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span><span style="font-size:15px;color:#D4D4DE;"><strong style="color:#fff;">Synchronizace</strong> — vše tě následuje z telefonu na televizi i počítač.</span></div>
+        </div>
+      </div>
+      <div class="mv-mobile-fluid" data-reveal data-delay="120" style="flex:none;width:300px;display:flex;justify-content:center;">
+        <div class="mv-mobile-frame" style="animation:mvFloat2 6s ease-in-out infinite;width:284px;height:578px;border-radius:48px;background:#000;border:1px solid rgba(255,255,255,.14);padding:11px;box-shadow:0 44px 100px rgba(0,0,0,.65),0 0 60px rgba(236,72,153,.16);position:relative;">
+          <div style="position:absolute;top:22px;left:50%;transform:translateX(-50%);width:104px;height:28px;background:#000;border-radius:999px;z-index:5;"></div>
+          <div style="width:100%;height:100%;border-radius:38px;overflow:hidden;background:#0A0A12;">
+            <img src="https://movly.sheri.cz/assets/shots/ios-home.png" alt="Movly na iPhonu — domovská obrazovka" width="552" height="1200" loading="lazy" decoding="async" style="display:block;width:100%;height:100%;object-fit:cover;" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PLATFORMY ============ -->
+  <section id="platformy" style="padding:80px 28px;">
+    <div style="max-width:1200px;margin:0 auto;">
+      <div data-reveal style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8B5CF6;margin-bottom:14px;">Platformy</div>
+      <h2 data-reveal data-delay="60" style="font-size:42px;font-weight:800;letter-spacing:-1.2px;margin:0 0 14px;">Nativní na každém zařízení</h2>
+      <p data-reveal data-delay="120" style="font-size:17px;color:#A0A0B2;max-width:560px;margin:0 0 44px;">Stejný design, stejná data — vyladěné pro ovládání každé platformy. Tvé seznamy tě následují všude.</p>
+      <div class="mv-three-column" style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">
+        <div data-reveal style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:30px;transition:transform .18s,border-color .18s;" style-hover="transform:translateY(-5px);border-color:rgba(255,255,255,.2);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <svg width="30" height="30" viewBox="0 0 384 512" fill="#fff"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"></path></svg>
+            <span style="font-size:11px;font-weight:700;color:#34D399;background:rgba(52,211,153,.14);padding:5px 11px;border-radius:999px;">UI hotové</span>
+          </div>
+          <h3 style="font-size:22px;font-weight:700;margin:0 0 8px;">Apple</h3>
+          <p style="font-size:14px;color:#C9C9D6;margin:0 0 6px;">iPhone · iPad · Mac · Apple TV</p>
+          <p style="font-size:13px;color:#6C6C7E;margin:0;">Nativní SwiftUI, sidebar a focus na TV</p>
+        </div>
+        <div data-reveal data-delay="100" style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:30px;transition:transform .18s,border-color .18s;" style-hover="transform:translateY(-5px);border-color:rgba(52,211,153,.4);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="#34D399"><path d="M17.6 9.5 19 7a.4.4 0 1 0-.7-.4l-1.4 2.5a8.7 8.7 0 0 0-9.8 0L5.7 6.6A.4.4 0 1 0 5 7l1.4 2.5C4 11 2.4 13.5 2 16.5h20c-.4-3-2-5.5-4.4-7ZM7.5 14a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8Zm9 0a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8Z"></path></svg>
+            <span style="font-size:11px;font-weight:700;color:#34D399;background:rgba(52,211,153,.14);padding:5px 11px;border-radius:999px;">UI hotové</span>
+          </div>
+          <h3 style="font-size:22px;font-weight:700;margin:0 0 8px;">Android</h3>
+          <p style="font-size:14px;color:#C9C9D6;margin:0 0 6px;">Telefon · Tablet · Android TV</p>
+          <p style="font-size:13px;color:#6C6C7E;margin:0;">Jeden APK, D-pad ovládání na TV</p>
+        </div>
+        <div data-reveal data-delay="200" style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:30px;transition:transform .18s,border-color .18s;" style-hover="transform:translateY(-5px);border-color:rgba(96,165,250,.4);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="#60A5FA"><path d="M3 5.6 10.4 4.6v6.9H3V5.6Zm0 12.8 7.4 1V12.5H3v5.9Zm8.3 1.1L21 21v-8.5h-9.7v7Zm0-15.1V11.5H21V3l-9.7 1.4Z"></path></svg>
+            <span style="font-size:11px;font-weight:700;color:#34D399;background:rgba(52,211,153,.14);padding:5px 11px;border-radius:999px;">UI hotové</span>
+          </div>
+          <h3 style="font-size:22px;font-weight:700;margin:0 0 8px;">Windows</h3>
+          <p style="font-size:14px;color:#C9C9D6;margin:0 0 6px;">Desktop (WinUI 3)</p>
+          <p style="font-size:13px;color:#6C6C7E;margin:0;">Nativní sidebar layout</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ NÁHLEDY (interaktivní) ============ -->
+  <section id="nahledy" style="padding:80px 28px;">
+    <div style="max-width:1200px;margin:0 auto;">
+      <div data-reveal style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8B5CF6;margin-bottom:14px;">Náhledy</div>
+      <h2 data-reveal data-delay="60" style="font-size:42px;font-weight:800;letter-spacing:-1.2px;margin:0 0 18px;">Podívej se dovnitř</h2>
+      <div data-reveal data-delay="120" style="display:flex;gap:10px;margin-bottom:30px;">
+        <button data-shot-tab="home" style="font-size:14px;font-weight:600;padding:10px 20px;border-radius:999px;cursor:pointer;background:linear-gradient(135deg,#8B5CF6,#EC4899);color:#fff;border:1px solid transparent;transition:all .2s;">Domovská obrazovka</button>
+        <button data-shot-tab="detail" style="font-size:14px;font-weight:600;padding:10px 20px;border-radius:999px;cursor:pointer;background:rgba(255,255,255,.06);color:#A0A0B2;border:1px solid rgba(255,255,255,.12);transition:all .2s;">Detail titulu</button>
+      </div>
+
+      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:stretch;">
+        <div class="mv-mobile-fluid" data-reveal style="flex:2;min-width:380px;position:relative;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.1);box-shadow:0 40px 100px rgba(0,0,0,.5);aspect-ratio:1600/941;">
+          <img data-shot-pane="home" src="https://movly.sheri.cz/assets/shots/mac-home.png" alt="Movly na Macu — domovská obrazovka" width="1600" height="941" loading="lazy" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:1;transition:opacity .5s,transform .5s;" />
+          <img data-shot-pane="detail" src="https://movly.sheri.cz/assets/shots/mac-detail.png" alt="Movly na Macu — detail titulu" width="1600" height="941" loading="lazy" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.03);transition:opacity .5s,transform .5s;" />
+        </div>
+        <div class="mv-mobile-fluid" data-reveal data-delay="120" style="flex:1;min-width:240px;display:flex;justify-content:center;align-items:center;">
+          <div style="animation:mvFloat2 6.5s ease-in-out infinite;width:268px;border-radius:40px;background:#000;border:1px solid rgba(255,255,255,.14);padding:9px;box-shadow:0 30px 70px rgba(0,0,0,.55);">
+            <div style="border-radius:32px;overflow:hidden;background:#0A0A12;">
+              <img src="https://movly.sheri.cz/assets/shots/ios-detail.png" alt="Movly na iPhonu — detail titulu" width="552" height="1200" loading="lazy" decoding="async" style="display:block;width:100%;height:auto;" />
             </div>
-            <div class="auth-actions">
-              <button id="movly-login-button" class="btn btn-grad" type="submit">Přihlásit se</button>
-              <span style="color:var(--text-tertiary);font-size:13px">Stejné přihlášení jako v aplikaci.</span>
-            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STÁHNOUT ============ -->
+  <section id="stahnout" style="padding:70px 28px;">
+    <div data-reveal style="max-width:1200px;margin:0 auto;border-radius:28px;overflow:hidden;position:relative;background:linear-gradient(135deg,#1a1030,#241228) padding-box, conic-gradient(from var(--mvA),#8B5CF6,#EC4899,#3B82F6,#8B5CF6) border-box;border:1.6px solid transparent;animation:mvBorderSpin 7s linear infinite;box-shadow:0 30px 80px rgba(139,92,246,.16);">
+      <div style="position:absolute;top:-120px;right:-60px;width:500px;height:500px;background:radial-gradient(50% 50% at 50% 50%, rgba(139,92,246,.4), transparent 70%);animation:mvDrift 14s ease-in-out infinite;"></div>
+      <div class="mv-download-panel" style="position:relative;padding:56px 48px;display:flex;gap:48px;align-items:center;flex-wrap:wrap;">
+        <div class="mv-mobile-fluid" style="flex:1;min-width:320px;">
+          <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#A78BFA;margin-bottom:14px;">Instalačky</div>
+          <h2 style="font-size:40px;font-weight:800;letter-spacing:-1px;margin:0 0 16px;">Stáhni Movly pro Windows a macOS</h2>
+          <p style="font-size:17px;line-height:1.6;color:#C9C9D6;margin:0;">Přihlas se Movly účtem a stáhni si aktuální build pro svoje zařízení.</p>
+          <div style="display:flex;gap:14px;margin-top:26px;">
+            <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#D4D4DE;"><svg width="18" height="18" viewBox="0 0 384 512" fill="#fff"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"></path></svg>macOS</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#D4D4DE;"><svg width="20" height="20" viewBox="0 0 24 24" fill="#60A5FA"><path d="M3 5.6 10.4 4.6v6.9H3V5.6Zm0 12.8 7.4 1V12.5H3v5.9Zm8.3 1.1L21 21v-8.5h-9.7v7Zm0-15.1V11.5H21V3l-9.7 1.4Z"></path></svg>Windows</div>
+          </div>
+        </div>
+        <div class="mv-mobile-fluid" style="flex:none;width:360px;background:rgba(10,10,18,.55);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:28px;">
+          <div style="font-size:17px;font-weight:700;margin-bottom:4px;">Movly účet</div>
+          <div style="font-size:13px;color:#A0A0B2;margin-bottom:20px;">Použij stejný účet jako v aplikaci.</div>
+          <form id="mvLoginForm">
+            <label style="font-size:12px;font-weight:600;color:#A0A0B2;display:block;margin-bottom:7px;">Uživatelské jméno nebo e-mail</label>
+            <input id="mvUser" type="text" autocomplete="username" style="width:100%;padding:12px 14px;border-radius:12px;background:#14141F;border:1px solid rgba(255,255,255,.1);color:#fff;font-size:14px;margin-bottom:16px;outline:none;transition:border-color .15s;" style-focus="border-color:#8B5CF6;" />
+            <label style="font-size:12px;font-weight:600;color:#A0A0B2;display:block;margin-bottom:7px;">Heslo</label>
+            <input id="mvPass" type="password" autocomplete="current-password" style="width:100%;padding:12px 14px;border-radius:12px;background:#14141F;border:1px solid rgba(255,255,255,.1);color:#fff;font-size:14px;margin-bottom:16px;outline:none;transition:border-color .15s;" style-focus="border-color:#8B5CF6;" />
+            <div id="mvLoginErr" role="alert" aria-live="assertive" aria-atomic="true" style="display:none;font-size:12px;color:#F87171;margin:0 0 14px;">Přihlášení se nepodařilo.</div>
+            <button id="mvLoginBtn" type="button" style="width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;background:linear-gradient(135deg,#8B5CF6,#EC4899);color:#fff;font-size:15px;font-weight:700;box-shadow:0 8px 26px rgba(139,92,246,.34);transition:transform .15s,box-shadow .15s;" style-hover="transform:translateY(-1px);box-shadow:0 12px 32px rgba(139,92,246,.45);">Přihlásit se</button>
           </form>
-
-          <div id="download-account" class="account-panel" hidden>
-            <div class="account-row">
-              <div>
-                <div id="download-account-name" class="account-name"></div>
-                <div id="download-account-email" class="account-meta"></div>
-                <div id="download-account-badges" class="account-badges"></div>
-              </div>
-              <button id="movly-logout-button" class="btn btn-ghost" type="button">Odhlásit</button>
-            </div>
+          <div id="mvLoggedInBox" style="display:none;text-align:center;">
+            <div style="width:56px;height:56px;border-radius:999px;background:rgba(52,211,153,.15);display:flex;align-items:center;justify-content:center;margin:8px auto 16px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></div>
+            <div style="font-size:17px;font-weight:700;"><span id="mvLoggedInName">Přihlášeno</span></div>
+            <div style="font-size:13px;color:#A0A0B2;margin-top:4px;margin-bottom:20px;"><span id="mvLoggedInEmail">Instalačky najdeš níže.</span></div>
+            <a href="/devices" style="width:100%;min-height:44px;padding:0 12px;margin-bottom:10px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(139,92,246,.12);border:1px solid rgba(167,139,250,.28);color:#DDD6FE;font-size:14px;font-weight:700;">Spravovat zařízení</a>
+            <button id="mvLogoutBtn" style="width:100%;padding:12px;border-radius:12px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#D4D4DE;font-size:14px;font-weight:600;transition:background .15s;" style-hover="background:rgba(255,255,255,.12);">Odhlásit</button>
           </div>
         </div>
-
-        <div id="download-status" class="download-status">Přihlas se a zobrazíme dostupné instalátory pro tvůj účet.</div>
-
-        <div id="download-locked" class="download-locked">
-          <strong>Přihlas se pro stažení.</strong>
-          Po přihlášení uvidíš dostupné verze pro Windows a macOS.
-        </div>
-
-        <div id="download-grid" class="download-grid" hidden></div>
       </div>
     </div>
+
+      <!-- logged-in surface: installers + guides -->
+      <div id="mvGuides" style="display:none;max-width:1200px;margin:30px auto 0;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;"><span style="font-size:11px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:#34D399;background:rgba(52,211,153,.16);padding:5px 13px;border-radius:999px;">Přihlášeno</span><h3 style="font-size:26px;font-weight:800;letter-spacing:-.6px;margin:0;">Návody k instalaci</h3></div>
+        <p style="font-size:15px;color:#A0A0B2;margin:0 0 22px;">Vyber svou platformu a postupuj podle kroků. Stejný účet, stejná data všude.</p>
+        <div id="mvDownloadStatus" role="status" aria-live="polite" aria-atomic="true" style="display:block;font-size:14px;line-height:1.55;color:#C9C9D6;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px 16px;margin-bottom:18px;">Připravuji instalačky...</div>
+        <div id="mvDownloadGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;"></div>
+      </div>
   </section>
 
-  <!-- GALLERY / NÁHLEDY -->
-  <section id="nahledy">
-    <div class="wrap">
-      <div class="sec-head reveal">
-        <div class="kicker">Náhledy</div>
-        <h2>Podívej se dovnitř</h2>
-        <p>Reálné obrazovky z aplikace — tmavé, cinematické, s obsahem na prvním místě.</p>
-      </div>
-      <div class="gallery">
-        <div class="shot-frame reveal">
-          <img src="assets/shots/mac-detail.png" alt="Movly na Macu — detail titulu s obsazením a kolekcí" loading="lazy" />
+  <!-- ============ FAQ ============ -->
+  <section id="faq" style="padding:70px 28px 90px;">
+    <div style="max-width:840px;margin:0 auto;">
+      <div data-reveal style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8B5CF6;margin-bottom:14px;text-align:center;">Časté dotazy</div>
+      <h2 data-reveal data-delay="60" style="font-size:42px;font-weight:800;letter-spacing:-1.2px;margin:0 0 40px;text-align:center;">Co tě nejspíš zajímá</h2>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div data-faq data-reveal style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px 24px;cursor:pointer;transition:border-color .2s;" style-hover="border-color:rgba(139,92,246,.4);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;"><span style="font-size:16px;font-weight:600;">Co Movly přesně je?</span><span data-faq-plus style="font-size:22px;color:#8B5CF6;font-weight:400;transition:transform .25s;flex:none;">+</span></div>
+          <div data-faq-body style="max-height:0;overflow:hidden;transition:max-height .35s ease;"><p style="font-size:15px;line-height:1.6;color:#A0A0B2;margin:14px 0 0;">Movly je společník pro filmy a seriály. Pomáhá ti mít přehled o tom, co jsi viděl a co chceš vidět, spravovat seznamy a playlisty, pouštět oficiální trailery a zorientovat se v dostupnosti titulů.</p></div>
         </div>
-        <div class="phone-bezel reveal">
-          <img src="assets/shots/ios-detail.png" alt="Movly na iPhonu — detail titulu" loading="lazy" />
+        <div data-faq data-reveal style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px 24px;cursor:pointer;transition:border-color .2s;" style-hover="border-color:rgba(139,92,246,.4);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;"><span style="font-size:16px;font-weight:600;">Kolik Movly stojí?</span><span data-faq-plus style="font-size:22px;color:#8B5CF6;font-weight:400;transition:transform .25s;flex:none;">+</span></div>
+          <div data-faq-body style="max-height:0;overflow:hidden;transition:max-height .35s ease;"><p style="font-size:15px;line-height:1.6;color:#A0A0B2;margin:14px 0 0;">Aplikace je zatím ve vývoji. Podrobnosti k dostupnosti budeme doplňovat průběžně.</p></div>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FAQ -->
-  <section id="faq">
-    <div class="wrap">
-      <div class="sec-head reveal">
-        <div class="kicker">Časté dotazy</div>
-        <h2>Co tě nejspíš zajímá</h2>
-      </div>
-      <div class="faq">
-        <details class="reveal">
-          <summary>Co Movly přesně je?<span class="chev">+</span></summary>
-          <p>Movly je společník pro filmy a seriály. Pomáhá ti mít přehled o tom, co jsi viděl a co chceš vidět, spravovat seznamy a playlisty, pouštět oficiální trailery a zorientovat se v dostupnosti titulů.</p>
-        </details>
-        <details class="reveal">
-          <summary>Kolik Movly stojí?<span class="chev">+</span></summary>
-          <p>Aplikace je zatím ve vývoji. O modelu dostupnosti budeme informovat blíž ke spuštění.</p>
-        </details>
-        <details class="reveal">
-          <summary>Na jakých zařízeních Movly poběží?<span class="chev">+</span></summary>
-          <p>Na Apple zařízeních (iPhone, iPad, Mac, Apple TV), na Androidu (telefon, tablet, Android TV) a na Windows. Stejný účet a stejná data napříč všemi platformami.</p>
-        </details>
-        <details class="reveal">
-          <summary>Synchronizují se mé seznamy mezi zařízeními?<span class="chev">+</span></summary>
-          <p>Ano. Stačí se přihlásit stejným účtem a tvé seznamy, playlisty i postup ve sledování tě následují na všech zařízeních.</p>
-        </details>
-        <details class="reveal">
-          <summary>Jak je to s mým soukromím?<span class="chev">+</span></summary>
-          <p>Sbíráme jen údaje nutné pro fungování aplikace, neprodáváme je a kdykoli můžeš požádat o smazání účtu. Podrobnosti najdeš v <a href="privacy.html">zásadách ochrany soukromí</a>.</p>
-        </details>
-        <details class="reveal">
-          <summary>Kdy Movly vyjde?<span class="chev">+</span></summary>
-          <p>Aplikace je v aktivním vývoji a spuštění se blíží. Sleduj tuto stránku — dáme vědět.</p>
-        </details>
-      </div>
-    </div>
-  </section>
-
-  <!-- ABOUT -->
-  <section id="o-aplikaci">
-    <div class="wrap">
-      <div class="band reveal">
-        <h2>Stáhni Movly</h2>
-        <p>Přihlas se Movly účtem a stáhni si aktuální instalačku pro Windows nebo macOS.</p>
-        <div class="hero-cta">
-          <a class="btn btn-grad" href="#stahnout">Stáhnout instalačky</a>
-          <a class="btn btn-ghost" href="privacy.html">Zásady ochrany soukromí</a>
+        <div data-faq data-reveal style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px 24px;cursor:pointer;transition:border-color .2s;" style-hover="border-color:rgba(139,92,246,.4);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;"><span style="font-size:16px;font-weight:600;">Na jakých zařízeních Movly poběží?</span><span data-faq-plus style="font-size:22px;color:#8B5CF6;font-weight:400;transition:transform .25s;flex:none;">+</span></div>
+          <div data-faq-body style="max-height:0;overflow:hidden;transition:max-height .35s ease;"><p style="font-size:15px;line-height:1.6;color:#A0A0B2;margin:14px 0 0;">Na Apple zařízeních (iPhone, iPad, Mac, Apple TV), na Androidu (telefon, tablet, Android TV) a na Windows. Stejný účet a stejná data napříč všemi platformami.</p></div>
+        </div>
+        <div data-faq data-reveal style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px 24px;cursor:pointer;transition:border-color .2s;" style-hover="border-color:rgba(139,92,246,.4);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;"><span style="font-size:16px;font-weight:600;">Synchronizují se mé seznamy mezi zařízeními?</span><span data-faq-plus style="font-size:22px;color:#8B5CF6;font-weight:400;transition:transform .25s;flex:none;">+</span></div>
+          <div data-faq-body style="max-height:0;overflow:hidden;transition:max-height .35s ease;"><p style="font-size:15px;line-height:1.6;color:#A0A0B2;margin:14px 0 0;">Ano. Stačí se přihlásit stejným účtem a tvé seznamy, playlisty i postup ve sledování tě následují na všech zařízeních.</p></div>
+        </div>
+        <div data-faq data-reveal style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px 24px;cursor:pointer;transition:border-color .2s;" style-hover="border-color:rgba(139,92,246,.4);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;"><span style="font-size:16px;font-weight:600;">Jak je to s mým soukromím?</span><span data-faq-plus style="font-size:22px;color:#8B5CF6;font-weight:400;transition:transform .25s;flex:none;">+</span></div>
+          <div data-faq-body style="max-height:0;overflow:hidden;transition:max-height .35s ease;"><p style="font-size:15px;line-height:1.6;color:#A0A0B2;margin:14px 0 0;">Sbíráme jen údaje nutné pro fungování aplikace, neprodáváme je a kdykoli můžeš požádat o smazání účtu. Podrobnosti najdeš v <a href="privacy.html" style="color:#A78BFA;text-decoration:underline;">zásadách ochrany soukromí</a>.</p></div>
+        </div>
+        <div data-faq data-reveal style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px 24px;cursor:pointer;transition:border-color .2s;" style-hover="border-color:rgba(139,92,246,.4);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;"><span style="font-size:16px;font-weight:600;">Kdy Movly vyjde?</span><span data-faq-plus style="font-size:22px;color:#8B5CF6;font-weight:400;transition:transform .25s;flex:none;">+</span></div>
+          <div data-faq-body style="max-height:0;overflow:hidden;transition:max-height .35s ease;"><p style="font-size:15px;line-height:1.6;color:#A0A0B2;margin:14px 0 0;">Aplikace je v aktivním vývoji a spuštění se blíží. Sleduj tuto stránku — dáme vědět.</p></div>
         </div>
       </div>
     </div>
   </section>
-</main>
 
-<footer>
-  <div class="wrap">
-    <div class="foot-top">
-      <div class="foot-col foot-brand">
-        <a class="brand" href="#top">
-          <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <defs><linearGradient id="bf" x1="300" y1="280" x2="724" y2="744" gradientUnits="userSpaceOnUse">
-              <stop offset="0" stop-color="#A78BFA"/><stop offset="0.5" stop-color="#8B5CF6"/><stop offset="1" stop-color="#EC4899"/>
-            </linearGradient></defs>
-            <path d="M 304 752 L 304 300 L 512 540 L 720 300 L 720 752" fill="none" stroke="url(#bf)" stroke-width="132" stroke-linejoin="round" stroke-linecap="round"/>
-          </svg>
-          <span>Movly</span>
-        </a>
-        <p>Prémiový tmavý společník pro tvé filmy a seriály. Apple · Android · Windows.</p>
+  <!-- ============ FOOTER ============ -->
+  <footer style="border-top:1px solid rgba(255,255,255,.07);padding:54px 28px 40px;background:#0D0D16;">
+    <div style="max-width:1200px;margin:0 auto;display:flex;gap:48px;flex-wrap:wrap;">
+      <div class="mv-mobile-fluid" style="flex:1;min-width:280px;">
+        <div style="font-size:22px;font-weight:800;background:linear-gradient(135deg,#8B5CF6,#EC4899);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:12px;">Movly</div>
+        <p style="font-size:14px;line-height:1.6;color:#6C6C7E;max-width:320px;margin:0;">Tmavý společník pro tvé filmy a seriály. Apple · Android · Windows.</p>
       </div>
-      <div class="foot-col">
-        <h4>Aplikace</h4>
-        <a href="#funkce">Funkce</a>
-        <a href="#jak-to-funguje">Jak to funguje</a>
-        <a href="#platformy">Platformy</a>
-        <a href="#stahnout">Stáhnout</a>
-        <a href="#faq">Časté dotazy</a>
-      </div>
-      <div class="foot-col">
-        <h4>Informace</h4>
-        <a href="#o-aplikaci">O aplikaci</a>
-        <a href="privacy.html">Zásady ochrany soukromí</a>
-        <a href="delete-account.html">Smazání účtu</a>
-        <a href="mailto:cinelog@outlook.com">Kontakt</a>
+      <div style="display:flex;gap:64px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:14px;">Aplikace</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;color:#A0A0B2;">
+            <a href="#funkce" style="transition:color .15s;" style-hover="color:#fff;">Funkce</a>
+            <a href="#jak" style="transition:color .15s;" style-hover="color:#fff;">Jak to funguje</a>
+            <a href="#platformy" style="transition:color .15s;" style-hover="color:#fff;">Platformy</a>
+            <a href="#stahnout" style="transition:color .15s;" style-hover="color:#fff;">Stáhnout</a>
+            <a href="#faq" style="transition:color .15s;" style-hover="color:#fff;">Časté dotazy</a>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:14px;">Informace</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;color:#A0A0B2;">
+            <a href="privacy.html" style="transition:color .15s;" style-hover="color:#fff;">Zásady ochrany soukromí</a>
+            <a href="delete-account.html" style="transition:color .15s;" style-hover="color:#fff;">Smazání účtu</a>
+            <a href="#stahnout" style="transition:color .15s;" style-hover="color:#fff;">Stáhnout aplikaci</a>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="foot-bottom">
-      <p>© 2026 Movly. Tvůj filmový a seriálový společník.</p>
-      <div class="legal">
-        <span style="color:var(--text-tertiary);font-size:13px">Data o titulech: TMDB</span>
-        <a href="privacy.html">Soukromí</a>
-      </div>
+    <div style="max-width:1200px;margin:40px auto 0;padding-top:24px;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:13px;color:#6C6C7E;">
+      <span>© 2026 Movly. Tvůj filmový a seriálový společník.</span>
+      <span>Data o titulech: TMDB</span>
     </div>
-  </div>
-</footer>
+  </footer>
 
-<script>
-  // scroll reveal
-  const io = new IntersectionObserver((entries)=>{
-    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
-  },{threshold:0.12,rootMargin:'0px 0px -40px 0px'});
-  document.querySelectorAll('.reveal').forEach((el,i)=>{
-    // small stagger within a group based on DOM order
-    el.style.transitionDelay = (Math.min(i,6)*30)+'ms';
-    io.observe(el);
-  });
-  // header subtle shadow on scroll
-  const hdr=document.querySelector('header');
-  addEventListener('scroll',()=>{ hdr.style.borderBottomColor = scrollY>10 ? 'rgba(255,255,255,.14)' : 'rgba(255,255,255,.08)'; },{passive:true});
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount() {
+    const root = document.getElementById('mvLandingRoot');
+    if (!root) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // installer downloads
-  const downloadEls = {
-    form: document.getElementById('download-login-form'),
-    username: document.getElementById('movly-login-user'),
-    password: document.getElementById('movly-login-password'),
-    loginButton: document.getElementById('movly-login-button'),
-    logoutButton: document.getElementById('movly-logout-button'),
-    account: document.getElementById('download-account'),
-    accountName: document.getElementById('download-account-name'),
-    accountEmail: document.getElementById('download-account-email'),
-    accountBadges: document.getElementById('download-account-badges'),
-    status: document.getElementById('download-status'),
-    locked: document.getElementById('download-locked'),
-    grid: document.getElementById('download-grid'),
-  };
-  const MOVLY_DOWNLOAD_TOKEN = 'movlyDownloadToken';
+    // ---- responsive images ----
+    root.querySelectorAll('img').forEach(img => { img.decoding = 'async'; });
+    root.querySelectorAll('img[src*="image.tmdb.org/t/p/w500/"]').forEach(img => {
+      const source = img.getAttribute('src');
+      img.width = 152;
+      img.height = 224;
+      img.loading = 'lazy';
+      img.sizes = '152px';
+      img.srcset = [
+        `${source.replace('/w500/', '/w185/')} 185w`,
+        `${source.replace('/w500/', '/w342/')} 342w`,
+        `${source} 500w`,
+      ].join(', ');
+    });
 
-  function setDownloadStatus(message, kind = '') {
-    downloadEls.status.textContent = message;
-    downloadEls.status.className = `download-status${kind ? ` ${kind}` : ''}`;
-  }
-
-  function escapeHtml(value) {
-    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;',
-    })[char]);
-  }
-
-  async function downloadApi(path, options = {}) {
-    const headers = {
-      Accept: 'application/json',
-      ...(options.headers || {}),
+    // ---- scroll reveal + counters ----
+    const reveals = [...root.querySelectorAll('[data-reveal]')];
+    const counts = [...root.querySelectorAll('[data-count]')];
+    const counted = new Set();
+    const show = el => { el.style.opacity = '1'; el.style.transform = 'none'; };
+    const setCount = el => {
+      el.textContent = `${parseFloat(el.getAttribute('data-count'))}${el.getAttribute('data-suffix') || ''}`;
+      counted.add(el);
     };
-    if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
-    const token = localStorage.getItem(MOVLY_DOWNLOAD_TOKEN);
-    if (token) headers.Authorization = `Bearer ${token}`;
 
-    let response;
-    try {
-      response = await fetch(path, { ...options, headers });
-    } catch (error) {
-      throw new Error(`Stažení teď není dostupné (${error.message}). Zkus to prosím později.`);
-    }
+    const runCount = el => {
+      if (counted.has(el)) return;
+      counted.add(el);
+      const target = parseFloat(el.getAttribute('data-count'));
+      const suf = el.getAttribute('data-suffix') || '';
+      const dur = 1100, t0 = performance.now();
+      const step = now => {
+        const p = Math.min(1, (now - t0) / dur);
+        const val = Math.round(target * (0.5 - Math.cos(Math.PI * p) / 2));
+        el.textContent = val + suf;
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    };
 
-    const text = await response.text();
-    let payload = {};
-    if (text) {
-      try {
-        payload = JSON.parse(text);
-      } catch {
-        throw new Error(`Stažení teď není dostupné (${response.status}). Zkus to prosím později.`);
-      }
-    }
-
-    if (!response.ok) {
-      throw new Error(payload.message || payload.error || `Požadavek selhal (${response.status}).`);
-    }
-    return payload;
-  }
-
-  function renderAccount(session) {
-    const account = session.account || {};
-    const displayName = account.displayName || account.username || 'Movly účet';
-    downloadEls.accountName.textContent = displayName;
-    downloadEls.accountEmail.textContent = account.email || '';
-    downloadEls.accountBadges.innerHTML = [
-      '<span class="mini-badge">Přihlášeno</span>',
-      session.hasDownloadAccess
-        ? `<span class="mini-badge good">${escapeHtml(session.accessLabel || 'Přístup povolen')}</span>`
-        : '<span class="mini-badge warn">Nedostupné</span>',
-      account.coins !== null && account.coins !== undefined
-        ? `<span class="mini-badge">${escapeHtml(account.coins)} mincí</span>`
-        : '',
-    ].join('');
-    downloadEls.form.hidden = true;
-    downloadEls.account.hidden = false;
-  }
-
-  function clearAccount() {
-    downloadEls.form.hidden = false;
-    downloadEls.account.hidden = true;
-    downloadEls.grid.hidden = true;
-    downloadEls.grid.innerHTML = '';
-    downloadEls.locked.hidden = false;
-  }
-
-  function renderDownloads(downloads) {
-    downloadEls.grid.innerHTML = downloads.map((item) => {
-      const facts = [item.type, item.sizeLabel || 'soubor chybí'].filter(Boolean);
-      return `
-        <article class="download-card${item.available ? '' : ' missing'}">
-          <div class="download-card-head">
-            <div>
-              <h3>${escapeHtml(item.title)}</h3>
-              <p>${escapeHtml(item.subtitle)}</p>
-            </div>
-            <span class="platform-tag">${escapeHtml(item.platform)}</span>
-          </div>
-          <div class="download-facts">
-            ${facts.map((fact) => `<span>${escapeHtml(fact)}</span>`).join('')}
-          </div>
-          <button class="btn ${item.available ? 'btn-grad' : 'btn-ghost'}" type="button" data-download-id="${escapeHtml(item.id)}" ${item.available ? '' : 'disabled'}>
-            ${item.available ? 'Stáhnout' : escapeHtml(item.missingMessage || 'Soubor není nahraný')}
-          </button>
-        </article>
-      `;
-    }).join('');
-    downloadEls.grid.hidden = false;
-    downloadEls.locked.hidden = true;
-  }
-
-  async function loadDownloads() {
-    const data = await downloadApi('/api/downloads');
-    renderDownloads(data.downloads || []);
-    setDownloadStatus('Přihlášení proběhlo. Vyber instalačku pro svoje zařízení.', 'ok');
-  }
-
-  async function applySession(session) {
-    renderAccount(session);
-    if (!session.hasDownloadAccess) {
-      downloadEls.grid.hidden = true;
-      downloadEls.locked.hidden = false;
-      setDownloadStatus('Pro tento účet teď nejsou instalačky dostupné.', 'error');
-      return;
-    }
-    await loadDownloads();
-  }
-
-  downloadEls.form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    downloadEls.loginButton.disabled = true;
-    downloadEls.loginButton.textContent = 'Přihlašuji...';
-    setDownloadStatus('Ověřuji Movly účet...');
-    try {
-      const session = await downloadApi('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({
-          username: downloadEls.username.value,
-          password: downloadEls.password.value,
-        }),
+    if (reduceMotion) {
+      reveals.forEach(show);
+      counts.forEach(setCount);
+    } else if ('IntersectionObserver' in window) {
+      reveals.forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(28px)';
+        el.style.transition = 'opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1)';
+        const delay = el.getAttribute('data-delay');
+        if (delay) el.style.transitionDelay = `${delay}ms`;
       });
-      localStorage.setItem(MOVLY_DOWNLOAD_TOKEN, session.token);
-      downloadEls.password.value = '';
-      await applySession(session);
-    } catch (error) {
-      setDownloadStatus(error.message, 'error');
-      clearAccount();
-    } finally {
-      downloadEls.loginButton.disabled = false;
-      downloadEls.loginButton.textContent = 'Přihlásit se';
+      const revealObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          if (entry.target.hasAttribute('data-reveal')) show(entry.target);
+          if (entry.target.hasAttribute('data-count')) runCount(entry.target);
+          revealObserver.unobserve(entry.target);
+        });
+      }, { rootMargin: '0px 0px -8% 0px', threshold: 0.01 });
+      reveals.forEach(el => revealObserver.observe(el));
+      counts.forEach(el => revealObserver.observe(el));
+      this._revealObserver = revealObserver;
+    } else {
+      console.warn('[Movly] IntersectionObserver není dostupný; scroll animace jsou vypnuté.');
+      reveals.forEach(show);
+      counts.forEach(setCount);
     }
-  });
 
-  downloadEls.logoutButton.addEventListener('click', async () => {
-    try {
-      await downloadApi('/api/auth/logout', { method: 'POST' });
-      setDownloadStatus('Odhlášeno. Instalačky jsou znovu skryté.');
-    } catch (error) {
-      setDownloadStatus(`Odhlášení se nepodařilo dokončit: ${error.message}`, 'error');
-    } finally {
-      localStorage.removeItem(MOVLY_DOWNLOAD_TOKEN);
-      clearAccount();
-    }
-  });
+    // ---- nav elevation + progress + parallax (max. jednou za frame) ----
+    const nav = document.getElementById('mvNav');
+    const prog = document.getElementById('mvProgress');
+    const parallax = [...root.querySelectorAll('[data-parallax]')];
+    const updateScrollState = () => {
+      const y = window.scrollY || window.pageYOffset;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (prog) prog.style.width = (max > 0 ? (y / max * 100) : 0) + '%';
+      if (nav) {
+        if (y > 16) { nav.style.boxShadow = '0 10px 34px rgba(0,0,0,.55)'; nav.style.background = 'rgba(10,10,18,.92)'; }
+        else { nav.style.boxShadow = 'none'; nav.style.background = 'rgba(10,10,18,.72)'; }
+      }
+      if (!reduceMotion) {
+        parallax.forEach(el => { const s = parseFloat(el.getAttribute('data-parallax')); el.style.transform = 'translateY(' + (y * s) + 'px)'; });
+      }
+    };
+    const onScroll = () => {
+      if (this._scrollFrame) return;
+      this._scrollFrame = requestAnimationFrame(() => {
+        this._scrollFrame = 0;
+        updateScrollState();
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    updateScrollState();
+    this._onScroll = onScroll;
+    this._onResize = onScroll;
 
-  downloadEls.grid.addEventListener('click', async (event) => {
-    const button = event.target.closest('[data-download-id]');
-    if (!button) return;
-    const originalText = button.textContent;
-    button.disabled = true;
-    button.textContent = 'Připravuji odkaz...';
-    try {
-      const data = await downloadApi(`/api/downloads/${encodeURIComponent(button.dataset.downloadId)}/link`, { method: 'POST' });
-      setDownloadStatus(`Download odkaz platí ${data.expiresInSeconds || 300} sekund. Stahování začíná...`, 'ok');
-      window.location.href = data.url;
-    } catch (error) {
-      setDownloadStatus(error.message, 'error');
-    } finally {
-      button.disabled = false;
-      button.textContent = originalText;
+    // ---- hero: spotlight + 3D tilt ----
+    const hero = root.querySelector('#top');
+    const spot = document.getElementById('mvSpot');
+    const tilt = root.querySelector('[data-tilt]');
+    if (hero && !reduceMotion) {
+      hero.addEventListener('mousemove', e => {
+        const r = hero.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width;
+        const y = (e.clientY - r.top) / r.height;
+        if (spot) { spot.style.opacity = '1'; spot.style.left = (e.clientX - r.left) + 'px'; spot.style.top = (e.clientY - r.top) + 'px'; }
+        if (tilt) tilt.style.transform = 'rotateY(' + ((x - 0.5) * 11) + 'deg) rotateX(' + ((0.5 - y) * 8) + 'deg)';
+      });
+      hero.addEventListener('mouseleave', () => {
+        if (spot) spot.style.opacity = '0';
+        if (tilt) tilt.style.transform = 'rotateY(0deg) rotateX(0deg)';
+      });
     }
-  });
 
-  (async function restoreDownloadSession() {
-    if (!localStorage.getItem(MOVLY_DOWNLOAD_TOKEN)) return;
-    setDownloadStatus('Ověřuji uložené přihlášení...');
-    try {
-      const session = await downloadApi('/api/auth/me');
-      await applySession(session);
-    } catch (error) {
-      localStorage.removeItem(MOVLY_DOWNLOAD_TOKEN);
-      clearAccount();
-      setDownloadStatus(error.message, 'error');
+    // ---- magnetic buttons ----
+    if (!reduceMotion) {
+      root.querySelectorAll('[data-magnetic]').forEach(btn => {
+        btn.addEventListener('mousemove', e => {
+          const r = btn.getBoundingClientRect();
+          const mx = e.clientX - r.left - r.width / 2;
+          const my = e.clientY - r.top - r.height / 2;
+          btn.style.transform = 'translate(' + (mx * 0.25) + 'px,' + (my * 0.4) + 'px)';
+        });
+        btn.addEventListener('mouseleave', () => { btn.style.transform = 'translate(0,0)'; });
+      });
     }
-  })();
+
+    // ---- náhledy tabs ----
+    const tabs = [...root.querySelectorAll('[data-shot-tab]')];
+    const panes = [...root.querySelectorAll('[data-shot-pane]')];
+    tabs.forEach(t => t.addEventListener('click', () => {
+      const k = t.getAttribute('data-shot-tab');
+      tabs.forEach(x => {
+        const on = x === t;
+        x.style.background = on ? 'linear-gradient(135deg,#8B5CF6,#EC4899)' : 'rgba(255,255,255,.06)';
+        x.style.color = on ? '#fff' : '#A0A0B2';
+        x.style.borderColor = on ? 'transparent' : 'rgba(255,255,255,.12)';
+      });
+      panes.forEach(p => {
+        const on = p.getAttribute('data-shot-pane') === k;
+        p.style.opacity = on ? '1' : '0';
+        p.style.transform = on ? 'scale(1)' : 'scale(1.03)';
+      });
+    }));
+
+    // ---- pause marquee on hover ----
+    root.querySelectorAll('[data-marquee]').forEach(m => {
+      m.addEventListener('mouseenter', () => { m.style.animationPlayState = 'paused'; });
+      m.addEventListener('mouseleave', () => { m.style.animationPlayState = 'running'; });
+    });
+
+    // ---- FAQ accordion ----
+    const items = [...root.querySelectorAll('[data-faq]')];
+    items.forEach(item => {
+      const body = item.querySelector('[data-faq-body]');
+      const plus = item.querySelector('[data-faq-plus]');
+      item.addEventListener('click', () => {
+        const isOpen = item.getAttribute('data-open') === '1';
+        items.forEach(o => {
+          o.setAttribute('data-open', '0');
+          o.querySelector('[data-faq-body]').style.maxHeight = '0px';
+          o.querySelector('[data-faq-plus]').style.transform = 'rotate(0deg)';
+        });
+        if (!isOpen) {
+          item.setAttribute('data-open', '1');
+          body.style.maxHeight = body.scrollHeight + 'px';
+          plus.style.transform = 'rotate(45deg)';
+        }
+      });
+    });
+    // ---- real Movly login + installer downloads ----
+    const loginBtn = document.getElementById('mvLoginBtn');
+    const userEl = document.getElementById('mvUser');
+    const passEl = document.getElementById('mvPass');
+    const errEl = document.getElementById('mvLoginErr');
+    const formEl = document.getElementById('mvLoginForm');
+    const boxEl = document.getElementById('mvLoggedInBox');
+    const guidesEl = document.getElementById('mvGuides');
+    const logoutBtn = document.getElementById('mvLogoutBtn');
+    const nameEl = document.getElementById('mvLoggedInName');
+    const emailEl = document.getElementById('mvLoggedInEmail');
+    const statusEl = document.getElementById('mvDownloadStatus');
+    const gridEl = document.getElementById('mvDownloadGrid');
+    const tokenKey = 'movlyDownloadToken';
+
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' })[ch]);
+    const setStatus = (message, kind = '') => {
+      if (!statusEl) return;
+      statusEl.textContent = message;
+      statusEl.style.display = 'block';
+      statusEl.style.color = kind === 'error' ? '#FFC1C1' : kind === 'ok' ? '#B8F7D7' : '#C9C9D6';
+      statusEl.style.borderColor = kind === 'error' ? 'rgba(248,113,113,.34)' : kind === 'ok' ? 'rgba(52,211,153,.32)' : 'rgba(255,255,255,.1)';
+      statusEl.style.background = kind === 'error' ? 'rgba(248,113,113,.1)' : kind === 'ok' ? 'rgba(52,211,153,.1)' : 'rgba(255,255,255,.06)';
+    };
+    const showSession = on => {
+      if (formEl) formEl.style.display = on ? 'none' : 'block';
+      if (boxEl) boxEl.style.display = on ? 'block' : 'none';
+      if (guidesEl) guidesEl.style.display = on ? 'block' : 'none';
+      if (!on && gridEl) gridEl.innerHTML = '';
+    };
+    const api = async (path, options = {}) => {
+      const headers = { Accept: 'application/json', ...(options.headers || {}) };
+      if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+      const token = localStorage.getItem(tokenKey);
+      if (token) headers.Authorization = `Bearer ${token}`;
+      let response;
+      try {
+        response = await fetch(path, { ...options, headers });
+      } catch (error) {
+        throw new Error(`Služba teď není dostupná (${error.message}).`);
+      }
+      const text = await response.text();
+      let payload = {};
+      if (text) {
+        try { payload = JSON.parse(text); }
+        catch { throw new Error(`Služba vrátila nečitelnou odpověď (${response.status}).`); }
+      }
+      if (!response.ok) throw new Error(payload.message || payload.error || `Požadavek selhal (${response.status}).`);
+      return payload;
+    };
+    const icons = {
+      windows: '<svg width="24" height="24" viewBox="0 0 24 24" fill="#60A5FA"><path d="M3 5.6 10.4 4.6v6.9H3V5.6Zm0 12.8 7.4 1V12.5H3v5.9Zm8.3 1.1L21 21v-8.5h-9.7v7Zm0-15.1V11.5H21V3l-9.7 1.4Z"></path></svg>',
+      apple: '<svg width="24" height="24" viewBox="0 0 384 512" fill="#fff"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"></path></svg>',
+      android: '<svg width="25" height="25" viewBox="0 0 24 24" fill="#34D399"><path d="M17.6 9.48 19.44 6.3a.62.62 0 1 0-1.08-.62l-1.86 3.22A10.2 10.2 0 0 0 12 7.86a10.2 10.2 0 0 0-4.5 1.04L5.64 5.68a.62.62 0 1 0-1.08.62L6.4 9.48A8.68 8.68 0 0 0 3.6 16h16.8a8.68 8.68 0 0 0-2.8-6.52ZM8.5 13.1a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8Zm7 0a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8Z"></path></svg>',
+      tv: '<svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#A0A0B2" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M8 21h8"></path><path d="M12 18v3"></path></svg>',
+      mail: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>',
+      download: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"></path></svg>',
+    };
+    const renderDownloads = downloads => {
+      if (!gridEl) return;
+      const byId = new Map((downloads || []).map(item => [item.id, item]));
+      const chip = (text, tone = 'neutral') => {
+        const style = tone === 'green'
+          ? 'color:#34D399;background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.18);'
+          : tone === 'yellow'
+            ? 'color:#FBBF24;background:rgba(251,191,36,.15);border-color:rgba(251,191,36,.18);'
+            : tone === 'purple'
+              ? 'color:#A78BFA;background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.18);'
+              : 'color:#A0A0B2;background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.1);';
+        return `<span style="font-size:12px;font-weight:800;border:1px solid;border-radius:999px;padding:6px 13px;${style}">${escapeHtml(text)}</span>`;
+      };
+      const card = ({ title, icon, badge, badgeTone, text, chips = '', button = '', muted = false, extra = '' }) => `
+        <article style="background:#14141F;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:24px;min-height:238px;display:flex;flex-direction:column;box-shadow:0 14px 34px rgba(0,0,0,.16);${muted ? 'opacity:.58;' : ''}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:13px;min-width:0;">${icon}<h4 style="font-size:20px;font-weight:850;letter-spacing:-.35px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(title)}</h4></div>
+            ${badge ? chip(badge, badgeTone) : ''}
+          </div>
+          <p style="font-size:15px;line-height:1.55;color:#A0A0B2;margin:0 0 18px;flex:1;">${text}</p>
+          ${chips ? `<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;">${chips}</div>` : ''}
+          ${extra}
+          ${button}
+        </article>`;
+      const downloadButton = (item, label = 'Stáhnout') => item?.available
+        ? `<button type="button" data-download-id="${escapeHtml(item.id)}" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#8B5CF6,#EC4899);color:#fff;font-size:15px;font-weight:850;box-shadow:0 10px 28px rgba(139,92,246,.3);cursor:pointer;">${icons.download}${escapeHtml(label)}</button>`
+        : `<button type="button" disabled style="display:flex;align-items:center;justify-content:center;width:100%;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#A0A0B2;font-size:15px;font-weight:800;cursor:not-allowed;">Připravujeme</button>`;
+      const fileExtension = item => {
+        const match = String(item?.fileName || '').match(/\.([a-z0-9]+)$/i);
+        return match ? match[1].toLowerCase() : '';
+      };
+      const macInstallCopy = item => {
+        const ext = fileExtension(item);
+        if (ext === 'dmg') return 'Instalačka je připnutá k tvému účtu. Stáhni .dmg, otevři a přetáhni Movly do složky Aplikace.';
+        if (ext === 'zip') return 'Instalačka je připnutá k tvému účtu. Stáhni .zip, rozbal aplikaci a přetáhni Movly do složky Aplikace.';
+        return 'Instalačka je připnutá k tvému účtu. Stáhni aktuální macOS build a dokonči instalaci podle staženého balíčku.';
+      };
+      const downloadLabel = (item, base = 'Stáhnout') => {
+        const ext = fileExtension(item);
+        return ext ? `${base} .${ext}` : base;
+      };
+      const windowsCard = id => {
+        const item = byId.get(id) || {};
+        return card({
+          title: item.title || id,
+          icon: icons.windows,
+          badge: 'Windows',
+          badgeTone: 'purple',
+          text: escapeHtml(item.subtitle || 'Windows instalačka'),
+          chips: [item.type || 'EXE installer', item.sizeLabel || 'soubor chybí'].map(value => chip(value)).join(''),
+          button: downloadButton(item),
+        });
+      };
+      const mac = byId.get('macos-universal') || {};
+      gridEl.innerHTML = [
+        windowsCard('windows-x64'),
+        windowsCard('windows-arm64'),
+        windowsCard('windows-x86'),
+        card({
+          title: 'macOS',
+          icon: icons.apple,
+          badge: mac.available ? 'Připraveno' : 'Připravujeme',
+          badgeTone: mac.available ? 'green' : 'neutral',
+          text: macInstallCopy(mac),
+          chips: mac.available ? [mac.type, mac.sizeLabel].filter(Boolean).map(value => chip(value)).join('') : '',
+          button: downloadButton(mac, downloadLabel(mac)),
+        }),
+        card({
+          title: 'Android',
+          icon: icons.android,
+          badge: 'Uzavřená beta',
+          badgeTone: 'yellow',
+          text: '',
+          extra: `<ol style="margin:0 0 18px;padding-left:20px;color:#A0A0B2;font-size:15px;line-height:1.55;">
+            <li style="padding-left:7px;margin-bottom:9px;">Pošli nám e-mail, pod kterým jsi přihlášený v <strong style="color:#D4D4DE;">Google Play</strong> — přidáme tě do uzavřené bety.</li>
+            <li style="padding-left:7px;margin-bottom:9px;">Po přidání vyhledej v Google Play balíček:<br><code style="display:inline-block;margin-top:8px;color:#A78BFA;background:#0A0A12;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:5px 10px;font-size:13px;">cz.movly</code></li>
+            <li style="padding-left:7px;">Nainstaluj a přihlas se svým účtem.</li>
+          </ol>`,
+          button: `<a href="mailto:cinelog@outlook.cz" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);color:#fff;font-size:15px;font-weight:850;text-decoration:none;">${icons.mail}Požádat o přístup</a>`,
+        }),
+        card({
+          title: 'iOS',
+          icon: icons.apple,
+          badge: 'Připravujeme',
+          badgeTone: 'neutral',
+          text: 'Verze pro iPhone a iPad je v přípravě. Brzy dorazí přes TestFlight a App Store.',
+          muted: true,
+        }),
+        card({
+          title: 'tvOS',
+          icon: icons.tv,
+          badge: 'Připravujeme',
+          badgeTone: 'neutral',
+          text: 'Aplikace pro Apple TV je v přípravě. Brzy ji najdeš na Apple TV s ovládáním zaměřeným na dálkový ovladač.',
+          muted: true,
+        }),
+      ].join('');
+    };
+    const loadDownloads = async () => {
+      setStatus('Načítám dostupné instalačky...');
+      const data = await api('/api/downloads');
+      renderDownloads(data.downloads || []);
+      setStatus('Vyber instalačku pro svoje zařízení.', 'ok');
+    };
+    const applySession = async session => {
+      const account = session.account || {};
+      if (nameEl) nameEl.textContent = account.displayName || account.username || 'Přihlášeno';
+      if (emailEl) emailEl.textContent = account.email || 'Instalačky najdeš níže.';
+      showSession(true);
+      if (!session.hasDownloadAccess) {
+        if (gridEl) gridEl.innerHTML = '';
+        setStatus('Instalačky pro tento účet teď nejsou dostupné.', 'error');
+        return;
+      }
+      await loadDownloads();
+    };
+    const clearSession = ({ preserveError = false } = {}) => {
+      localStorage.removeItem(tokenKey);
+      showSession(false);
+      if (passEl) passEl.value = '';
+      if (errEl && !preserveError) errEl.style.display = 'none';
+    };
+    const tryLogin = async () => {
+      if (!userEl || !passEl || !loginBtn) return;
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Přihlašuji...';
+      if (errEl) errEl.style.display = 'none';
+      try {
+        const session = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ username: userEl.value, password: passEl.value }) });
+        localStorage.setItem(tokenKey, session.token);
+        passEl.value = '';
+        await applySession(session);
+      } catch (error) {
+        clearSession({ preserveError: true });
+        if (errEl) { errEl.textContent = error.message; errEl.style.display = 'block'; }
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Přihlásit se';
+      }
+    };
+    if (loginBtn) loginBtn.addEventListener('click', tryLogin);
+    if (passEl) passEl.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+    if (userEl) userEl.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+    if (logoutBtn) logoutBtn.addEventListener('click', async () => {
+      try {
+        await api('/api/auth/logout', { method: 'POST' });
+        clearSession();
+      } catch (error) {
+        setStatus(`Odhlášení se nepodařilo: ${error.message}`, 'error');
+      }
+    });
+    if (gridEl) gridEl.addEventListener('click', async event => {
+      const button = event.target.closest('[data-download-id]');
+      if (!button || button.disabled) return;
+      const original = button.innerHTML;
+      button.disabled = true;
+      button.textContent = 'Připravuji odkaz...';
+      try {
+        const data = await api(`/api/downloads/${encodeURIComponent(button.dataset.downloadId)}/link`, { method: 'POST' });
+        if (data.windowsReleaseMode === 'legacy-v1-manual-only') {
+          setStatus('Stahování začíná. Jde o starší ruční Windows build; automatické aktualizace jsou pro něj z bezpečnostních důvodů vypnuté.');
+        } else {
+          setStatus('Stahování začíná...', 'ok');
+        }
+        window.location.href = data.url;
+      } catch (error) {
+        setStatus(error.message, 'error');
+      } finally {
+        button.disabled = false;
+        button.innerHTML = original;
+      }
+    });
+    (async () => {
+      if (!localStorage.getItem(tokenKey)) return;
+      try {
+        const session = await api('/api/auth/me');
+        await applySession(session);
+      } catch (error) {
+        clearSession();
+        if (errEl) {
+          errEl.textContent = `Uložené přihlášení se nepodařilo ověřit: ${error.message}`;
+          errEl.style.display = 'block';
+        }
+      }
+    })();
+  }
+
+  componentWillUnmount() {
+    if (this._onScroll) window.removeEventListener('scroll', this._onScroll);
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
+    if (this._scrollFrame) cancelAnimationFrame(this._scrollFrame);
+    if (this._revealObserver) this._revealObserver.disconnect();
+  }
+
+  renderVals() { return {}; }
+}
 </script>
 </body>
 </html>

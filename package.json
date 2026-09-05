@@ -2,10 +2,12 @@
   "name": "movly-web",
   "version": "1.0.0",
   "private": true,
-  "description": "Movly website with premium-gated installer downloads.",
+  "description": "Movly website with Premium manual downloads and authenticated Windows updates.",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js"
+    "check": "node --check server.js && node --check app-server.js && node --check app/main.js && node --check app/catalog.js && node --check app/library.js && node --check app/api.js && node --check app/ui.js && node --check app/admin.js",
+    "test": "node --test *.test.js",
+    "preview:app": "node test-support/app-fixture.cjs"
   },
   "engines": {
     "node": ">=18"
