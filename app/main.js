@@ -1,6 +1,7 @@
 import { api, array } from "./api.js";
 import {
   el,
+  avatar,
   button,
   icon,
   loading,
@@ -11,6 +12,10 @@ import {
 } from "./ui.js";
 import { home, catalog, search, collection } from "./catalog.js";
 import { library, detail, save, invalidateDetail } from "./library.js";
+import { editProfile } from "./profiles.js";
+import { providerSettings, stop as stopPlayback } from "./player.js";
+import { friends } from "./friends.js";
+import { history, stats } from "./personal.js";
 import { admin } from "./admin.js";
 const content = document.querySelector("#content"),
   dialog = document.querySelector("#dialog");
@@ -38,7 +43,10 @@ dialog
   .addEventListener("click", () => dialog.close());
 dialog.addEventListener("close", () => {
   // A close event may arrive after a follow-up dialog was already opened.
-  if (!dialog.open) invalidateDetail();
+  if (!dialog.open) {
+    invalidateDetail();
+    stopPlayback();
+  }
 });
 function chrome() {
   const ready = Boolean(session?.profile);
@@ -47,13 +55,12 @@ function chrome() {
   document.querySelector("#search-link").hidden = !ready;
   document.querySelector("#profile-name").textContent =
     session?.profile?.name || "Vybrat profil";
-  document.querySelector("#avatar").textContent = (
-    session?.profile?.name ||
-    session?.account?.displayName ||
-    "M"
-  )
-    .slice(0, 1)
-    .toUpperCase();
+  document
+    .querySelector("#avatar")
+    .replaceChildren(
+      ...avatar(session?.profile || { name: session?.account?.displayName })
+        .childNodes,
+    );
   document.querySelector("#account-name").textContent =
     session?.account?.displayName || "";
   document.querySelector("#admin-link").hidden = !(
@@ -149,6 +156,16 @@ function login(message = "") {
     ),
   );
 }
+async function reloadProfiles() {
+  try {
+    session = await api("session");
+    chrome();
+    await profiles();
+  } catch (e) {
+    if (e.status === 401) login(e.message);
+    else toast(e.message);
+  }
+}
 async function profiles() {
   controller?.abort();
   renderRevision++;
@@ -164,15 +181,20 @@ async function profiles() {
         throw new Error("API vrátilo neplatný profil.");
       choices.append(
         el(
-          "button",
-          { class: "profile-choice", onClick: () => chooseProfile(p) },
-          el("span", { class: "avatar" }, p.name.slice(0, 1).toUpperCase()),
-          el("strong", {}, p.name),
+          "div",
+          { class: "profile-tile" },
           el(
-            "small",
-            {},
-            p.has_pin ? "Chráněno PINem" : p.is_kids ? "Dětský profil" : "",
+            "button",
+            { class: "profile-choice", onClick: () => chooseProfile(p) },
+            avatar(p),
+            el("strong", {}, p.name),
+            el(
+              "small",
+              {},
+              p.has_pin ? "Chráněno PINem" : p.is_kids ? "Dětský profil" : "",
+            ),
           ),
+          button("Upravit", () => editProfile(p, reloadProfiles), "small"),
         ),
       );
     }
@@ -189,6 +211,12 @@ async function profiles() {
               {},
               "Účet zatím nemá profil. Vytvoř ho v mobilní nebo desktopové aplikaci.",
             ),
+        button(
+          "Přidat profil",
+          () => editProfile(null, reloadProfiles),
+          "primary",
+          "plus",
+        ),
         session.profile ? button("Zpět do katalogu", () => render()) : null,
       ),
     );
@@ -284,6 +312,9 @@ async function render() {
       "search",
       "lists",
       "collection",
+      "history",
+      "friends",
+      "stats",
       ...(session?.account?.canModerate ? ["admin"] : []),
     ].includes(routeRaw)
       ? routeRaw
@@ -293,20 +324,26 @@ async function render() {
     if (link.dataset.page === route) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
-  document.title = `Movly — ${{ home: "Objevovat", movies: "Filmy", series: "Seriály", lists: "Moje seznamy", search: "Hledání", collection: "Katalog", admin: "Nahlášené streamy" }[route]}`;
+  document.title = `Movly — ${{ home: "Home", movies: "Filmy", series: "Seriály", lists: "Moje seznamy", search: "Hledání", collection: "Katalog", history: "Historie", friends: "Přátelé", stats: "Statistiky", admin: "Nahlášené streamy" }[route]}`;
   content.replaceChildren(loading());
   try {
-    const result = await (route === "home"
-      ? home(signal, actions)
-      : route === "movies" || route === "series"
-        ? catalog(route, params, signal, actions)
-        : route === "search"
-          ? search(params, signal, actions)
-          : route === "collection"
-            ? collection(params, signal, actions)
-            : route === "admin"
-              ? admin(params, signal, actions)
-              : library(params, signal, actions));
+    const result = await (route === "friends"
+      ? friends(params, signal, actions)
+      : route === "history"
+        ? history(params, signal, actions)
+        : route === "stats"
+          ? stats(params, signal)
+          : route === "home"
+            ? home(signal, actions)
+            : route === "movies" || route === "series"
+              ? catalog(route, params, signal, actions)
+              : route === "search"
+                ? search(params, signal, actions)
+                : route === "collection"
+                  ? collection(params, signal, actions)
+                  : route === "admin"
+                    ? admin(params, signal, actions)
+                    : library(params, signal, actions));
     if (signal.aborted || revision !== renderRevision) return;
     content.replaceChildren(result);
     window.scrollTo(0, 0);
@@ -331,6 +368,9 @@ async function render() {
 }
 document.querySelector("#profile-button").addEventListener("click", profiles);
 document.querySelector("#switch-profile").addEventListener("click", profiles);
+document
+  .querySelector("#provider-settings")
+  .addEventListener("click", providerSettings);
 document.querySelector("#account-button").addEventListener("click", () => {
   const menu = document.querySelector("#account-menu");
   menu.hidden = !menu.hidden;

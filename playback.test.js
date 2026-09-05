@@ -1,0 +1,247 @@
+"use strict";
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const { Writable } = require("node:stream");
+const { finished } = require("node:stream/promises");
+const { spawnSync } = require("node:child_process");
+const fs = require("node:fs/promises");
+const { createReadStream } = require("node:fs");
+const path = require("node:path");
+const os = require("node:os");
+const { md5crypt } = require("./providers-server");
+const {
+  createPlayback,
+  allowedURL,
+  publicIPv4,
+  ffmpegArgs,
+} = require("./playback-server");
+test("provider password hashing matches published MD5 crypt vector", () => {
+  assert.equal(
+    md5crypt("password", "saltqwer"),
+    "$1$saltqwer$yCutmodwBoXKLyFtgW5r31",
+  );
+});
+test("playback only accepts provider HTTPS origins and publicly routed IPv4", () => {
+  for (const url of [
+    "http://webshare.cz/a",
+    "https://evil.test/a",
+    "https://webshare.cz.evil.test/a",
+    "https://user:pass@webshare.cz/a",
+    "https://webshare.cz:444/a",
+  ])
+    assert.throws(() => allowedURL(url));
+  assert.equal(
+    allowedURL("https://h1.webshare.cz/file").hostname,
+    "h1.webshare.cz",
+  );
+  for (const ip of [
+    "127.0.0.1",
+    "10.0.0.1",
+    "172.18.0.1",
+    "169.254.169.254",
+    "192.168.1.1",
+    "100.64.0.1",
+    "0.0.0.0",
+    "224.0.0.1",
+  ])
+    assert.equal(publicIPv4(ip), false, ip);
+  assert.equal(publicIPv4("8.8.8.8"), true);
+});
+for (const [codec, withSubs] of [
+  ["libx264", false],
+  ["libx265", false],
+  ["libx265", true],
+])
+  test(
+    `real ${codec} ${withSubs ? "with subtitles " : ""}MKV reaches HLS with H264 video, AAC audio and isolated ownership`,
+    { timeout: 45000 },
+    async () => {
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), "movly-codec-test-")),
+        file = path.join(dir, "input.mkv");
+      const subtitleFile = path.join(dir, "subtitle.srt");
+      if (withSubs)
+        await fs.writeFile(
+          subtitleFile,
+          "1\n00:00:00,500 --> 00:00:08,000\nTest českých titulků\n",
+        );
+      const generated = spawnSync(
+        "ffmpeg",
+        [
+          "-v",
+          "error",
+          "-f",
+          "lavfi",
+          "-i",
+          "testsrc2=size=320x180:rate=24",
+          "-f",
+          "lavfi",
+          "-i",
+          "sine=frequency=440:sample_rate=48000",
+          ...(withSubs
+            ? [
+                "-i",
+                subtitleFile,
+                "-map",
+                "0:v",
+                "-map",
+                "1:a",
+                "-map",
+                "2:s",
+                "-c:s",
+                "srt",
+              ]
+            : []),
+          "-t",
+          "9",
+          "-c:v",
+          codec,
+          "-threads",
+          "1",
+          ...(codec === "libx265"
+            ? ["-x265-params", "pools=1:frame-threads=1"]
+            : []),
+          "-g",
+          "48",
+          "-c:a",
+          "ac3",
+          "-y",
+          file,
+        ],
+        { timeout: 15000 },
+      );
+      assert.equal(generated.status, 0, generated.stderr?.toString());
+      const source = async (_url, range) => {
+        const size = (await fs.stat(file)).size,
+          start = range ? Number(range.match(/\d+/)[0]) : 0;
+        const stream = createReadStream(file, { start });
+        stream.statusCode = range ? 206 : 200;
+        stream.headers = {
+          "content-type": "video/x-matroska",
+          "content-length": String(size - start),
+          "accept-ranges": "bytes",
+          ...(range
+            ? { "content-range": `bytes ${start}-${size - 1}/${size}` }
+            : {}),
+        };
+        return stream;
+      };
+      const engine = createPlayback({ requestMedia: source }),
+        session = {
+          token: "account",
+          device: "device",
+          profile: { id: 1 },
+          grant: "grant",
+        };
+      try {
+        const result = await engine.start(
+          session,
+          "https://h1.webshare.cz/test",
+          { subtitle: withSubs ? 0 : -1 },
+        );
+        assert.equal(result.mode, codec === "libx264" ? "remux" : "transcode");
+        assert.ok(result.duration >= 9);
+        assert.equal(result.audio[0].codec, "ac3");
+        await assert.rejects(
+          engine.handle(
+            { ...session, profile: { id: 2 } },
+            { method: "GET" },
+            null,
+            result.id,
+            "status",
+          ),
+          { status: 404 },
+        );
+        await assert.rejects(
+          engine.start(
+            { ...session, token: "other" },
+            "https://h1.webshare.cz/test",
+          ),
+          { status: 429 },
+        );
+        let state;
+        for (let i = 0; i < 100; i++) {
+          state = await engine.handle(
+            session,
+            { method: "GET" },
+            null,
+            result.id,
+            "status",
+          );
+          if (state.ready || state.error) break;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        assert.equal(state.error, null);
+        assert.equal(state.ready, true);
+        const capture = async (file) => {
+          const chunks = [];
+          const res = new Writable({
+            write(d, _enc, done) {
+              chunks.push(d);
+              done();
+            },
+          });
+          res.writeHead = () => {};
+          await engine.handle(session, { method: "GET" }, res, result.id, file);
+          await finished(res);
+          return Buffer.concat(chunks);
+        };
+        if (withSubs) {
+          assert.equal(result.subtitles[0].supported, true);
+          assert.match(
+            (await capture("master.m3u8")).toString(),
+            /TYPE=SUBTITLES/,
+          );
+          const subs = (await capture("index_vtt.m3u8")).toString();
+          const vtt = subs.split("\n").find((line) => line.endsWith(".vtt"));
+          assert.ok(vtt);
+          assert.match((await capture(vtt)).toString(), /Test českých titulků/);
+        }
+        const playlist = (await capture("index.m3u8")).toString();
+        const segment = playlist
+          .split("\n")
+          .find((line) => /^index\d+\.ts$/.test(line));
+        assert.ok(segment);
+        const segmentFile = path.join(dir, "segment.ts");
+        await fs.writeFile(segmentFile, await capture(segment));
+        const probed = spawnSync("ffprobe", [
+          "-v",
+          "error",
+          "-show_streams",
+          "-of",
+          "json",
+          segmentFile,
+        ]);
+        assert.equal(probed.status, 0);
+        const streams = JSON.parse(probed.stdout).streams;
+        assert.equal(
+          streams.find((s) => s.codec_type === "video").codec_name,
+          "h264",
+        );
+        assert.equal(
+          streams.find((s) => s.codec_type === "audio").codec_name,
+          "aac",
+        );
+        await assert.rejects(
+          engine.handle(
+            session,
+            { method: "GET" },
+            null,
+            result.id,
+            "../input.mkv",
+          ),
+          { status: 404 },
+        );
+        assert.deepEqual(
+          await engine.handle(session, { method: "DELETE" }, null, result.id),
+          { stopped: true },
+        );
+        await assert.rejects(
+          engine.handle(session, { method: "GET" }, null, result.id, "status"),
+          { status: 404 },
+        );
+      } finally {
+        await engine.close();
+        await fs.rm(dir, { recursive: true, force: true });
+      }
+    },
+  );

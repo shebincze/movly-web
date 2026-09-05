@@ -108,6 +108,26 @@ export function poster(t, onClick, extra) {
         })
       : el("span", { class: "missing-art" }, "Bez plakátu"),
   );
+  const badges = el("span", { class: "poster-badges" });
+  if (Number.isFinite(t.rating))
+    badges.append(el("span", {}, `${Math.round(t.rating)}%`));
+  if (t.streams?.video_height)
+    badges.append(
+      el(
+        "span",
+        {},
+        t.streams.video_width >= 3800 || t.streams.video_height >= 2100
+          ? "4K"
+          : `${t.streams.video_height}p`,
+      ),
+    );
+  if (
+    t.streams?.audio_languages?.some((x) =>
+      ["cs", "cz", "ces", "cze"].includes(x.toLowerCase()),
+    )
+  )
+    badges.append(el("span", {}, "CZ"));
+  if (badges.childNodes.length) frame.append(badges);
   const progress =
     t.progress?.progress_percentage ?? t.progress?.progress_percent;
   if (typeof progress === "number" && Number.isFinite(progress))
@@ -233,4 +253,28 @@ export function showDialog(content, { closable = true } = {}) {
 
 export function countLabel(n, one, few, many) {
   return `${n.toLocaleString("cs-CZ")} ${n === 1 ? one : n >= 2 && n <= 4 ? few : many}`;
+}
+
+export function avatar(profile) {
+  const node = el(
+    "span",
+    { class: "avatar" },
+    (profile?.name || "M").slice(0, 1).toUpperCase(),
+  );
+  try {
+    const url = new URL(profile?.avatar_url);
+    if (
+      url.origin === "https://res.cloudinary.com" &&
+      url.pathname.startsWith("/dsnzqq6kh/")
+    ) {
+      const img = el("img", {
+        src: url.href,
+        alt: "",
+        referrerpolicy: "no-referrer",
+        onError: () => img.remove(),
+      });
+      node.append(img);
+    }
+  } catch {}
+  return node;
 }

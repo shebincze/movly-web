@@ -1,4 +1,4 @@
-import { api, array, title } from "./api.js";
+import { api, array, title, imageURL } from "./api.js";
 import {
   el,
   button,
@@ -10,57 +10,176 @@ import {
   poster,
   formField,
   countLabel,
+  errorBox,
 } from "./ui.js";
-export async function home(signal, actions) {
-  const results = await Promise.all([
-    api("main?type=movie&limit=12", { signal }),
-    api("main?type=tv&limit=12", { signal }),
-  ]);
-  const groups = results.flatMap((result) =>
-    array(result.lists, "katalog").map((group) => ({
-      ...group,
-      items: array(group.items).map(title),
-    })),
+function carousel(items, actions) {
+  let index = 0;
+  const slide = el("div", {}),
+    dots = el("div", {
+      class: "hero-dots",
+      "aria-label": "Výběr doporučeného titulu",
+    });
+  function show(next) {
+    index = (next + items.length) % items.length;
+    slide.replaceChildren(hero(items[index], actions.detail, actions.save));
+    dots
+      .querySelectorAll("button")
+      .forEach((b, i) => b.setAttribute("aria-pressed", String(i === index)));
+  }
+  items
+    .slice(0, 10)
+    .forEach((t, i) => dots.append(button(t.title, () => show(i), "hero-dot")));
+  show(0);
+  return el(
+    "section",
+    { class: "home-carousel" },
+    slide,
+    el(
+      "div",
+      { class: "hero-controls" },
+      button("Předchozí", () => show(index - 1), "small"),
+      dots,
+      button("Další", () => show(index + 1), "small"),
+    ),
   );
-  const featured =
-    groups.flatMap((g) => g.items).find((t) => t.backdrop_path) ||
-    groups.flatMap((g) => g.items)[0];
-  const content = el(
-    "div",
-    {},
-    featured
-      ? hero(featured, actions.detail, actions.save)
-      : empty(
-          "Katalog je zatím prázdný",
-          "Až se objeví první tituly, najdeš je tady.",
+}
+function feedRail(group, actions, source = "main") {
+  const items = array(group.items).map(title);
+  const node = rail(
+    group.name,
+    items,
+    actions.detail,
+    `#collection?source=${source}&slug=${encodeURIComponent(group.slug)}`,
+  );
+  if (group.slug === "top-watched") {
+    node.classList.add("top-ten");
+    [...node.querySelectorAll(".poster-card")].forEach((card, i) =>
+      card.prepend(
+        el(
+          "span",
+          { class: "rank-number", "aria-hidden": "true" },
+          String(i + 1),
         ),
-  );
-  results.forEach((r) => {
-    const w = warning(r);
-    if (w) content.append(el("div", { class: "rail-section" }, w));
-  });
-  // Personal rows can occur in both media responses. Keep both when their
-  // content types differ; exact duplicates are omitted, never mixed by ID.
-  const seen = new Set();
-  for (const group of groups) {
-    const fingerprint = `${group.slug}:${group.items.map((t) => t.id).join(",")}`;
-    if (seen.has(fingerprint)) continue;
-    seen.add(fingerprint);
-    if (group.items.length)
+      ),
+    );
+  }
+  return node;
+}
+export async function home(signal, actions) {
+  const slugs = ["top-home", "top-watched", "popular-streaming", "csfd-tips"];
+  const results = await Promise.allSettled([
+    ...slugs.map((slug) =>
+      api(
+        `themed-lists/${slug}?page=1&limit=${slug === "top-watched" ? 10 : 30}`,
+        { signal },
+      ),
+    ),
+    api("themed-lists", { signal }),
+  ]);
+  const content = el("div", { class: "native-home" });
+  const heroResult = results[0];
+  if (heroResult.status === "fulfilled") {
+    const items = array(heroResult.value.items).map(title);
+    if (items.length) content.append(carousel(items.slice(0, 10), actions));
+  }
+  const collections = results[4];
+  if (collections.status === "fulfilled") {
+    const values = array(collections.value.lists);
+    if (values.length)
       content.append(
-        rail(
-          group.name,
-          group.items,
-          actions.detail,
-          group.has_more && /^[a-z0-9_-]+$/.test(group.slug)
-            ? `#collection?slug=${encodeURIComponent(group.slug)}`
-            : null,
+        el(
+          "section",
+          { class: "rail-section" },
+          el("h2", {}, "Kolekce"),
+          el(
+            "div",
+            { class: "collection-banners" },
+            values.map((c) =>
+              el(
+                "a",
+                {
+                  href: `#collection?source=themed&slug=${encodeURIComponent(c.slug)}`,
+                  class: "collection-banner",
+                },
+                imageURL(c.banner_url)
+                  ? el("img", {
+                      src: imageURL(c.banner_url),
+                      alt: "",
+                      loading: "lazy",
+                      onError: (e) => e.target.remove(),
+                    })
+                  : null,
+                el("strong", {}, c.name),
+                Number.isInteger(c.total_items)
+                  ? el("span", {}, `${c.total_items} titulů`)
+                  : null,
+              ),
+            ),
+          ),
         ),
       );
   }
+  results.forEach((r, i) => {
+    if (r.status === "rejected")
+      content.append(
+        el(
+          "div",
+          { class: "rail-section" },
+          el("p", {}, i === 4 ? "Kolekce" : slugs[i]),
+          errorBox(r.reason, actions.refresh),
+        ),
+      );
+    else if (i > 0 && i < 4)
+      content.append(
+        feedRail(
+          {
+            ...r.value,
+            name:
+              r.value.name ||
+              ["", "Nejsledovanější", "Populární streamy", "Tipy z ČSFD"][i],
+            slug: slugs[i],
+          },
+          actions,
+          "themed",
+        ),
+      );
+  });
   return content;
 }
 export async function catalog(route, params, signal, actions) {
+  if (params.get("view") === "grid")
+    return catalogGrid(route, params, signal, actions);
+  const type = route === "series" ? "tv" : "movie",
+    data = await api(`main?type=${type}&limit=30`, { signal });
+  const seen = new Set();
+  const groups = array(data.lists)
+    .map((g, index) => ({ ...g, index }))
+    .sort((a, b) => (a.display_order ?? a.index) - (b.display_order ?? b.index))
+    .filter((g) => {
+      if (seen.has(g.slug)) return false;
+      seen.add(g.slug);
+      return true;
+    });
+  return el(
+    "div",
+    {},
+    el(
+      "div",
+      { class: "page-heading catalog-heading" },
+      el("h1", {}, route === "series" ? "Seriály" : "Filmy"),
+      el(
+        "a",
+        { class: "button secondary", href: `#${route}?view=grid` },
+        "Procházet podle filtrů",
+      ),
+    ),
+    warning(data),
+    ...groups
+      .filter((g) => array(g.items).length)
+      .map((g) => feedRail(g, actions)),
+  );
+}
+async function catalogGrid(route, params, signal, actions) {
   const isSeries = route === "series",
     type = isSeries ? "tv" : "movie";
   const page = Math.max(1, Number(params.get("page")) || 1);
@@ -128,7 +247,7 @@ export async function catalog(route, params, signal, actions) {
       class: "filters",
       onSubmit: (e) => {
         e.preventDefault();
-        const q = new URLSearchParams();
+        const q = new URLSearchParams({ view: "grid" });
         for (const [k, v] of new FormData(filters)) if (v) q.set(k, v);
         location.hash = `${route}?${q}`;
       },
@@ -148,6 +267,7 @@ export async function catalog(route, params, signal, actions) {
     { class: "page" },
     el("h1", {}, isSeries ? "Seriály" : "Filmy"),
     el("p", {}, "Vyber si příběh podle své nálady."),
+    el("a", { class: "text-link", href: `#${route}` }, "Zpět na řady katalogu"),
     filters,
     warning(data),
     items.length
@@ -251,15 +371,18 @@ export async function collection(params, signal, actions) {
   const slug = params.get("slug");
   if (!/^[a-z0-9_-]+$/.test(slug || "")) throw new Error("Neplatný katalog.");
   const page = Math.max(1, Number(params.get("page")) || 1);
-  const data = await api(`main/lists/${slug}?page=${page}&limit=24`, {
-    signal,
-  });
+  const data = await api(
+    `${params.get("source") === "themed" ? "themed-lists" : "main/lists"}/${slug}?page=${page}&limit=30`,
+    {
+      signal,
+    },
+  );
   const list = data.list || data;
   const items = array(list.items || data.items, "položky katalogu").map(title);
   const node = el(
     "div",
     { class: "page" },
-    el("a", { href: "#home", class: "text-link" }, "Zpět na Objevovat"),
+    el("a", { href: "#home", class: "text-link" }, "Zpět na Home"),
     el("h1", {}, list.name || "Katalog"),
     warning(data),
     items.length

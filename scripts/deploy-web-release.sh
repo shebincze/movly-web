@@ -30,10 +30,10 @@ cd "$web_dir"
 node --check server.js && node --check app-server.js
 # Allowlist: only what the server serves or requires. No git metadata, no
 # design sources, no zip archives, no local download roots.
-tar -czf "$tarball" \
-  --exclude='.git' --exclude='node_modules' --exclude='downloads-local' \
+COPYFILE_DISABLE=1 tar --no-xattrs -czf "$tarball" \
+  --exclude='._*' --exclude='.git' --exclude='node_modules' --exclude='downloads-local' \
   --exclude='design' --exclude='*.zip' --exclude='.DS_Store' \
-  server.js app-server.js support.js package.json \
+  server.js app-server.js providers-server.js sources-server.js playback-server.js support.js package.json \
   index.html privacy.html delete-account.html party.html activate.html devices.html \
   activate.css devices.css activate.js devices.js \
   assets en app .well-known
@@ -50,6 +50,8 @@ fi
 
 "${PX[@]}" "pct exec $ct -- bash -s" <<REMOTE
 set -euo pipefail
+exec 9>/run/lock/movly-web-release.lock
+flock -n 9 || { echo "Another web deployment is running" >&2; exit 1; }
 release=$release
 sum=$sum
 base=/srv/movly/.movly-web-releases
@@ -58,14 +60,30 @@ printf '%s  %s\n' "\$sum" "/tmp/\$release.tar.gz" | sha256sum -c --quiet
 previous=\$(readlink -f /srv/movly/web)
 mkdir -p "\$dir"
 tar -xzf "/tmp/\$release.tar.gz" -C "\$dir" --no-same-owner
-cd "\$dir" && node --check server.js && node --check app-server.js
+cd "\$dir"
+for source in server.js app-server.js providers-server.js sources-server.js playback-server.js app/*.js; do node --check "\$source"; done
+command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
+switched=0
+rollback() {
+  code=\$?
+  trap - ERR
+  if [ "\$switched" = 1 ]; then
+    ln -sfn "\$previous" /srv/movly/web.new && mv -Tf /srv/movly/web.new /srv/movly/web
+    systemctl restart movly-web || true
+  fi
+  exit "\$code"
+}
+trap rollback ERR
 ln -sfn "\$dir" /srv/movly/web.new && mv -Tf /srv/movly/web.new /srv/movly/web
+switched=1
 systemctl restart movly-web
 sleep 2
 smoke() {
   node -e 'const http=require("http");const p=process.argv[1];http.get({host:"127.0.0.1",port:8080,path:p,headers:{host:"movly.sheri.cz"}},r=>{console.log(p,r.statusCode);process.exit(r.statusCode===200?0:1)}).on("error",e=>{console.log(p,e.message);process.exit(1)})' "\$1"
 }
 if smoke /devices && smoke /app/ && systemctl is-active --quiet movly-web; then
+  switched=0
+  trap - ERR
   printf 'WEB-RELEASE DONE %s -> %s (previous %s)\n' "\$(date -u +%H:%M:%SZ)" "\$dir" "\$previous"
   rm -f "/tmp/\$release.tar.gz"
 else

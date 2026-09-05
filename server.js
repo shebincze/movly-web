@@ -247,6 +247,7 @@ function createEd25519PublicKey(rawBase64) {
 const mimeTypes = new Map([
   ['.html', 'text/html; charset=utf-8'],
   ['.css', 'text/css; charset=utf-8'],
+  ['.mjs', 'text/javascript; charset=utf-8'],
   ['.js', 'text/javascript; charset=utf-8'],
   ['.json', 'application/json; charset=utf-8'],
   ['.svg', 'image/svg+xml'],
@@ -2064,7 +2065,7 @@ function serveStatic(req, res, pathname) {
     relativePath.startsWith('/.git') ||
     relativePath.startsWith('/design/') ||
     relativePath.startsWith('/test-support/') ||
-    relativePath === '/app-server.js' ||
+    relativePath.endsWith('-server.js') ||
     relativePath.endsWith('.test.js') ||
     relativePath.startsWith('/downloads') ||
     relativePath === '/server.js' ||
@@ -2127,7 +2128,7 @@ async function route(req, res) {
   const pathname = url.pathname;
 
   if (pathname.startsWith('/app')) {
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://image.tmdb.org; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://image.tmdb.org https://res.cloudinary.com/dsnzqq6kh/; connect-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
   }
   if (await handleApp(req, res, url)) return;
 

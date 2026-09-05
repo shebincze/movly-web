@@ -93,6 +93,37 @@ function makeHandler(role, calls) {
         },
       };
     if (/restore\//.test(path)) return { payload: { restored: true } };
+    if (path === "v1/stream-reports/trusted-reporters" && method === "GET")
+      return {
+        payload: {
+          reporters: [
+            {
+              user_id: 7,
+              username: "honza",
+              display_name: "Honza",
+              granted_by: 1,
+              granted_by_name: "mod",
+              note: "ověřený",
+              created_at: "2026-09-05T10:00:00Z",
+            },
+          ],
+          total: 1,
+        },
+      };
+    if (path === "v1/stream-reports/trusted-reporters" && method === "POST")
+      return {
+        payload: {
+          user_id: 12,
+          username: body.username,
+          display_name: null,
+          granted_by: 1,
+          granted_by_name: "mod",
+          note: body.note ?? null,
+          created_at: "2026-09-05T11:00:00Z",
+        },
+      };
+    if (/^v1\/stream-reports\/trusted-reporters\/\d+$/.test(path) && method === "DELETE")
+      return { payload: null };
     throw new HttpError(404, `unexpected ${method} ${path}`);
   };
   return createAppHandler({
@@ -253,4 +284,75 @@ test("review and restore target the table named in the URL and validate input", 
     calls.find((c) => /restore\//.test(c.path)).path,
     "v1/stream-deletion-requests/restore/500",
   );
+});
+
+test("trusted reporters: list, add and remove go through the API", async () => {
+  const calls = [];
+  const handle = makeHandler("moderator", calls);
+  const cookie = await login(handle);
+  let res = fakeResponse();
+  await handle(
+    requestFor(cookie, "GET", "admin/trusted-reporters"),
+    res,
+    new URL("http://localhost/api/app/admin/trusted-reporters"),
+  );
+  assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+  assert.equal(res.body.total, 1);
+  assert.deepEqual(res.body.reporters[0], {
+    userId: 7,
+    username: "honza",
+    displayName: "Honza",
+    grantedByName: "mod",
+    note: "ověřený",
+    createdAt: "2026-09-05T10:00:00Z",
+  });
+
+  res = fakeResponse();
+  await handle(
+    requestFor(cookie, "POST", "admin/trusted-reporters", { username: "  " }),
+    res,
+    new URL("http://localhost/api/app/admin/trusted-reporters"),
+  );
+  assert.equal(res.statusCode, 400);
+
+  res = fakeResponse();
+  await handle(
+    requestFor(cookie, "POST", "admin/trusted-reporters", {
+      username: " pepa ",
+      note: " známý ",
+    }),
+    res,
+    new URL("http://localhost/api/app/admin/trusted-reporters"),
+  );
+  assert.equal(res.statusCode, 201, JSON.stringify(res.body));
+  assert.equal(res.body.username, "pepa");
+  assert.equal(res.body.userId, 12);
+  const add = calls.find(
+    (c) => c.path === "v1/stream-reports/trusted-reporters" && c.method === "POST",
+  );
+  assert.deepEqual(add.body, { username: "pepa", note: "známý" });
+
+  res = fakeResponse();
+  await handle(
+    requestFor(cookie, "DELETE", "admin/trusted-reporters/7"),
+    res,
+    new URL("http://localhost/api/app/admin/trusted-reporters/7"),
+  );
+  assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+  assert.equal(
+    calls.find((c) => c.method === "DELETE").path,
+    "v1/stream-reports/trusted-reporters/7",
+  );
+});
+
+test("trusted reporters are hidden from plain users", async () => {
+  const handle = makeHandler("user", []);
+  const cookie = await login(handle);
+  const res = fakeResponse();
+  await handle(
+    requestFor(cookie, "GET", "admin/trusted-reporters"),
+    res,
+    new URL("http://localhost/api/app/admin/trusted-reporters"),
+  );
+  assert.equal(res.statusCode, 403);
 });

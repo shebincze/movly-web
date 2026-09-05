@@ -54,3 +54,23 @@ Před skutečným cutoverem je třeba ověřit aktuální webový checkout/reviz
 - IAB načetl živou přihlašovací obrazovku na `https://movly.sheri.cz/app`.
 - Lokální syntaxe a všech 45 testů prošly.
 - Zbývá uživatelský end-to-end test reálného přihlášení, PINu a zápisu seznamu v produkci. Přehrávání je nadále mimo první fázi.
+
+## Web parity update — 2026-09-05
+
+Implemented: actual profile avatars (including restored sessions and a validated avatar picker), profile creation/editing and deletion, watchlist poster rails from the bounded overview contract, title membership toggles, create-and-add, shared watchlists, sharing by username, public-link creation/revocation and leaving shared lists. Title details now expose seasons/episodes, ratings, watch status and stream selection; account navigation includes history, yearly statistics, friends/privacy and Webshare connection.
+
+Playback uses a locally hosted hls.js 1.7.2 bundle (license in `app/vendor`). Provider credentials are used only for authentication; the Webshare token remains inside the encrypted HttpOnly session. Source links are resolved from canonical title/episode stream IDs, never supplied by the browser. Every playback request revalidates the selected profile grant. A loopback source proxy pins public IPv4 DNS results for HTTPS Webshare hosts and revalidates redirects. FFmpeg receives only a random loopback URL and a bounded format/protocol allowlist.
+
+Runtime requirements: Node >=18, FFmpeg/ffprobe. The current 2-core, 2-GB LXC allows one active web playback session. H.264 is remuxed; H.265 is converted to H.264 up to 720p, AAC stereo. HLS files use a bounded rolling window and idle sessions expire after three minutes. Seeking and audio-track changes reopen the source at the requested position. Progress saves to the canonical profile watch history.
+
+Validation: 55 tests passed locally, including real H.264/HEVC MKV input -> inspected H.264/AAC HLS segments. The five codec/security tests (including embedded text subtitles) also passed on LXC214 with Debian FFmpeg 5.1.9. Provider login/file resolution with an actual Webshare account remains unverified until the user connects their account. This is not full native parity: other external provider adapters, image-based subtitles, Watch Party, offline downloads, native HDR/Dolby Vision and lossless/multichannel audio remain outside this web implementation. Do not claim them supported.
+
+Browser playback QA: an isolated provider fixture streamed a generated 45-second HEVC/AC3 MKV through the real source proxy, FFmpeg and HLS BFF. Chromium reported readyState=4, 640x360 decoded frames and advancing currentTime, with no console errors. This verifies the pipeline, not real Webshare credentials or provider availability.
+
+Deployed release: `/srv/movly/.movly-web-releases/web-20260905T111951Z-076f79211244`, activated 2026-09-05 11:20:31 UTC. Public HTTPS app/player/profiles/HLS bundle returned 200 and matched local hashes; anonymous session/provider/playback returned 401; server modules and QA fixture paths returned 404. Browser HEVC playback also successfully restarted at zero after a seek.
+
+Embedded text subtitles (SRT/ASS/WebVTT/mov_text) are converted into an authenticated HLS WebVTT rendition in the same FFmpeg process. Selecting a subtitle track restarts at the current position. Image subtitles are explicitly disabled. The optional `sname` map field is omitted for Debian FFmpeg 5 compatibility; all five media tests pass there.
+
+Browser subtitle QA: the generated HEVC MKV displayed the Czech sentence from its embedded SRT track in the video after enabling subtitles and restarting at zero. HLS subtitle activation follows SUBTITLE_TRACKS_UPDATED and native addtrack; video and text were inspected visually.
+
+Final subtitle release: `/srv/movly/.movly-web-releases/web-20260905T113600Z-076f79211244`, activated 2026-09-05 11:36:14 UTC. Runtime syntax and service smoke checks passed.

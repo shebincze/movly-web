@@ -96,11 +96,27 @@ function createFixture() {
       revoked = true;
       return { payload: { ok: true } };
     }
+    if (p === "v1/profiles/avatars")
+      return {
+        payload: require("../../backend/apps/core-api/assets/default_avatars.json"),
+      };
     if (p === "v1/profiles")
       return {
         payload: [
-          { id: 1, name: "Testovací profil", has_pin: false },
-          { id: 2, name: "Chráněný profil", has_pin: true },
+          {
+            id: 1,
+            name: "Testovací profil",
+            has_pin: false,
+            avatar_url:
+              "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089385/avatar_wolf_jrxa0y.jpg",
+          },
+          {
+            id: 2,
+            name: "Chráněný profil",
+            has_pin: true,
+            avatar_url:
+              "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089364/avatar_panda_rgtevl.jpg",
+          },
         ],
       };
     if (p.endsWith("/pin/verify")) {
@@ -124,6 +140,64 @@ function createFixture() {
       fail(403, "Chybí profil.", "profile_grant_required");
     const type = u.searchParams.get("type"),
       all = type === "tv" ? series : films;
+    if (p === "v1/themed-lists")
+      return {
+        payload: {
+          lists: [
+            {
+              slug: "marvel-mcu",
+              name: "Marvel",
+              total_items: 82,
+              banner_url:
+                "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1767810410/marvel-logo-marvel-icon-free-free-vector_l9gvvd.jpg",
+            },
+            { slug: "science-fiction", name: "Světy sci-fi", total_items: 32 },
+          ],
+        },
+      };
+    if (p.startsWith("v1/themed-lists/"))
+      return {
+        payload: {
+          name:
+            {
+              "top-home": "Doporučujeme",
+              "top-watched": "Nejsledovanější",
+              "popular-streaming": "Populární streamy",
+              "csfd-tips": "Tipy z ČSFD",
+            }[p.split("/").at(-1)] || "Marvel",
+          items: films.map((title) => ({
+            title,
+            rating: 87,
+            streams: { video_height: 2160, audio_languages: ["cze"] },
+          })),
+          pagination: { page: 1, total_pages: 1 },
+        },
+      };
+    if (/^v1\/titles\/\d+\/similar$/.test(p))
+      return {
+        payload: films
+          .slice(1, 5)
+          .map((t) => ({
+            ...t,
+            similar_title_id: t.id,
+            similar_title: t.title,
+            similar_type: t.type,
+          })),
+      };
+    if (p === "v1/people/50")
+      return {
+        payload: {
+          id: 50,
+          name: "Timothée Chalamet",
+          biography:
+            "Americký herec známý mimo jiné rolí Paula Atreida ve filmu Duna.",
+          profile_path: "/BE2sdjpgsa2rNTFa66f7upkaOP.jpg",
+        },
+      };
+    if (p === "v1/people/50/filmography")
+      return {
+        payload: films.slice(0, 3).map((t) => ({ ...t, title_id: t.id })),
+      };
     if (p === "v1/main/")
       return {
         payload: {
@@ -182,14 +256,69 @@ function createFixture() {
       return {
         payload: {
           ...t,
-          credits: [{ name: "Timothée Chalamet", character: "Paul Atreides" }],
+          tagline: "Osud celého vesmíru je v jeho rukou.",
+          original_title: t.type === "movie" ? "Dune: Part Two" : t.title,
+          ratings: [
+            { source: "ČSFD", rating: 87 },
+            { source: "IMDb", rating: 85 },
+          ],
+          videos: [
+            {
+              site: "YouTube",
+              key: "Way9Dexny3w",
+              type: "Trailer",
+              language: "cs",
+              official: true,
+            },
+          ],
+          collection: t.type === "movie" ? films.slice(0, 3) : [],
+          collection_info: { id: 1, name: "Duna · kolekce" },
+          credits: [
+            {
+              person_id: 50,
+              name: "Timothée Chalamet",
+              character: "Paul Atreides",
+              profile_path: "/BE2sdjpgsa2rNTFa66f7upkaOP.jpg",
+            },
+          ],
           seasons:
             t.type === "tv"
-              ? [{ season_number: 1, name: "Řada 1", episode_count: 9 }]
+              ? [
+                  {
+                    season_number: 1,
+                    name: "Řada 1",
+                    episode_count: 2,
+                    episodes: [
+                      {
+                        id: 2001,
+                        episode_number: 1,
+                        name: "Když se ztratíš ve tmě",
+                        overview: "Začátek společné cesty.",
+                      },
+                      { id: 2002, episode_number: 2, name: "Nakažení" },
+                    ],
+                  },
+                ]
               : [],
         },
       };
     }
+    if (p === "v1/watchlists/overview")
+      return {
+        payload: {
+          watchlists: lists.map((l) => ({ ...l, preview: items.get(l.id) })),
+          total: lists.length,
+          preview_limit: 12,
+        },
+      };
+    if (p === "v1/watchlists/shared") return { payload: [] };
+    if (/^v1\/watchlists\/\d+\/public-link$/.test(p))
+      return { payload: { active: false } };
+    if (/^v1\/watchlists\/\d+\/shares$/.test(p)) return { payload: [] };
+    if (/^v1\/ratings\/title\/\d+\/my$/.test(p))
+      return { payload: { has_rated: false, rating: null } };
+    if (/^v1\/streaming2?\/titles\/\d+\/streams$/.test(p))
+      return { payload: { streams: [] } };
     if (p === "v1/watchlists") {
       if (method === "POST") {
         const list = {

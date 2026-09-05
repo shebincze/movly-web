@@ -46,6 +46,9 @@ export function title(value) {
   return {
     ...t,
     progress: value?.watch_progress || t.watch_progress,
+    streams: value?.streams || t.streams,
+    ratings: value?.ratings || t.ratings,
+    rating: value?.rating ?? t.rating,
     year: t.year || t.release_date?.slice(0, 4) || null,
   };
 }
@@ -55,7 +58,11 @@ export function imageURL(value, size = "w500") {
     return `https://image.tmdb.org/t/p/${size}${value}`;
   try {
     const u = new URL(value);
-    return u.origin === "https://image.tmdb.org" ? u.href : null;
+    return u.origin === "https://image.tmdb.org" ||
+      (u.origin === "https://res.cloudinary.com" &&
+        u.pathname.startsWith("/dsnzqq6kh/"))
+      ? u.href
+      : null;
   } catch {
     return null;
   }

@@ -174,6 +174,9 @@ function reportCard(row, refresh) {
           { class: `badge status-${row.status}` },
           statusLabel[row.status],
         ),
+        row.reviewComment && row.reviewComment.startsWith("auto-approved")
+          ? el("span", { class: "badge auto" }, "auto")
+          : null,
       ),
       el(
         "p",
@@ -240,20 +243,154 @@ function reportCard(row, refresh) {
   );
 }
 
+function trustedCard(row, refresh) {
+  const remove = button(
+    "Odebrat",
+    async () => {
+      remove.disabled = true;
+      try {
+        await api(`admin/trusted-reporters/${row.userId}`, { method: "DELETE" });
+        toast(`${row.username} už nemá automatické schvalování.`);
+        refresh();
+      } catch (e) {
+        toast(e.message);
+        remove.disabled = false;
+      }
+    },
+    "secondary",
+    "close",
+  );
+  return el(
+    "article",
+    { class: "report-card" },
+    el(
+      "div",
+      { class: "report-main" },
+      el(
+        "div",
+        { class: "report-title" },
+        el("strong", {}, row.displayName || row.username),
+        el("span", { class: "badge" }, row.username),
+      ),
+      el(
+        "p",
+        { class: "meta" },
+        [
+          row.grantedByName ? `přidal ${row.grantedByName}` : null,
+          row.createdAt ? formatDate(row.createdAt) : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      ),
+      row.note ? el("p", { class: "report-reason" }, `„${row.note}“`) : null,
+    ),
+    el("div", { class: "report-actions" }, remove),
+  );
+}
+
+async function trustedView(signal, refresh) {
+  const data = await api("admin/trusted-reporters", { signal });
+  if (!data || !Array.isArray(data.reporters))
+    throw new Error("Server vrátil neplatný seznam důvěryhodných uživatelů.");
+  const username = el("input", {
+    name: "username",
+    required: true,
+    maxlength: 255,
+    autocomplete: "off",
+    placeholder: "uživatelské jméno",
+  });
+  const note = el("input", {
+    name: "note",
+    maxlength: 500,
+    placeholder: "poznámka (nepovinné)",
+  });
+  const status = el("p", { class: "form-status", role: "alert" });
+  const submit = el(
+    "button",
+    { type: "submit", class: "button primary" },
+    "Přidat",
+  );
+  const form = el(
+    "form",
+    {
+      class: "trusted-form",
+      onSubmit: async (e) => {
+        e.preventDefault();
+        submit.disabled = true;
+        status.textContent = "";
+        try {
+          const added = await api("admin/trusted-reporters", {
+            method: "POST",
+            body: { username: username.value, note: note.value },
+          });
+          toast(`${added.username}: nahlášení se teď schvalují automaticky.`);
+          refresh();
+        } catch (err) {
+          status.textContent = err.message;
+          submit.disabled = false;
+        }
+      },
+    },
+    formField("Uživatel", username),
+    formField("Poznámka", note),
+    submit,
+    status,
+  );
+  return el(
+    "div",
+    {},
+    el(
+      "p",
+      { class: "meta" },
+      "Nahlášení od těchto uživatelů se rovnou schválí a stream se skryje bez čekání na kontrolu. Objeví se v záložce Schválené se štítkem auto.",
+    ),
+    form,
+    data.reporters.length
+      ? el(
+          "div",
+          { class: "report-list" },
+          data.reporters.map((row) => trustedCard(row, refresh)),
+        )
+      : empty(
+          "Zatím nikdo",
+          "Přidej uživatele, jehož nahlášením věříš.",
+        ),
+  );
+}
+
 export async function admin(params, signal, actions) {
+  const view = params.get("view") === "trusted" ? "trusted" : "reports";
   const status = ["pending", "approved", "rejected", "all"].includes(
     params.get("status"),
   )
     ? params.get("status")
     : "pending";
   const page = Math.max(1, Number(params.get("page") || "1") || 1);
+  const refresh = () => actions.refresh();
+  if (view === "trusted") {
+    return el(
+      "div",
+      { class: "page" },
+      el(
+        "div",
+        { class: "page-heading" },
+        el(
+          "div",
+          {},
+          el("h1", {}, "Důvěryhodní uživatelé"),
+          el("p", {}, "Jejich nahlášení se schvalují automaticky."),
+        ),
+        el("a", { href: "#admin", class: "button secondary" }, "Zpět na nahlášení"),
+      ),
+      await trustedView(signal, refresh),
+    );
+  }
   const data = await api(
     `admin/reports?status=${status}&page=${page}&per_page=50`,
     { signal },
   );
   if (!data || !Array.isArray(data.requests))
     throw new Error("Server vrátil neplatný seznam nahlášení.");
-  const refresh = () => actions.refresh();
   const tabs = el(
     "nav",
     { class: "filters report-filters", "aria-label": "Stav nahlášení" },
@@ -272,6 +409,13 @@ export async function admin(params, signal, actions) {
         },
         label,
       ),
+    ),
+  );
+  tabs.append(
+    el(
+      "a",
+      { href: "#admin?view=trusted", class: "button secondary small" },
+      "Důvěryhodní uživatelé",
     ),
   );
   const list = data.requests.length

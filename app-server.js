@@ -1,6 +1,9 @@
 "use strict";
 
 const crypto = require("node:crypto");
+const providers = require("./providers-server");
+const liveSources = require("./sources-server");
+const { createPlayback } = require("./playback-server");
 
 // Deliberately closed BFF: neither upstream URLs nor authentication/profile
 // headers are accepted from the browser. The core API remains authoritative.
@@ -11,7 +14,12 @@ function createAppHandler({
   HttpError,
   secret,
   production,
+  providerClient = providers,
+  playbackEngine,
 }) {
+  const playback = playbackEngine || createPlayback();
+  const sourceTickets = liveSources.tickets(secret);
+  const sourceSearches = new Map();
   const cookieName = production ? "__Host-movly-app" : "movly-app";
   const key = crypto.hkdfSync(
     "sha256",
@@ -168,6 +176,28 @@ function createAppHandler({
         typeof raw.stream_provider === "string" ? raw.stream_provider : null,
     };
   }
+  function trustedRow(raw) {
+    if (
+      !raw ||
+      !Number.isSafeInteger(raw.user_id) ||
+      typeof raw.username !== "string"
+    ) {
+      throw new HttpError(
+        502,
+        "API vrátilo neplatného důvěryhodného uživatele.",
+      );
+    }
+    return {
+      userId: raw.user_id,
+      username: raw.username,
+      displayName:
+        typeof raw.display_name === "string" ? raw.display_name : null,
+      grantedByName:
+        typeof raw.granted_by_name === "string" ? raw.granted_by_name : null,
+      note: typeof raw.note === "string" ? raw.note : null,
+      createdAt: typeof raw.created_at === "string" ? raw.created_at : null,
+    };
+  }
   async function handleAdmin(req, res, url, s, account, target) {
     if (!account.canModerate)
       throw new HttpError(
@@ -188,9 +218,11 @@ function createAppHandler({
       const pages = await Promise.all(
         Object.entries(reportSources).map(async ([source, path]) => {
           const payload = await call(s, `${path}/${query}`);
+          const requests =
+            payload && payload.requests == null ? [] : payload?.requests;
           if (
             !payload ||
-            !Array.isArray(payload.requests) ||
+            !Array.isArray(requests) ||
             !Number.isSafeInteger(payload.total)
           ) {
             throw new HttpError(502, "API vrátilo neplatný seznam nahlášení.");
@@ -198,7 +230,7 @@ function createAppHandler({
           return {
             source,
             total: payload.total,
-            requests: payload.requests.map((raw) => reportRow(source, raw)),
+            requests: requests.map((raw) => reportRow(source, raw)),
           };
         }),
       );
@@ -272,6 +304,57 @@ function createAppHandler({
       });
       return true;
     }
+    if (target === "admin/trusted-reporters" && req.method === "GET") {
+      const payload = await call(s, "stream-reports/trusted-reporters");
+      if (!payload || !Array.isArray(payload.reporters)) {
+        throw new HttpError(
+          502,
+          "API vrátilo neplatný seznam důvěryhodných uživatelů.",
+        );
+      }
+      json(res, 200, {
+        reporters: payload.reporters.map(trustedRow),
+        total: payload.reporters.length,
+      });
+      return true;
+    }
+    if (target === "admin/trusted-reporters" && req.method === "POST") {
+      const body = await readBody(req, 4096);
+      if (
+        typeof body.username !== "string" ||
+        !body.username.trim() ||
+        body.username.length > 255
+      ) {
+        throw new HttpError(400, "Zadej uživatelské jméno.");
+      }
+      if (
+        body.note !== undefined &&
+        body.note !== null &&
+        (typeof body.note !== "string" || body.note.length > 500)
+      ) {
+        throw new HttpError(400, "Poznámka může mít nejvýše 500 znaků.");
+      }
+      const note =
+        typeof body.note === "string" && body.note.trim()
+          ? body.note.trim()
+          : undefined;
+      const payload = await call(
+        s,
+        "stream-reports/trusted-reporters",
+        "POST",
+        { username: body.username.trim(), ...(note ? { note } : {}) },
+      );
+      json(res, 201, trustedRow(payload));
+      return true;
+    }
+    if (
+      (match = /^admin\/trusted-reporters\/([1-9]\d*)$/.exec(target)) &&
+      req.method === "DELETE"
+    ) {
+      await call(s, `stream-reports/trusted-reporters/${match[1]}`, "DELETE");
+      json(res, 200, { ok: true, userId: Number(match[1]) });
+      return true;
+    }
     throw new HttpError(404, "Tato administrační funkce není dostupná.");
   }
   function cleanQuery(url, allowed) {
@@ -284,6 +367,10 @@ function createAppHandler({
         (!integer(v) || Number(v) > (k === "limit" ? 100 : 100000))
       )
         throw new HttpError(400, "Neplatné stránkování.");
+      if (k === "preview_limit" && (!integer(v) || Number(v) > 20))
+        throw new HttpError(400, "Neplatný počet náhledů.");
+      if (["title_id", "episode_id"].includes(k) && !integer(v))
+        throw new HttpError(400, "Neplatný titul nebo epizoda.");
       if (k === "offset" && (!/^\d+$/.test(v) || Number(v) > 100000))
         throw new HttpError(400, "Neplatné stránkování.");
       if (k === "type" && !["movie", "tv", "both"].includes(v))
@@ -317,6 +404,39 @@ function createAppHandler({
     return `?${q}`;
   }
   const routes = [
+    ["GET", /^themed-lists$/, []],
+    ["GET", /^themed-lists\/[a-z0-9_-]+$/, ["page", "limit"]],
+    ["GET", /^titles\/[1-9]\d*\/similar$/, ["limit"]],
+    ["GET", /^people\/[1-9]\d*(?:\/filmography)?$/, ["type"]],
+    ["GET", /^friends(?:\/(?:requests|privacy|activity))?$/, ["limit"]],
+    ["POST", /^friends\/requests$/, []],
+    ["POST", /^friends\/requests\/[1-9]\d*\/accept$/, []],
+    ["DELETE", /^friends\/[1-9]\d*$/, []],
+    ["POST", /^friends\/[1-9]\d*\/block$/, []],
+    ["PUT", /^friends\/privacy$/, []],
+    ["GET", /^watchlists\/overview$/, ["preview_limit"]],
+    ["GET", /^watchlists\/shared(?:\/[1-9]\d*)?$/, []],
+    ["GET", /^watchlists\/[1-9]\d*\/(?:shares|public-link)$/, []],
+    ["POST", /^watchlists\/[1-9]\d*\/(?:shares|public-link)$/, []],
+    ["DELETE", /^watchlists\/[1-9]\d*\/(?:shares\/[1-9]\d*|public-link)$/, []],
+    ["GET", /^titles\/[1-9]\d*\/seasons$/, []],
+    ["GET", /^ratings\/title\/[1-9]\d*\/my$/, []],
+    ["POST", /^ratings$/, ["title_id"], "ratings/"],
+    ["DELETE", /^ratings\/[1-9]\d*$/, []],
+    ["POST", /^watch-history$/, []],
+    ["GET", /^watch-history\/list$/, ["page", "limit", "status", "type"]],
+    [
+      "GET",
+      /^watch-history\/position\/[1-9]\d*$/,
+      ["season_number", "episode_number"],
+    ],
+    ["DELETE", /^watch-history\/[1-9]\d*$/, []],
+    ["GET", /^stats\/me(?:\/wrapped\/20\d{2})?$/, []],
+    [
+      "GET",
+      /^streaming2?\/titles\/[1-9]\d*\/streams$/,
+      ["episode_id", "limit", "type"],
+    ],
     ["GET", /^main$/, ["type", "limit", "cw_page", "wl_page"], "main/"],
     ["GET", /^main\/lists\/[a-z0-9_-]+$/, ["page", "limit"]],
     [
@@ -412,11 +532,66 @@ function createAppHandler({
       // Even API-key-readable catalog endpoints require a currently valid account.
       const account = accountView(await call(s, "auth/me"));
       if (target === "session" && req.method === "GET") {
+        if (s.profile) {
+          const profiles = await call(s, "profiles");
+          const current = profiles.find((p) => p.id === s.profile.id);
+          s.profile = current
+            ? {
+                id: current.id,
+                name: current.name,
+                avatar_url: current.avatar_url || null,
+              }
+            : null;
+        }
         json(res, 200, { account, profile: s.profile || null });
         return true;
       }
       if (target.startsWith("admin/"))
         return await handleAdmin(req, res, url, s, account, target);
+      if (target === "profiles/avatars" && req.method === "GET") {
+        json(res, 200, await call(s, target));
+        return true;
+      }
+      if (
+        (target === "profiles" && req.method === "POST") ||
+        (/^profiles\/[1-9]\d*$/.test(target) &&
+          ["PUT", "DELETE"].includes(req.method))
+      ) {
+        let body = null;
+        if (req.method !== "DELETE") {
+          const raw = objectBody(await readBody(req, 4096));
+          if (
+            typeof raw.name !== "string" ||
+            !raw.name.trim() ||
+            raw.name.length > 50
+          )
+            throw new HttpError(400, "Název profilu musí mít 1 až 50 znaků.");
+          body = { name: raw.name.trim() };
+          if (raw.avatar_url !== undefined) {
+            const avatars = await call(s, "profiles/avatars");
+            if (!avatars.some((a) => a.url === raw.avatar_url))
+              throw new HttpError(400, "Vyber avatar z nabídky.");
+            body.avatar_url = raw.avatar_url;
+          }
+          for (const key of ["is_kids", "allow_unrated"])
+            if (typeof raw[key] === "boolean") body[key] = raw[key];
+          if (raw.max_certification !== undefined) {
+            if (![7, 12, 15, 18].includes(raw.max_certification))
+              throw new HttpError(400, "Neplatná věková hranice.");
+            body.max_certification = raw.max_certification;
+          }
+          if (raw.pin !== undefined) {
+            if (
+              typeof raw.pin !== "string" ||
+              (raw.pin !== "" && !/^\d{4,8}$/.test(raw.pin))
+            )
+              throw new HttpError(400, "PIN musí mít 4 až 8 číslic.");
+            body.pin = raw.pin;
+          }
+        }
+        json(res, 200, await call(s, target, req.method, body));
+        return true;
+      }
       if (target === "profiles" && req.method === "GET") {
         json(res, 200, await call(s, "profiles"));
         return true;
@@ -457,7 +632,15 @@ function createAppHandler({
             "API nevrátilo oprávnění vybraného profilu.",
           );
         }
-        next.profile = { id: selected.profile_id, name: selected.name };
+        const profiles = await call(next, "profiles");
+        const selectedProfile = profiles.find(
+          (p) => p.id === selected.profile_id,
+        );
+        next.profile = {
+          id: selected.profile_id,
+          name: selected.name,
+          avatar_url: selectedProfile?.avatar_url || null,
+        };
         next.grant = selected.grant_token;
         writeSession(res, next);
         json(res, 200, { profile: next.profile });
@@ -467,6 +650,246 @@ function createAppHandler({
         throw new HttpError(409, "Nejdřív vyber profil.", {
           code: "app_profile_required",
         });
+      if (
+        /^watchlists\/[1-9]\d*\/leave$/.test(target) &&
+        req.method === "DELETE"
+      ) {
+        const me = await call(s, "auth/me");
+        if (!integer(me.id)) throw new HttpError(502, "Účet nemá platné ID.");
+        json(
+          res,
+          200,
+          await call(s, target.replace(/leave$/, `shares/${me.id}`), "DELETE"),
+        );
+        return true;
+      }
+      if (
+        target.startsWith("sources/") ||
+        target === "providers/webshare" ||
+        target === "playback" ||
+        target.startsWith("playback/")
+      )
+        await call(s, "watchlists?lang=cs");
+      if (target === "providers/webshare") {
+        if (req.method === "GET") {
+          json(res, 200, {
+            connected: Boolean(s.webshare),
+            username: s.webshare?.username || null,
+            vip: s.webshare?.vip || false,
+          });
+          return true;
+        }
+        if (req.method === "POST") {
+          const body = objectBody(await readBody(req, 4096));
+          if (
+            typeof body.username !== "string" ||
+            !body.username.trim() ||
+            body.username.length > 254 ||
+            typeof body.password !== "string" ||
+            !body.password ||
+            body.password.length > 1024
+          )
+            throw new HttpError(400, "Vyplň jméno a heslo Webshare.");
+          s.webshare = await providerClient.login(
+            body.username.trim(),
+            body.password,
+          );
+          writeSession(res, s);
+          json(res, 200, {
+            connected: true,
+            username: s.webshare.username,
+            vip: s.webshare.vip,
+          });
+          return true;
+        }
+        if (req.method === "DELETE") {
+          delete s.webshare;
+          writeSession(res, s);
+          json(res, 200, { connected: false });
+          return true;
+        }
+      }
+      const searchRoute = /^sources\/([1-9]\d*)\/(webshare|hellspy)$/.exec(
+        target,
+      );
+      if (searchRoute && req.method === "GET") {
+        cleanQuery(url, ["episode_id"]);
+        const titleID = Number(searchRoute[1]),
+          provider = searchRoute[2];
+        if (provider === "webshare" && !s.webshare?.token) {
+          json(res, 200, {
+            streams: [],
+            state: "not_connected",
+            message:
+              "Připoj Webshare a zpřístupníš i živé hledání mimo databáze.",
+          });
+          return true;
+        }
+        const title = await call(s, `titles/${titleID}?lang=cs&expand=seasons`);
+        let episode = null;
+        if (url.searchParams.has("episode_id")) {
+          const id = Number(url.searchParams.get("episode_id"));
+          for (const season of title.seasons || [])
+            for (const e of season.episodes || [])
+              if (e.id === id)
+                episode = { ...e, season_number: season.season_number };
+          if (!episode)
+            throw new HttpError(404, "Epizoda nepatří k tomuto titulu.");
+        }
+        if (title.type === "tv" && !episode)
+          throw new HttpError(400, "Nejdřív vyber konkrétní epizodu.");
+        const cacheKey = crypto
+          .createHash("sha256")
+          .update(
+            JSON.stringify([
+              s.token,
+              s.device,
+              s.profile.id,
+              s.grant,
+              s.webshare?.token,
+              titleID,
+              episode?.id,
+              provider,
+            ]),
+          )
+          .digest("hex");
+        for (const [k, v] of sourceSearches)
+          if (v.expires < Date.now()) sourceSearches.delete(k);
+        let entry = sourceSearches.get(cacheKey);
+        if (!entry) {
+          if (sourceSearches.size >= 100)
+            throw new HttpError(
+              429,
+              "Hledá příliš mnoho uživatelů. Zkus to za chvíli.",
+            );
+          entry = {
+            expires: Date.now() + 60000,
+            promise: liveSources.search(
+              provider,
+              title,
+              episode,
+              s.webshare?.token,
+              providerClient.searchFiles,
+            ),
+          };
+          sourceSearches.set(cacheKey, entry);
+        }
+        let result;
+        try {
+          result = await entry.promise;
+        } catch (e) {
+          sourceSearches.delete(cacheKey);
+          throw e;
+        }
+        json(res, 200, {
+          ...result,
+          state: "ready",
+          streams: result.streams.map((stream) => ({
+            ...stream,
+            ticket: sourceTickets.issue(s, {
+              provider,
+              ident: stream.source_stream_id,
+              title_id: titleID,
+              episode_id: episode?.id || null,
+            }),
+            available: stream.available !== false,
+          })),
+        });
+        return true;
+      }
+      if (target === "playback" && req.method === "POST") {
+        const body = objectBody(await readBody(req, 4096));
+        if (!integer(body.title_id))
+          throw new HttpError(400, "Vyber platný titul.");
+        if (body.episode_id !== undefined && !integer(body.episode_id))
+          throw new HttpError(400, "Neplatná epizoda.");
+        const title = await call(s, `titles/${body.title_id}?lang=cs`);
+        let provider, ident;
+        if (body.source === "live") {
+          let selected;
+          try {
+            selected = sourceTickets.read(s, body.ticket);
+          } catch (e) {
+            throw new HttpError(403, e.message);
+          }
+          if (
+            selected.title_id !== body.title_id ||
+            selected.episode_id !== (body.episode_id || null)
+          )
+            throw new HttpError(
+              403,
+              "Zdroj patří k jinému titulu nebo epizodě.",
+            );
+          provider = selected.provider;
+          ident = selected.ident;
+        } else {
+          if (
+            !integer(body.stream_id) ||
+            !["human", "ai"].includes(body.source)
+          )
+            throw new HttpError(400, "Vyber platný zdroj titulu.");
+          const data = await call(
+            s,
+            `streaming${body.source === "ai" ? "2" : ""}/titles/${body.title_id}/streams?limit=100${body.source === "ai" ? `&type=${title.type}` : ""}${body.episode_id ? `&episode_id=${body.episode_id}` : ""}`,
+          );
+          const stream = data.streams?.find((x) => x.id === body.stream_id);
+          if (!stream || stream.available === false)
+            throw new HttpError(422, "Zdroj není dostupný.");
+          provider = (
+            stream.provider_name ||
+            stream.provider_identifier ||
+            ""
+          ).toLowerCase();
+          ident = stream.source_stream_id;
+        }
+        let link;
+        if (provider === "webshare") {
+          if (!s.webshare?.token)
+            throw new HttpError(
+              409,
+              "Nejdřív připoj účet Webshare v nastavení.",
+            );
+          link = await providerClient.resolve(s.webshare.token, ident);
+        } else if (
+          provider === "hellspy" &&
+          /^[1-9]\d*\/[a-zA-Z0-9_-]{1,128}$/.test(ident || "")
+        ) {
+          link = `https://api.hellspy.to/gw/video/${ident}/download`;
+        } else
+          throw new HttpError(
+            422,
+            "Tento poskytovatel zatím nemá webový přehrávač.",
+          );
+        json(
+          res,
+          200,
+          await playback.start(s, link, {
+            offset: body.offset,
+            audio: body.audio,
+            subtitle: body.subtitle,
+          }),
+        );
+        return true;
+      }
+      const playing =
+        /^playback\/([a-f0-9]{48})(?:\/((?:index|index_vtt|master)\.m3u8|index\d+\.(?:ts|vtt)|status))?$/.exec(
+          target,
+        );
+      if (
+        playing &&
+        ((req.method === "GET" && playing[2]) ||
+          (req.method === "DELETE" && !playing[2]))
+      ) {
+        const result = await playback.handle(
+          s,
+          req,
+          res,
+          playing[1],
+          playing[2],
+        );
+        if (result) json(res, 200, result);
+        return true;
+      }
       const rule = routes.find(
         ([method, pattern]) => method === req.method && pattern.test(target),
       );
@@ -478,11 +901,93 @@ function createAppHandler({
       let query = cleanQuery(url, rule[2]);
       if (/^titles\/[1-9]\d*$/.test(target))
         query +=
-          "&expand=credits,seasons,recommendations,similar,watch_history";
+          "&expand=credits,seasons,collection,videos,ratings,streams,watch_history";
+      if (target.startsWith("themed-lists/"))
+        query += "&include_inactive=true&expand=watch_history,streams,ratings";
+      if (
+        target === "main" ||
+        target.startsWith("main/lists/") ||
+        /^titles\/\d+\/similar$/.test(target) ||
+        /^people\/\d+\/filmography$/.test(target)
+      )
+        query += "&expand=watch_history,streams,ratings";
       let body = null;
       if (["POST", "PUT"].includes(req.method)) {
         body = objectBody(await readBody(req, 8192));
-        if (target.endsWith("/items")) {
+        if (target === "friends/privacy") {
+          const raw = body;
+          body = {};
+          for (const k of [
+            "activity_opt_in",
+            "show_completed",
+            "show_ratings",
+          ]) {
+            if (typeof raw[k] !== "boolean")
+              throw new HttpError(400, "Neplatné nastavení soukromí.");
+            body[k] = raw[k];
+          }
+        } else if (target === "friends/requests") {
+          if (
+            typeof body.username !== "string" ||
+            !body.username.trim() ||
+            body.username.length > 255
+          )
+            throw new HttpError(400, "Zadej uživatelské jméno.");
+          body = { username: body.username.trim() };
+        } else if (/^friends\/.+\/(?:accept|block)$/.test(target)) {
+          body = null;
+        } else if (target.endsWith("/public-link")) {
+          body = null;
+        } else if (target.endsWith("/shares")) {
+          if (
+            typeof body.username !== "string" ||
+            !body.username.trim() ||
+            body.username.length > 100
+          )
+            throw new HttpError(400, "Zadej uživatelské jméno.");
+          body = { username: body.username.trim() };
+        } else if (target === "ratings") {
+          if (
+            typeof body.rating !== "number" ||
+            !Number.isFinite(body.rating) ||
+            body.rating < 0 ||
+            body.rating > 10
+          )
+            throw new HttpError(400, "Hodnocení musí být od 0 do 10.");
+          body = { rating: body.rating, is_public: body.is_public === true };
+        } else if (target === "watch-history") {
+          if (
+            !integer(body.title_id) ||
+            !["movie", "tv"].includes(body.type) ||
+            !["watching", "completed", "plan_to_watch", "dropped"].includes(
+              body.watch_status,
+            )
+          )
+            throw new HttpError(400, "Neplatný stav sledování.");
+          const raw = body;
+          body = {
+            title_id: Number(raw.title_id),
+            type: raw.type,
+            watch_status: raw.watch_status,
+            device_type: "web",
+            platform: "web",
+          };
+          for (const k of [
+            "progress_seconds",
+            "duration_seconds",
+            "season_number",
+            "episode_number",
+          ])
+            if (raw[k] !== undefined) {
+              if (
+                !Number.isSafeInteger(raw[k]) ||
+                raw[k] < 0 ||
+                raw[k] > 10000000
+              )
+                throw new HttpError(400, "Neplatná pozice přehrávání.");
+              body[k] = raw[k];
+            }
+        } else if (target.endsWith("/items")) {
           if (!integer(body.title_id))
             throw new HttpError(400, "Neplatný titul.");
           body = { title_id: Number(body.title_id), priority: 0, notes: null };
@@ -500,17 +1005,40 @@ function createAppHandler({
           };
         }
       }
-      json(
-        res,
-        200,
-        await call(s, `${rule[3] || target}${query}`, req.method, body),
+      const result = await call(
+        s,
+        `${rule[3] || target}${query}`,
+        req.method,
+        body,
+        /^streaming2?\//.test(target) ? { "X-Cache-Refresh": "true" } : {},
       );
+      if (
+        target.endsWith("/public-link") &&
+        req.method === "POST" &&
+        result?.active &&
+        /^[a-zA-Z0-9_-]+$/.test(result.token || "")
+      ) {
+        result.url = new URL(
+          `v1/shared/${result.token}`,
+          (process.env.MOVLY_API_BASE || "https://api-go.shebin.eu").replace(
+            /\/?$/,
+            "/",
+          ),
+        ).href;
+      }
+      json(res, 200, result);
     } catch (error) {
       // Invalid PIN is a profile error, not a logout. All other API diagnostics
       // retain their real status/code instead of masquerading as empty content.
       if (error.status === 401 && target !== "profile" && target !== "login")
         writeSession(res, null);
       const status = Number.isInteger(error.status) ? error.status : 500;
+      if (status >= 500) {
+        console.error(
+          `[Movly web] app ${req.method} ${target} -> ${status}: ${error.message}`,
+          error.stack || "",
+        );
+      }
       const retry = error.headers?.get("retry-after");
       if (retry && /^\d+$/.test(retry)) res.setHeader("Retry-After", retry);
       json(res, status, {
