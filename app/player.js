@@ -1,4 +1,5 @@
 import { api, array } from "./api.js";
+import { setProgress } from "./user-state.js";
 import {
   el,
   button,
@@ -436,6 +437,14 @@ async function play(
       Math.min(session.duration, offset + (video.currentTime || 0));
     const history = async () => {
       if (!video.currentTime) return;
+      // Film: pozice / dokoukáno rovnou do překryvu karet. Stav seriálu je
+      // per epizoda, ten řeší detail sám.
+      if (!episode && session.duration > 0)
+        setProgress(
+          t.id,
+          (positionNow() / session.duration) * 100,
+          video.ended,
+        );
       await api("watch-history", {
         method: "POST",
         body: {

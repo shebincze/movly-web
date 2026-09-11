@@ -39,6 +39,26 @@ const handler = createAppHandler({
   providerClient: {
     login: async () => ({ token: "test-only", username: "fixture", vip: true }),
     resolve: async () => "https://h1.webshare.cz/test",
+    searchFiles: async (provider) =>
+      provider === "hellspy"
+        ? [
+            {
+              provider_name: "Hellspy",
+              source_stream_id: "42/hash",
+              file_name: "Duna Cast druha 2024 1080p H264 CZ.mkv",
+              file_size: 4e9,
+              available: true,
+            },
+          ]
+        : [
+            {
+              provider_name: "Webshare",
+              source_stream_id: "live-test",
+              file_name: "Duna Cast druha 2024 2160p HEVC CZ HDR.mkv",
+              file_size: 12e9,
+              available: true,
+            },
+          ],
   },
   playbackEngine: engine,
   json: (res, status, body) => {

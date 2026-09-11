@@ -10,7 +10,14 @@ import {
   showDialog,
   toast,
 } from "./ui.js";
-import { home, catalog, search, collection } from "./catalog.js";
+import { resetUserState } from "./user-state.js";
+import {
+  home,
+  catalog,
+  search,
+  collection,
+  resetCatalogCache,
+} from "./catalog.js";
 import { library, detail, save, invalidateDetail } from "./library.js";
 import { editProfile } from "./profiles.js";
 import { providerSettings, stop as stopPlayback } from "./player.js";
@@ -390,6 +397,8 @@ document.querySelector("#logout").addEventListener("click", async (e) => {
   e.target.disabled = true;
   try {
     await api("logout", { method: "POST" });
+    resetUserState();
+    resetCatalogCache();
     document.querySelector("#account-menu").hidden = true;
     login();
   } catch (err) {

@@ -16,7 +16,8 @@ function allowedURL(value) {
     url.username ||
     url.password ||
     (url.port && url.port !== "443") ||
-    !/^(?:[a-z0-9-]+\.)*(?:webshare\.cz|hellspy\.to)$/.test(url.hostname)
+    (!/^(?:[a-z0-9-]+\.)*(?:webshare\.cz|hellspy\.to)$/.test(url.hostname) &&
+      url.hostname !== "sixseven.onecdn1.net")
   )
     throw fail(422, "Neplatný mediální server poskytovatele.");
   return url;

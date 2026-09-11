@@ -175,14 +175,12 @@ function createFixture() {
       };
     if (/^v1\/titles\/\d+\/similar$/.test(p))
       return {
-        payload: films
-          .slice(1, 5)
-          .map((t) => ({
-            ...t,
-            similar_title_id: t.id,
-            similar_title: t.title,
-            similar_type: t.type,
-          })),
+        payload: films.slice(1, 5).map((t) => ({
+          ...t,
+          similar_title_id: t.id,
+          title: t.title,
+          type: t.type,
+        })),
       };
     if (p === "v1/people/50")
       return {
@@ -241,6 +239,41 @@ function createFixture() {
           page: 1,
         },
       };
+    if (p === "v1/saved-filters")
+      return {
+        payload: {
+          items: [
+            {
+              id: 1,
+              name: "Sci-fi 2020+",
+              filter: { type: "movie", genre_ids: [1], genre_match: "any", year_from: 2020, sort_by: "rating", sort_order: "desc" },
+            },
+          ],
+        },
+      };
+    if (p === "v1/search/filters") {
+      // Fixture interpretation of a filter query: "sci-fi 2020+ 7+" style.
+      const q = (u.searchParams.get("q") || "").toLowerCase();
+      const matched = /sci|drama|20\d\d|\d\+|4k|hdr|\bcz\b/.test(q);
+      return {
+        payload: {
+          results: matched ? films : [],
+          total: matched ? films.length : 0,
+          total_pages: matched ? 1 : 0,
+          page: 1,
+          parsed: {
+            matched,
+            genre_names: matched && /sci/.test(q) ? ["Sci-Fi"] : [],
+            year_from: /2020/.test(q) ? 2020 : null,
+            rating_from: /7\+/.test(q) ? 7 : null,
+            video_height_min: /4k/.test(q) ? 2160 : null,
+            hdr: /hdr/.test(q),
+            audio_language: /\bcz\b/.test(q) ? "cs" : null,
+            text: "",
+          },
+        },
+      };
+    }
     if (p === "v1/search") {
       const q = u.searchParams.get("q")?.toLowerCase();
       const results = [...films, ...series].filter((t) =>

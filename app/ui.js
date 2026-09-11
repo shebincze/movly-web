@@ -1,4 +1,10 @@
 import { imageURL } from "./api.js";
+import {
+  applyUserState,
+  isWatched,
+  progressPercent,
+  renderCardState,
+} from "./user-state.js";
 export function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
@@ -88,7 +94,8 @@ export function warning(data) {
       : null,
   );
 }
-export function poster(t, onClick, extra) {
+export function poster(raw, onClick, extra) {
+  const t = applyUserState(raw);
   const url = imageURL(t.poster_path);
   const frame = el(
     "span",
@@ -128,19 +135,10 @@ export function poster(t, onClick, extra) {
   )
     badges.append(el("span", {}, "CZ"));
   if (badges.childNodes.length) frame.append(badges);
-  const progress =
-    t.progress?.progress_percentage ?? t.progress?.progress_percent;
-  if (typeof progress === "number" && Number.isFinite(progress))
-    frame.append(
-      el("progress", {
-        max: 100,
-        value: Math.min(100, Math.max(0, progress)),
-        "aria-label": "Rozkoukáno",
-      }),
-    );
+  renderCardState(frame, isWatched(t), progressPercent(t));
   return el(
     "article",
-    { class: "poster-card" },
+    { class: "poster-card", "data-title-id": String(t.id) },
     el(
       "button",
       { class: "poster-button", onClick: () => onClick(t) },

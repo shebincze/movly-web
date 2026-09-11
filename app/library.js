@@ -15,6 +15,7 @@ import {
 } from "./ui.js";
 import { sources } from "./player.js";
 import { titleActivity } from "./personal.js";
+import { noteArtwork } from "./user-state.js";
 let detailRevision = 0;
 export function invalidateDetail() {
   detailRevision++;
@@ -34,6 +35,8 @@ export async function detail(t, actions) {
     if (revision !== detailRevision || !dialog.open) return;
     if (data.id !== t.id || typeof data.title !== "string")
       throw new Error("API vrátilo neplatný detail titulu.");
+    // Karta v seznamu mohla přijít bez plakátu; po zavření detailu ho dostane.
+    noteArtwork(data.id, data.poster_path, data.backdrop_path);
     const art = imageURL(data.backdrop_path, "w1280");
     const body = el(
       "div",
@@ -70,7 +73,9 @@ export async function detail(t, actions) {
       body
         .querySelector(".synopsis")
         .before(el("p", { class: "tagline" }, data.tagline));
-    const ratings = Array.isArray(data.ratings) ? data.ratings : [];
+    const ratings = Array.isArray(data.ratings)
+      ? data.ratings
+      : t.ratings || [];
     const metadata = el("div", { class: "detail-ratings" });
     for (const r of ratings)
       if (Number.isFinite(r.rating))
@@ -123,20 +128,18 @@ export async function detail(t, actions) {
           Number(b.official) - Number(a.official),
       )[0];
     if (trailer)
-      body
-        .querySelector(".actions")
-        .append(
-          el(
-            "a",
-            {
-              class: "button secondary",
-              href: `https://www.youtube.com/watch?v=${trailer.key}`,
-              target: "_blank",
-              rel: "noopener noreferrer",
-            },
-            "Trailer",
-          ),
-        );
+      body.querySelector(".actions").append(
+        el(
+          "a",
+          {
+            class: "button secondary",
+            href: `https://www.youtube.com/watch?v=${trailer.key}`,
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+          "Trailer",
+        ),
+      );
     if (data.original_title && data.original_title !== data.title)
       body.append(
         el("p", { class: "meta" }, `Původní název: ${data.original_title}`),
@@ -281,15 +284,12 @@ export async function detail(t, actions) {
       .map((x) => ({
         ...x,
         id: x.similar_title_id,
-        title: x.similar_title,
-        type: x.similar_type,
+        title: x.title,
+        type: x.type,
         progress: x.watch_progress,
       }));
     if (similar.length)
-      body.append(
-        el("h3", {}, "Podobné příběhy"),
-        rail("", similar, actions.detail),
-      );
+      body.append(rail("Podobné příběhy", similar, actions.detail));
     showDialog(
       el(
         "div",

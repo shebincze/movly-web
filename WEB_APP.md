@@ -1,19 +1,19 @@
-# Movly webová aplikace — první fáze
+# Movly webová aplikace
 
-Implementace je v `app/`, serverová brána v `app-server.js`, obojí obsluhuje stávající `server.js`. Cílová cesta je `https://movly.sheri.cz/app`. Produkční aplikace je dostupná a byla ověřena 5. 9. 2026. Aktivní vydání `web-20260905T103417Z-4b6cf53cc564` na PX / LXC 214 se shoduje s lokálním balíčkem (32 porovnaných souborů). Nasazení mezitím provedla souběžná práce; tato kontrola jej znovu nepřepisovala. Přihlášení skutečným účtem zatím nebylo ověřeno.
+Implementace je v `app/`, serverová brána v `app-server.js`, obojí obsluhuje stávající `server.js`. Cílová cesta je `https://movly.sheri.cz/app`. Produkční přihlášení skutečným uživatelským účtem zatím nebylo ověřeno; podrobnosti posledního nasazení jsou níže.
 
 ## Funkce
 
 - Přihlášení stávajícím Movly účtem, odhlášení a obnovení relace.
 - Výběr existujícího profilu, PIN a explicitní profilové oprávnění.
-- Objevovat: skutečné řady z `/v1/main/`, včetně osobních řad, které API vrátí.
-- Filmy a seriály: žánr, rok, minimální hodnocení, řazení a stránkování.
+- Home: karusel `top-home`, kolekce s bannery, Nejsledovanější, Populární streamy a Tipy z ČSFD ze stejných themed-listů jako macOS.
+- Filmy a seriály: pojmenované řady z `/v1/main/` pro příslušný typ, rozšíření celé řady a samostatné filtrování katalogu.
 - Hledání s počtem výsledků, stránkováním a upozorněním na částečná data.
-- Detail: popis, dostupná metadata, obsazení, řady seriálu a podobné tituly.
+- Detail: popis, hodnocení, trailer, filmová kolekce, obsazení s biografií a filmografií, řady a epizody s přehráním a označením Viděno, podobné tituly.
 - Soukromé seznamy: vytvořit, přejmenovat, smazat, přidat a odebrat titul.
 - Responzivní desktop/mobil, ovládání klávesnicí, nativní dialogy, loading/error/empty stavy.
 
-Přehrávání a jeho API nejsou v této fázi implementovány. Zakládání či editace profilů, hodnocení titulů a další pokročilé nativní funkce nejsou součástí první fáze. Souběžně přidanou administraci nahlášení vlastní samostatná práce; její soubory a testy byly zachovány.
+Přehrávání, správa profilů s avatary, hodnocení, historie a správa sdílení seznamů jsou implementovány; limity přehrávače jsou popsány níže. Souběžně přidanou administraci nahlášení vlastní samostatná práce; její soubory a testy byly zachovány.
 
 ## Napojení a přihlášení
 
@@ -74,3 +74,16 @@ Embedded text subtitles (SRT/ASS/WebVTT/mov_text) are converted into an authenti
 Browser subtitle QA: the generated HEVC MKV displayed the Czech sentence from its embedded SRT track in the video after enabling subtitles and restarting at zero. HLS subtitle activation follows SUBTITLE_TRACKS_UPDATED and native addtrack; video and text were inspected visually.
 
 Final subtitle release: `/srv/movly/.movly-web-releases/web-20260905T113600Z-076f79211244`, activated 2026-09-05 11:36:14 UTC. Runtime syntax and service smoke checks passed.
+
+
+## Rozšíření katalogu a živých zdrojů — 5. 9. 2026
+
+Home a katalogy byly porovnány s `Apple/Movly/Services/RemoteCatalog.swift` a živými produkčními odpověďmi. Detail a samostatný endpoint podobných titulů mají odlišné DTO: podobné tituly používají `similar_title_id` pro identitu a `title`/`type` pro popis. Filmografie je pole `PersonCredit` s `title_id`.
+
+Zdroje nyní agregují obě databáze a živé Webshare/Hellspy hledání (až 12 variant českého a původního názvu, 200 výsledků na dotaz). Výsledky přicházejí po jednotlivých poskytovatelích, mají filtr poskytovatele/kvality/textu, řazení a deduplikaci. Chyba nebo nepřipojený účet se zobrazují odděleně od prázdných výsledků. Webshare vyžaduje připojený účet v aktuální webové relaci. Hellspy používá skutečné pole `fileHash`; živý dotaz vrátil 200 parsovatelných výsledků. Ověřené mediální přesměrování vede na `sixseven.onecdn1.net`, jedinou dodatečně povolenou CDN doménu. Každé přesměrování nadále ověřuje doménu a veřejnou DNS adresu.
+
+Živý výsledek má serverem podepsaný výběr vázaný na přihlášení, zařízení, profil, grant, titul a epizodu. Prohlížeč nemůže dodat vlastní mediální URL. Hledání kontroluje grant a epizodu proti katalogu. Hledání opakované v minutě sdílí výsledek; nejvýše 100 současných cache záznamů. Přehrávání ověřuje účet a grant znovu.
+
+Tato změna nepřidává ostatní nativní poskytovatele (Sosáč, FastShare, Česká Wiki, Stremio doplňky, Bombuj, ČT, Přehraj.to). Není to úplná shoda všech nativních funkcí. Reálné Webshare přihlášení ani kompletní reálný Hellspy film nebyly přehrány; hledání a mediální redirect Hellspy byly ověřeny živě, samotná pipeline generovaným MKV.
+
+Nasazení tohoto rozšíření: `web-20260905T121316Z-076f79211244`, aktivováno 5. 9. 2026 v 12:13:37 UTC. Závěrečná sada: 67/67 testů, syntaxe bez chyb. Veřejné JS/CSS soubory se shodují s lokálními SHA-256; anonymní katalogové/zdrojové/přehrávací API vrací 401 a interní moduly/testovací fixture 404. V prohlížeči ověřeny Home, Filmy, Seriály, detail, filmografie, rozbalení epizod a filtrování poskytovatele. Podepsaný živý výsledek v izolované fixture přehrál generovaný 45sekundový HEVC MKV do konce (640×360, readyState 4, žádné chyby konzole).

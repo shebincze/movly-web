@@ -463,8 +463,92 @@ input::placeholder {
 select {
   min-width: 145px;
 }
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0 14px;
+}
+.filter-chips .chip {
+  background: #ffffff14;
+  border: 1px solid #ffffff22;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.filter-chips .chip.active {
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  border-color: transparent;
+  color: #fff;
+}
+.filter-chips .muted {
+  color: #a0a0b2;
+  font-size: 12px;
+}
+.filter-results h2 {
+  margin: 18px 0 6px;
+}
+.filters label.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: end;
+  padding-bottom: 10px;
+}
 .filters input[type="number"] {
   width: 115px;
+}
+.filters-builder select[multiple] {
+  min-width: 200px;
+}
+.filters .range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.filters .range-inputs input[type="number"] {
+  width: 90px;
+}
+.saved-filters .saved-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.saved-filters .chip {
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.saved-filters .chip-remove {
+  background: transparent;
+  border: 0;
+  color: #a0a0b2;
+  cursor: pointer;
+  font-size: 15px;
+  padding: 0 4px;
+}
+.saved-filters .chip-remove:hover {
+  color: #fff;
+}
+.button.small {
+  padding: 4px 12px;
+  font-size: 13px;
+}
+.filters-details {
+  margin: 8px 0 12px;
+}
+.filters-details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 6px 0;
+  color: var(--muted);
+}
+.filters-details[open] > summary {
+  color: inherit;
 }
 .pagination {
   display: flex;
@@ -1588,6 +1672,20 @@ footer span {
   color: #fff;
   font-size: 11px;
   font-weight: 700;
+}
+.watched-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(22, 163, 74, 0.92);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
 }
 .episode-still {
   width: 120px;

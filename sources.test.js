@@ -89,3 +89,47 @@ test("filename metadata never guesses unlabelled codecs or quality", () => {
   assert.equal(metadata("Film.mkv").video_height, null);
   assert.equal(metadata("Film 2160p x265 CZ HDR10+.mkv").video_codec, "H.265");
 });
+test("Hellspy adapter reads the live API camelCase fileHash contract", async (t) => {
+  t.mock.method(global, "fetch", async () => ({
+    ok: true,
+    text: async () =>
+      JSON.stringify({
+        items: [
+          { id: 42, title: "Film.mkv", fileHash: "abc123", size: 100000000 },
+        ],
+      }),
+  }));
+  const items = await require("./providers-server").searchFiles(
+    "hellspy",
+    "Film",
+  );
+  assert.equal(items[0].source_stream_id, "42/abc123");
+  assert.equal(items[0].available, true);
+});
+test("Webshare adapter handles XML file names including CDATA", async (t) => {
+  t.mock.method(global, "fetch", async () => ({
+    ok: true,
+    text: async () =>
+      "<response><status>OK</status><file><ident>abc123</ident><name><![CDATA[Film & Friends.mkv]]></name><size>200000000</size></file></response>",
+  }));
+  const items = await require("./providers-server").searchFiles(
+    "webshare",
+    "Film",
+    "private-token",
+  );
+  assert.equal(items[0].file_name, "Film & Friends.mkv");
+  assert.equal(items[0].source_stream_id, "abc123");
+});
+test("media URLs accept observed Hellspy CDN and reject lookalike hosts", () => {
+  const { allowedURL } = require("./playback-server");
+  assert.equal(
+    allowedURL("https://sixseven.onecdn1.net/file").hostname,
+    "sixseven.onecdn1.net",
+  );
+  for (const url of [
+    "https://sixseven.onecdn1.net.evil.test/file",
+    "https://evil.onecdn1.net/file",
+    "https://hellspy.to.evil.test/file",
+  ])
+    assert.throws(() => allowedURL(url));
+});

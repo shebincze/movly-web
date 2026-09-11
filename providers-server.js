@@ -161,10 +161,10 @@ async function searchFiles(provider, query, token) {
       .filter((f) => Number.isSafeInteger(f.id) && f.id > 0)
       .map((f) => ({
         provider_name: "Hellspy",
-        source_stream_id: `${f.id}${typeof f.file_hash === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(f.file_hash) ? `/${f.file_hash}` : ""}`,
+        source_stream_id: `${f.id}${typeof f.fileHash === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(f.fileHash) ? `/${f.fileHash}` : ""}`,
         file_name: f.title,
         file_size: f.size,
-        available: Boolean(f.file_hash),
+        available: Boolean(f.fileHash),
       }));
   }
   throw new Error("Nepodporovaný poskytovatel.");

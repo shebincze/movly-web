@@ -1,4 +1,5 @@
 import { api, array, title } from "./api.js";
+import { setWatched } from "./user-state.js";
 import {
   el,
   button,
@@ -80,6 +81,9 @@ export async function titleActivity(t) {
               : {}),
           },
         });
+        // Karty pod dialogem i detail se překreslí hned, bez reloadu.
+        if (state === "completed") setWatched(t.id, true);
+        else if (state === "dropped") setWatched(t.id, false);
         toast("Stav sledování uložen.");
       } catch (e) {
         status.textContent = e.message;
