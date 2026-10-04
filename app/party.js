@@ -1,3 +1,4 @@
+import { waitingForParty, effectivePartyPosition } from "./party-clock.js";
 import { api } from './api.js';
 import { el, button, showDialog, toast } from './ui.js';
 let state = null, host = false, ready = false, offset = 0, bestRTT = Infinity;
@@ -7,11 +8,8 @@ const key = 'movly.party.device';
 let deviceId = sessionStorage.getItem(key);
 if (!deviceId) { deviceId = crypto.randomUUID(); sessionStorage.setItem(key, deviceId); }
 export const partyState = () => state;
-export const partyWaiting = () => Boolean(state?.preparation?.started_at && (!state.preparation.released_at || Date.now() + offset < Date.parse(state.preparation.released_at)));
-export function partyPosition() {
-  if (!state) return 0;
-  return state.position_sec + (state.status === 'playing' ? Math.max(0, (Date.now() + offset - Date.parse(state.position_updated_at)) / 1000) * state.rate : 0);
-}
+export const partyWaiting = () => waitingForParty(state, Date.now(), offset);
+export const partyPosition = () => effectivePartyPosition(state, Date.now(), offset);
 export function reportPartyReady(value) { ready = value; }
 function apply(fresh, expected) {
   if (expected !== generation || (state && fresh.party_id !== state.party_id) || (state && fresh.version < state.version)) return false;
@@ -23,7 +21,9 @@ async function preparation(action, value = ready) {
   const fresh = await api(`party/${id}/preparation`, { method: 'POST', body: { device_id: deviceId, action, is_host: host, ready: value } });
   const received = Date.now(), rtt = received - sent;
   if (expected !== generation || state?.party_id !== id) return;
-  if (rtt <= bestRTT + 20) { bestRTT = Math.min(bestRTT, rtt); offset = Date.parse(fresh.server_time) - (sent + received) / 2; }
+  const serverTime = Date.parse(fresh.server_time);
+  if (!Number.isFinite(serverTime)) throw new Error("Server vrátil neplatný čas party.");
+  if (rtt <= bestRTT + 20) { bestRTT = Math.min(bestRTT, rtt); offset = serverTime - (sent + received) / 2; }
   apply(fresh, expected);
 }
 async function openSources() {
