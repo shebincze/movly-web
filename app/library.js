@@ -1,3 +1,4 @@
+import { hostParty } from "./party.js";
 import { api, array, listTitle, imageURL, title } from "./api.js";
 import {
   el,
@@ -65,6 +66,7 @@ export async function detail(t, actions) {
         data.type !== "tv"
           ? button("Přehrát", () => sources(data), "primary")
           : null,
+        data.type !== "tv" ? button("Sledovat společně", () => hostParty(data), "secondary") : null,
         button("Do seznamu", () => actions.save(data), "secondary", "plus"),
         button("Sledování a hodnocení", () => titleActivity(data), "secondary"),
       ),
@@ -240,6 +242,7 @@ export async function detail(t, actions) {
                     }),
                   "small",
                 ),
+                button("Sledovat společně", () => hostParty(data, { ...episode, season_number: season.season_number }), "small"),
                 button(
                   "Viděno",
                   async (e) => {

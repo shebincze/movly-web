@@ -415,4 +415,4 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
   }
   return { start, handle, close };
 }
-module.exports = { createPlayback, allowedURL, publicIPv4, ffmpegArgs };
+module.exports = { createPlayback, allowedURL, publicIPv4, ffmpegArgs, mediaRequest };

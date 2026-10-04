@@ -61,6 +61,13 @@ const handler = createAppHandler({
           ],
   },
   playbackEngine: engine,
+  downloadMedia: async (_url, range) => {
+    const start = range ? Number(range.match(/\d+/)[0]) : 0;
+    const stream = fs.createReadStream(file, { start });
+    stream.statusCode = range ? 206 : 200;
+    stream.headers = { "content-length": String(size-start), "accept-ranges": "bytes", ...(range ? { "content-range": `bytes ${start}-${size-1}/${size}` } : {}) };
+    return stream;
+  },
   json: (res, status, body) => {
     res.writeHead(status, { "Content-Type": "application/json" });
     res.end(JSON.stringify(body));

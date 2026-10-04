@@ -1,3 +1,4 @@
+import { partyJoinForm } from "./party.js";
 import { api, array } from "./api.js";
 import { el, button, formField, toast, showDialog, errorBox } from "./ui.js";
 export async function friends(_params, signal, actions) {
@@ -114,6 +115,7 @@ export async function friends(_params, signal, actions) {
     { class: "page" },
     el("h1", {}, "Přátelé"),
     el("p", {}, "Tvoji přátelé a stejné nastavení soukromí jako v aplikacích."),
+    partyJoinForm(),
     form,
     el("h2", {}, "Žádosti"),
     ...array(requests).map((p) =>

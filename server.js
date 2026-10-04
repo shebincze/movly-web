@@ -2110,6 +2110,20 @@ function serveStatic(req, res, pathname) {
 const handleApp = createAppHandler({
   api: (target, method, body, token, sessionId, headers) =>
     movlyApiResponse(target, method, body, token, sessionId, API_TIMEOUT_MS, headers),
+  partyStream: async (target, token, sessionId, headers, res) => {
+    const controller = new AbortController();
+    res.on('close', () => controller.abort());
+    const connectionTimeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+    let response;
+    try {
+      response = await fetch(`${API_BASE}/v1/${target}`, { headers: { ...apiHeaders(token, sessionId), ...headers, Accept: 'text/event-stream' }, signal: controller.signal, redirect: 'error' });
+    } finally { clearTimeout(connectionTimeout); }
+    if (!response.ok || !response.body) throw new HttpError(response.status || 502, 'Spojení party selhalo.');
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
+    const stream = require('node:stream').Readable.fromWeb(response.body);
+    stream.on('error', () => res.destroy());
+    stream.pipe(res);
+  },
   json, readBody: readRequestBody, HttpError, secret: DOWNLOAD_TOKEN_SECRET,
   production: NODE_ENV_RAW === 'production',
 });

@@ -1,3 +1,4 @@
+import { partyState, partyWaiting, partyPosition, reportPartyReady, partyTransport } from "./party.js";
 import { api, array } from "./api.js";
 import { setProgress } from "./user-state.js";
 import {
@@ -290,6 +291,13 @@ export async function sources(t, episode) {
               : null,
           ),
           choice,
+          supported ? button("Stáhnout", async () => {
+            try {
+              const download = await api("download", { method: "POST", body: selection });
+              const link = el("a", { href: download.url, download: download.filename });
+              document.body.append(link); link.click(); link.remove();
+            } catch (e) { toast(e.message); }
+          }, "small") : null,
         );
       }),
     );
@@ -355,6 +363,8 @@ async function play(
   const handle = { cancelled: false };
   current = handle;
   try {
+    const inParty = partyState()?.title_id === t.id;
+    if (inParty) offset = 0;
     if (offset === null) {
       try {
         const position = await api(
@@ -385,6 +395,35 @@ async function play(
       class: "video-player",
     });
     handle.video = video;
+    if (inParty) {
+      let applying = false, seeking = false, remoteSeek = null, remotePaused = null;
+      const publish = () => {
+        if (!applying && !seeking && !handle.cancelled && !partyWaiting())
+          partyTransport(!video.paused, offset + video.currentTime).catch(e => toast(e.message));
+      };
+      video.addEventListener('play', () => { if (partyWaiting()) { remotePaused = true; video.pause(); return; } if (remotePaused === false) { remotePaused = null; return; } publish(); });
+      video.addEventListener('pause', () => { if (remotePaused === true) { remotePaused = null; return; } publish(); });
+      video.addEventListener('seeking', () => { seeking = true; });
+      video.addEventListener('seeked', () => { seeking = false; if (remoteSeek !== null && Math.abs(video.currentTime - remoteSeek) < .5) { remoteSeek = null; return; } remoteSeek = null; publish(); });
+      handle.partyTimer = setInterval(() => {
+        if (handle.cancelled || partyState()?.title_id !== t.id) return;
+        const ready = video.readyState >= 3 && !video.error;
+        reportPartyReady(ready);
+        const waiting = partyWaiting();
+        video.controls = !waiting;
+        if (!ready) return;
+        const target = waiting ? 0 : partyPosition();
+        applying = true;
+        if (Math.abs(video.currentTime + offset - target) > .5) { remoteSeek = Math.max(0, target - offset); video.currentTime = remoteSeek; }
+        const shouldPlay = !waiting && partyState().status === 'playing';
+        if (shouldPlay && video.paused) { remotePaused = false; video.play().catch(() => { remotePaused = null; status.textContent = 'Prohlížeč vyžaduje klepnutí na přehrát.'; }); }
+        if (!shouldPlay && !video.paused) { remotePaused = true; video.pause(); }
+        // DOM media events are queued after play/pause/currentTime changes.
+        setTimeout(() => { applying = false; }, 0);
+        if (waiting) status.textContent = `Čekáme na přehrávače (${partyState().preparation.devices.filter(d => d.ready).length}/${partyState().preparation.devices.length})`;
+        position.disabled = waiting;
+      }, 100);
+    }
     const status = el(
       "p",
       { role: "status", class: "player-status" },
@@ -463,8 +502,7 @@ async function play(
       });
     };
     handle.history = history;
-    position.addEventListener("change", () =>
-      play(t, episode, selection, Number(position.value), audio, subtitle),
+    position.addEventListener("change", () => inParty ? partyTransport(partyState().status === "playing", Number(position.value)).catch(e => toast(e.message)) : play(t, episode, selection, Number(position.value), audio, subtitle),
     );
     tracks.addEventListener("change", () =>
       play(
@@ -572,13 +610,13 @@ async function play(
               hls.subtitleTrack = 0;
               hls.subtitleDisplay = true;
             }
-            video.play().catch(() => {
+            if (!inParty) video.play().catch(() => {
               status.textContent = "Stiskni přehrát.";
             });
           });
         } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
           video.src = session.playlist;
-          video.play().catch(() => {
+          if (!inParty) video.play().catch(() => {
             status.textContent = "Stiskni přehrát.";
           });
         } else throw new Error("Tento prohlížeč nepodporuje HLS video.");
@@ -616,6 +654,8 @@ export async function stop() {
   handle.cancelled = true;
   clearTimeout(handle.prepare);
   clearInterval(handle.timer);
+  clearInterval(handle.partyTimer);
+  reportPartyReady(false);
   handle.video?.pause();
   handle.hls?.destroy();
   if (handle.history)

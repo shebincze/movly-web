@@ -3,7 +3,7 @@
 const crypto = require("node:crypto");
 const providers = require("./providers-server");
 const liveSources = require("./sources-server");
-const { createPlayback } = require("./playback-server");
+const { createPlayback, mediaRequest } = require("./playback-server");
 
 // Deliberately closed BFF: neither upstream URLs nor authentication/profile
 // headers are accepted from the browser. The core API remains authoritative.
@@ -16,10 +16,13 @@ function createAppHandler({
   production,
   providerClient = providers,
   playbackEngine,
+  partyStream,
+  downloadMedia = mediaRequest,
 }) {
   const playback = playbackEngine || createPlayback();
   const sourceTickets = liveSources.tickets(secret);
   const sourceSearches = new Map();
+  const downloads = new Map();
   const cookieName = production ? "__Host-movly-app" : "movly-app";
   const key = crypto.hkdfSync(
     "sha256",
@@ -404,6 +407,10 @@ function createAppHandler({
     return `?${q}`;
   }
   const routes = [
+    ["POST", /^party(?:\/join)?$/, []],
+    ["GET", /^party\/[a-f0-9]{32}$/, []],
+    ["POST", /^party\/[a-f0-9]{32}\/(?:preparation|leave)$/, []],
+    ["PUT", /^party\/[a-f0-9]{32}\/state$/, []],
     ["GET", /^themed-lists$/, []],
     ["GET", /^themed-lists\/[a-z0-9_-]+$/, ["page", "limit"]],
     ["GET", /^titles\/[1-9]\d*\/similar$/, ["limit"]],
@@ -681,6 +688,8 @@ function createAppHandler({
       if (
         target.startsWith("sources/") ||
         target === "providers/webshare" ||
+        target === "download" ||
+        target.startsWith("download/") ||
         target === "playback" ||
         target.startsWith("playback/")
       )
@@ -804,6 +813,7 @@ function createAppHandler({
             ticket: sourceTickets.issue(s, {
               provider,
               ident: stream.source_stream_id,
+              file_name: stream.file_name,
               title_id: titleID,
               episode_id: episode?.id || null,
             }),
@@ -812,14 +822,33 @@ function createAppHandler({
         });
         return true;
       }
-      if (target === "playback" && req.method === "POST") {
+      const downloadMatch = /^download\/([a-f0-9]{48})$/.exec(target);
+      if (downloadMatch && req.method === "GET") {
+        const entry = downloads.get(downloadMatch[1]);
+        if (!entry || entry.expires < Date.now() || entry.owner !== s.token || entry.device !== s.device || entry.profile !== s.profile.id)
+          throw new HttpError(404, "Odkaz ke stažení vypršel. Vyber zdroj znovu.");
+        const range = req.headers.range;
+        if (range && !/^bytes=\d+-\d*$/.test(range)) throw new HttpError(416, "Neplatný rozsah souboru.");
+        const upstream = await downloadMedia(entry.link, range);
+        if (![200, 206].includes(upstream.statusCode)) { upstream.destroy(); throw new HttpError(502, "Poskytovatel soubor neposkytl."); }
+        res.statusCode = upstream.statusCode;
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.setHeader("Content-Disposition", `attachment; filename="movly-video"; filename*=UTF-8''${encodeURIComponent(entry.name)}`);
+        res.setHeader("Cache-Control", "private, no-store");
+        for (const header of ["content-length", "content-range", "accept-ranges"]) if (upstream.headers[header]) res.setHeader(header, upstream.headers[header]);
+        res.on("close", () => upstream.destroy());
+        upstream.on("error", () => res.destroy());
+        upstream.pipe(res);
+        return true;
+      }
+      if (["playback", "download"].includes(target) && req.method === "POST") {
         const body = objectBody(await readBody(req, 4096));
         if (!integer(body.title_id))
           throw new HttpError(400, "Vyber platný titul.");
         if (body.episode_id !== undefined && !integer(body.episode_id))
           throw new HttpError(400, "Neplatná epizoda.");
         const title = await call(s, `titles/${body.title_id}?lang=cs`);
-        let provider, ident;
+        let provider, ident, fileName;
         if (body.source === "live") {
           let selected;
           try {
@@ -837,6 +866,7 @@ function createAppHandler({
             );
           provider = selected.provider;
           ident = selected.ident;
+          fileName = selected.file_name;
         } else {
           if (
             !integer(body.stream_id) ||
@@ -856,6 +886,7 @@ function createAppHandler({
             ""
           ).toLowerCase();
           ident = stream.source_stream_id;
+          fileName = stream.file_name;
         }
         let link;
         if (provider === "webshare") {
@@ -875,6 +906,15 @@ function createAppHandler({
             422,
             "Tento poskytovatel zatím nemá webový přehrávač.",
           );
+        if (target === "download") {
+          for (const [id, item] of downloads) if (item.expires < Date.now()) downloads.delete(id);
+          if (downloads.size >= 5000) throw new HttpError(503, "Stahování je dočasně vytížené.");
+          const id = crypto.randomBytes(24).toString("hex");
+          const name = (fileName || `${title.title || "movly-video"}.mkv`).replace(/[\x00-\x1f\x7f/\\]/g, "_").slice(0, 240);
+          downloads.set(id, { link, name, owner: s.token, device: s.device, profile: s.profile.id, expires: Date.now() + 15 * 60 * 1000 });
+          json(res, 200, { url: `/api/app/download/${id}`, filename: name });
+          return true;
+        }
         json(
           res,
           200,
@@ -905,6 +945,12 @@ function createAppHandler({
         if (result) json(res, 200, result);
         return true;
       }
+      if (/^party\/[a-f0-9]{32}\/events$/.test(target) && req.method === "GET") {
+        await call(s, "watchlists?lang=cs");
+        if (!partyStream) throw new HttpError(503, "Spojení party není dostupné.");
+        await partyStream(target, s.token, s.device, { "X-Profile-ID": String(s.profile.id), "X-Profile-Grant": s.grant }, res);
+        return true;
+      }
       const rule = routes.find(
         ([method, pattern]) => method === req.method && pattern.test(target),
       );
@@ -929,7 +975,21 @@ function createAppHandler({
       let body = null;
       if (["POST", "PUT"].includes(req.method)) {
         body = objectBody(await readBody(req, 8192));
-        if (target === "friends/privacy") {
+        if (target === "party") {
+          if (!integer(body.title_id) || (body.episode_id != null && !integer(body.episode_id))) throw new HttpError(400, "Neplatný titul party.");
+          body = { title_id: body.title_id, ...(body.episode_id != null ? { episode_id: body.episode_id } : {}) };
+        } else if (target === "party/join") {
+          if (typeof body.code !== "string" || !/^[A-Z0-9]{6}$/.test(body.code)) throw new HttpError(400, "Neplatný kód party.");
+          body = { code: body.code };
+        } else if (/^party\/[a-f0-9]{32}\/preparation$/.test(target)) {
+          if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(body.device_id || "") || !["register", "start", "ready", "leave"].includes(body.action) || typeof body.is_host !== "boolean" || typeof body.ready !== "boolean") throw new HttpError(400, "Neplatná příprava party.");
+          body = { device_id: body.device_id, action: body.action, is_host: body.is_host, ready: body.ready };
+        } else if (/^party\/[a-f0-9]{32}\/state$/.test(target)) {
+          if (!["playing", "paused"].includes(body.status) || !Number.isFinite(body.position_sec) || body.position_sec < 0) throw new HttpError(400, "Neplatná pozice party.");
+          body = { status: body.status, position_sec: body.position_sec };
+        } else if (/^party\/[a-f0-9]{32}\/leave$/.test(target)) {
+          body = {};
+        } else if (target === "friends/privacy") {
           const raw = body;
           body = {};
           for (const k of [

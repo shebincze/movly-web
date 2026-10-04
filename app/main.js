@@ -1,3 +1,4 @@
+import { leaveParty } from "./party.js";
 import { api, array } from "./api.js";
 import {
   el,
@@ -396,6 +397,8 @@ document.addEventListener("click", (e) => {
 document.querySelector("#logout").addEventListener("click", async (e) => {
   e.target.disabled = true;
   try {
+    await stopPlayback();
+    await leaveParty();
     await api("logout", { method: "POST" });
     resetUserState();
     resetCatalogCache();

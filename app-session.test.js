@@ -326,6 +326,7 @@ test("playback and provider access revalidate profile grant", async () => {
   revoked = true;
   for (const path of [
     "providers/webshare",
+    "download/" + "a".repeat(48),
     "playback/" + "a".repeat(48) + "/status",
   ])
     assert.equal((await h.request(path, { cookie: s.cookie })).status, 403);
@@ -447,4 +448,29 @@ test("live sources require profile, isolate signed selection and reject foreign 
   assert.deepEqual(played, [
     "https://api.hellspy.to/gw/video/42/hash/download",
   ]);
+});
+
+test("stream download resolves the selected source without transcoding and binds link to its session", async () => {
+  let transcodes = 0;
+  const h = harness({ providerClient: { searchFiles: async () => [{provider_name:"Hellspy", source_stream_id:"42/hash", file_name:"Duna Cast druha 2024.mkv", available:true}] }, playbackEngine: { start: async () => { transcodes++; return {}; } } });
+  const selected = await h.selected();
+  const found = await h.request("sources/1/hellspy", {cookie:selected.cookie});
+  const result = await h.request("download", {method:"POST",cookie:selected.cookie,body:{source:"live",title_id:1,ticket:found.body.streams[0].ticket}});
+  assert.equal(result.status,200);
+  assert.match(result.body.url,/^\/api\/app\/download\/[a-f0-9]{48}$/);
+  assert.equal(transcodes,0);
+  assert.equal((await h.request(result.body.url.replace("/api/app/",""))).status,401);
+  const other = await h.selected();
+  assert.equal((await h.request(result.body.url.replace("/api/app/",""),{cookie:other.cookie})).status,404);
+  assert.equal((await h.request("download",{method:"POST",cookie:other.cookie,body:{source:"live",title_id:1,ticket:found.body.streams[0].ticket}})).status,403);
+});
+test("party preparation forwards only through an authenticated profile session", async () => {
+  const h = harness({override: path => path.startsWith("v1/party/") ? {party_id:"a".repeat(32),version:1} : undefined});
+  const path = "party/"+"a".repeat(32)+"/preparation";
+  assert.equal((await h.request(path,{method:"POST",body:{action:"ready"}})).status,401);
+  const selected=await h.selected();
+  assert.equal((await h.request(path,{method:"POST",cookie:selected.cookie,body:{action:"ready",device_id:"00000000-0000-0000-0000-000000000001",ready:true,is_host:false}})).status,200);
+  const forwarded=h.calls.find(call=>call[0].startsWith("v1/"+path));
+  assert.equal(forwarded[1],"POST");
+  assert.equal(forwarded[2].ready,true);
 });
