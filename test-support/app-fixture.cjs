@@ -101,7 +101,7 @@ function createFixture() {
     }
     if (p === "v1/profiles/avatars")
       return {
-        payload: require("../../backend/apps/core-api/assets/default_avatars.json"),
+        payload: require("./default-avatars.json"),
       };
     if (p === "v1/profiles")
       return {
