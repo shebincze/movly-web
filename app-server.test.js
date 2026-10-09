@@ -124,6 +124,7 @@ function makeHandler(role, calls) {
       };
     if (/^v1\/stream-reports\/trusted-reporters\/\d+$/.test(path) && method === "DELETE")
       return { payload: null };
+    if (path.split("?")[0] === "v1/admin/feedback/items/7" && method === "DELETE") return { payload: null };
     throw new HttpError(404, `unexpected ${method} ${path}`);
   };
   return createAppHandler({
@@ -355,4 +356,18 @@ test("trusted reporters are hidden from plain users", async () => {
     new URL("http://localhost/api/app/admin/trusted-reporters"),
   );
   assert.equal(res.statusCode, 403);
+});
+
+
+test("only admin can permanently delete feedback; empty upstream response becomes JSON", async () => {
+  for (const role of ["admin", "moderator", "vip"]) {
+    const calls = [];
+    const handle = makeHandler(role, calls);
+    const cookie = await login(handle);
+    const res = fakeResponse();
+    await handle(requestFor(cookie, "DELETE", "admin/feedback/items/7"), res, new URL("http://localhost/api/app/admin/feedback/items/7"));
+    assert.equal(res.statusCode, role === "admin" ? 200 : 403);
+    if (role === "admin") assert.deepEqual(res.body, {});
+    assert.equal(calls.filter((c) => c.path.split("?")[0] === "v1/admin/feedback/items/7" && c.method === "DELETE").length, role === "admin" ? 1 : 0);
+  }
 });

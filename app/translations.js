@@ -1,4 +1,9 @@
 export const translations = {
+  "Smazat požadavek": ["Vymazať požiadavku", "Delete request"],
+  "Smazat tento požadavek?": ["Vymazať túto požiadavku?", "Delete this request?"],
+  "Zpráva je nepovinná. Pokud ji napíšeš, může mít nejvýše 3 000 znaků.": ["Správa je nepovinná. Ak ju napíšeš, môže mať najviac 3 000 znakov.", "The message is optional and may contain up to 3,000 characters."],
+  "Trvale odstraní požadavek, jeho odpovědi, podpory a přílohy. Tuto akci nelze vrátit.": ["Trvalo odstráni požiadavku, jej odpovede, podpory a prílohy. Túto akciu nemožno vrátiť.", "Permanently deletes this request, its replies, votes and attachments. This action cannot be undone."],
+
   "Nápad nebo chyba": ["Nápad alebo chyba", "Idea or problem"],
   "Co chceš týmu Movly poslat?": ["Čo chceš tímu Movly poslať?", "What would you like to send to the Movly team?"],
   "Navrhni, co by mohlo být v Movly lepší.": ["Navrhni, čo by mohlo byť v Movly lepšie.", "Suggest how Movly could be better."],

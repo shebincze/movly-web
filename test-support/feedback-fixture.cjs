@@ -37,6 +37,12 @@ function createFeedbackFixture() {
     const match = p.match(/^feedback\/items\/(\d+)(?:\/(vote|messages|merge|attachments))?$/);
     if (match) {
       const item = items.find((i) => i.id === Number(match[1])); if (!item) fail(404, "Položka nebyla nalezena.");
+      if (method === "DELETE" && !match[2]) {
+        items.splice(items.indexOf(item), 1); events.delete(item.id);
+        for (const [id, attachment] of attachments) if (attachment.item === item.id) attachments.delete(id);
+        for (const remaining of items) if (remaining.duplicate_of === item.id) remaining.duplicate_of = null;
+        return { payload: null };
+      }
       if (match[2] === "vote") { const support = method === "PUT"; if (item.supported !== support) item.votes += support ? 1 : -1; item.supported = support; }
       if (match[2] === "messages") { events.get(item.id).push({ id: events.get(item.id).length + 1, team: path.includes("admin/"), status: item.status, message: body.message, created_at: date }); }
       if (match[2] === "attachments") attachments.set(body.id, { id: body.id, item: item.id, media_type: "image/png", size_bytes: Buffer.from(body.data, "base64").length, data: body.data });

@@ -690,6 +690,7 @@ function createAppHandler({
           ["GET", /^feedback\/attachments\/[a-f0-9-]{36}$/, []],
           ...(isAdmin ? [
             ["PATCH", /^feedback\/items\/[1-9]\d*$/, []],
+            ["DELETE", /^feedback\/items\/[1-9]\d*$/, []],
             ["POST", /^feedback\/items\/[1-9]\d*\/(?:messages|merge)$/, []],
           ] : [
             ["POST", /^feedback\/items$/, []],
@@ -703,7 +704,7 @@ function createAppHandler({
         const query = cleanQuery(url, allowed[2], language);
         const body = ["POST", "PATCH"].includes(req.method) ? objectBody(await readBody(req, feedbackTarget.endsWith("/attachments") ? 1500000 : 24576)) : null;
         const result = await call(s, target + query, req.method, body);
-        json(res, req.method === "POST" && (feedbackTarget === "feedback/items" || feedbackTarget === "feedback/handoffs") ? 201 : 200, result);
+        json(res, req.method === "POST" && (feedbackTarget === "feedback/items" || feedbackTarget === "feedback/handoffs") ? 201 : 200, result ?? {});
         return true;
       }
       if (target.startsWith("admin/"))

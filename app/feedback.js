@@ -80,10 +80,23 @@ function createDialog(kind, view, initialPlatform = "web") {
 }
 
 function adminEditor(item, refresh) {
-  if (item.status === "duplicate") return el("p", {}, item.duplicate_of ? `${t("Sloučeno s požadavkem")} #${item.duplicate_of}` : t("Duplicitní"));
+  const deleteAction = button(t("Smazat požadavek"), () => {
+    const failure = el("p", { role: "alert" });
+    const confirm = el("button", { type: "button", class: "button danger", onClick: async () => {
+      confirm.disabled = true;
+      try {
+        await api(`admin/feedback/items/${item.id}`, { method: "DELETE" });
+        document.querySelector("#dialog").close(); location.hash = "#feedback?view=admin";
+      } catch (err) { failure.textContent = err.message; confirm.disabled = false; }
+    } }, t("Smazat požadavek"));
+    showDialog(el("div", { class: "dialog-body" }, el("h2", {}, t("Smazat tento požadavek?")),
+      el("strong", {}, `#${item.id} · ${item.title}`),
+      el("p", {}, t("Trvale odstraní požadavek, jeho odpovědi, podpory a přílohy. Tuto akci nelze vrátit.")), confirm, failure));
+  }, "danger");
+  if (item.status === "duplicate") return el("div", {}, deleteAction, el("p", {}, item.duplicate_of ? `${t("Sloučeno s požadavkem")} #${item.duplicate_of}` : t("Duplicitní")));
   const status = el("select", {}, ...Object.entries(feedbackStatuses).filter(([s]) => s !== "duplicate" && (item.kind === "bug" || s !== "cannot_reproduce")).map(([value, label]) => el("option", { value, selected: value === item.status }, t(label))));
   const visible = el("input", { type: "checkbox", checked: item.visible });
-  const message = el("textarea", { required: true, maxlength: 3000, rows: 3, placeholder: t("Vysvětlení pro uživatele…") });
+  const message = el("textarea", { maxlength: 3000, rows: 3, placeholder: t("Vysvětlení pro uživatele…") });
   const releaseFields = item.platforms.map((p) => ({ platform: p, input: el("input", { maxlength: 60, value: item.releases.find((r) => r.platform === p)?.version || "", placeholder: t("Verze, která je skutečně dostupná") }) }));
   const error = el("p", { role: "alert" });
   const submit = el("button", { class: "button primary", type: "submit" }, t("Uložit stav"));
@@ -96,7 +109,7 @@ function adminEditor(item, refresh) {
     catch (err) { error.textContent = err.message; submit.disabled = false; }
   } }, el("h3", {}, t("Správa požadavku")), formField(t("Stav"), status), item.kind === "idea" ? el("label", {}, visible, t(" Zveřejnit návrh")) : null,
   ...releaseFields.map((f) => formField(platforms[f.platform], f.input)),
-  el("p", {}, t("Verzi vyplň pouze u platformy, kde je řešení skutečně vydané. Ostatní ponech prázdné.")), formField(t("Vysvětlení"), message), submit, error);
+  el("p", {}, t("Verzi vyplň pouze u platformy, kde je řešení skutečně vydané. Ostatní ponech prázdné.")), formField(t("Vysvětlení"), message), el("p", {}, t("Zpráva je nepovinná. Pokud ji napíšeš, může mít nejvýše 3 000 znaků.")), submit, error);
   const merge = button(t("Sloučit duplicitu"), () => {
     const target = el("input", { type: "number", min: 1, required: true });
     const reason = el("textarea", { required: true, maxlength: 3000 });
@@ -108,7 +121,7 @@ function adminEditor(item, refresh) {
       catch (e) { err.textContent = e.message; save.disabled = false; }
     } }, formField(t("ID hlavního požadavku"), target), formField(t("Vysvětlení"), reason), save, err)));
   }, "small");
-  return el("details", {}, el("summary", {}, t("Správa požadavku")), form, merge);
+  return el("details", {}, el("summary", {}, t("Správa požadavku")), form, merge, deleteAction);
 }
 
 async function detailContent(id, admin, signal, refresh) {
