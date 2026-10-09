@@ -49,6 +49,16 @@ async function attachmentPicker(item, admin, refresh) {
     } }, file, submit, message)));
 }
 
+function chooseFeedbackDialog(initialPlatform) {
+  showDialog(el("div", { class: "dialog-body" }, el("h2", {}, t("Nápad nebo chyba")),
+    el("p", {}, t("Co chceš týmu Movly poslat?")),
+    el("div", { class: "dialog-form" },
+      button(t("Přidat nápad"), () => createDialog("idea", "ideas", initialPlatform), "primary", "plus"),
+      el("p", {}, t("Navrhni, co by mohlo být v Movly lepší.")),
+      button(t("Nahlásit chybu"), () => createDialog("bug", "mine", initialPlatform), "secondary", "plus"),
+      el("p", {}, t("Popiš, co nefunguje tak, jak má.")))));
+}
+
 function createDialog(kind, view, initialPlatform = "web") {
   let requestId = crypto.randomUUID(), attempted = null;
   const title = el("input", { required: true, minlength: 3, maxlength: 120 });
@@ -145,13 +155,13 @@ async function detailContent(id, admin, signal, refresh) {
 
 export async function feedback(params, signal) {
   let view = ["ideas", "mine", "admin"].includes(params.get("view")) ? params.get("view") : "ideas";
-  let id = params.get("id"), newHandoff = params.get("new") === "bug"; const q = params.get("q") || "";
+  let id = params.get("id"), newIntent = ["bug", "choose"].includes(params.get("new")) ? params.get("new") : null; const q = params.get("q") || "";
   const reportPlatform = Object.hasOwn(platforms, params.get("platform")) ? params.get("platform") : "web";
   if (params.has("handoff")) {
     const handoff = await api("feedback/handoffs/consume", { method: "POST", body: { token: params.get("handoff") }, signal });
-    view = "mine"; id = handoff.item_id ? String(handoff.item_id) : null; newHandoff = !id;
+    view = "mine"; id = handoff.item_id ? String(handoff.item_id) : null; newIntent = id ? null : (newIntent || "bug");
     params.delete("handoff"); params.set("view", view); if (id) params.set("id", id); else params.delete("id");
-    if (newHandoff) params.set("new", "bug");
+    if (newIntent) params.set("new", newIntent);
     history.replaceState(null, "", `#feedback?${params}`);
   }
   const admin = view === "admin";
@@ -208,12 +218,13 @@ export async function feedback(params, signal) {
   if (data.offset + data.limit < data.total) list.append(el("a", { href: `#feedback?${new URLSearchParams({ ...Object.fromEntries(params), offset: String(data.offset + data.limit) })}` }, t("Další")));
   wrapper.append(el("div", { class: "feedback-layout" }, list, detail), el("p", { class: "feedback-hint" }, glyph("info"), t("Stav a odpovědi najdeš v detailu.")));
   if (id && /^[1-9]\d*$/.test(id)) await refresh(); else detail.append(el("p", {}, t("Vyber požadavek a zobraz jeho stav a odpovědi.")));
-  if (newHandoff && !signal.aborted) {
+  if (newIntent && !signal.aborted) {
     // The router mounts the result after this async function returns. Open only
     // once it is mounted, so navigation/abort cannot leave a detached dialog.
     requestAnimationFrame(() => {
       if (signal.aborted || !wrapper.isConnected) return;
-      createDialog("bug", "mine", reportPlatform);
+      if (newIntent === "choose") chooseFeedbackDialog(reportPlatform);
+      else createDialog("bug", "mine", reportPlatform);
       params.delete("new"); params.delete("platform");
       history.replaceState(null, "", `#feedback?${params}`);
     });

@@ -1,4 +1,8 @@
 export const translations = {
+  "Nápad nebo chyba": ["Nápad alebo chyba", "Idea or problem"],
+  "Co chceš týmu Movly poslat?": ["Čo chceš tímu Movly poslať?", "What would you like to send to the Movly team?"],
+  "Navrhni, co by mohlo být v Movly lepší.": ["Navrhni, čo by mohlo byť v Movly lepšie.", "Suggest how Movly could be better."],
+  "Popiš, co nefunguje tak, jak má.": ["Popíš, čo nefunguje tak, ako má.", "Describe what is not working as expected."],
   "Přijato": ["Prijaté", "Received"],
   "Oprava ověřena": ["Oprava overená", "Fix verified"],
   "Vydání": ["Vydanie", "Release"],
