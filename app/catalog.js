@@ -986,6 +986,18 @@ export async function search(params, signal, actions) {
         ),
       ),
     );
+  const session = await api("session", { signal }).catch(() => null);
+  const expectedOwner = session?.account?.id && session?.profile?.id
+    ? { accountId: session.account.id, profileId: session.profile.id } : null;
+  const openSearchResult = (result, ranked) => {
+    if (expectedOwner) {
+      void api("track-search", { method: "POST", expectedOwner, body: {
+        query: q.trim(), title_id: result.id, interaction_type: "click",
+        position_in_results: Math.max(1, ranked.findIndex((t) => t.id === result.id) + 1),
+      } }).catch(() => console.warn("Search click could not be recorded"));
+    }
+    actions.detail(result);
+  };
   // Název i filtry z textu najednou („akční komedie 2020-2023 7+"); filtry
   // jsou doplněk, jejich chyba hledání podle názvu nezastaví.
   const [data, filtered] = await Promise.all([
@@ -1027,7 +1039,7 @@ export async function search(params, signal, actions) {
         el(
           "div",
           { class: "catalog-grid" },
-          filteredItems.map((t) => poster(t, actions.detail)),
+          filteredItems.map((t) => poster(t, (selected) => openSearchResult(selected, filteredItems))),
         ),
         el("h2", {}, translateUI("Podle názvu")),
       ),
@@ -1056,7 +1068,7 @@ export async function search(params, signal, actions) {
       ? el(
           "div",
           { class: "catalog-grid" },
-          items.map((t) => poster(t, actions.detail)),
+          items.map((t) => poster(t, (selected) => openSearchResult(selected, items))),
         )
       : filteredItems.length
         ? null
@@ -1097,7 +1109,7 @@ export async function collection(params, signal, actions) {
       ? el(
           "div",
           { class: "catalog-grid" },
-          items.map((t) => poster(t, actions.detail)),
+          items.map((t) => poster(t, (selected) => openSearchResult(selected, items))),
         )
       : empty(
           translateUI("Katalog je prázdný"),
