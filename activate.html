@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0a12">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'">
+  <title>Připojit televizi — Movly</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/movly-icon.svg">
+  <link rel="stylesheet" href="/activate.css">
+  <script src="/activate.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Movly — úvodní stránka">
+      <img src="/assets/movly-wordmark.svg" alt="Movly" width="104" height="34">
+    </a>
+    <span class="secure-label">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 10V8a5 5 0 0 1 10 0v2m-11 0h12a2 2 0 0 1 2 2v8H4v-8a2 2 0 0 1 2-2Z"/></svg>
+      Bezpečné připojení zařízení
+    </span>
+  </header>
+
+  <main class="page-shell">
+    <section class="intro" aria-labelledby="page-title">
+      <div class="tv-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 22h8M12 19v3"/></svg>
+      </div>
+      <h1 id="page-title">Připojit televizi</h1>
+      <p>Ověř kód zobrazený v aplikaci Movly na televizi. Před schválením vždy uvidíš, které zařízení připojuješ.</p>
+    </section>
+
+    <section class="activation-card" aria-label="Aktivace televize">
+      <div class="step-block" id="codeStep">
+        <div class="step-heading">
+          <span class="step-number" aria-hidden="true">1</span>
+          <div>
+            <h2>Aktivační kód</h2>
+            <p>Opiš přesně deset znaků včetně pomlčky.</p>
+          </div>
+        </div>
+        <form id="codeForm" class="code-form" novalidate>
+          <label for="userCode">Kód z televize</label>
+          <div class="code-row">
+            <input id="userCode" name="user_code" type="text" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="11" placeholder="XXXXX-XXXXX" aria-describedby="codeHint">
+            <button class="button button-secondary" type="submit">Načíst zařízení</button>
+          </div>
+          <p id="codeHint" class="field-hint">Kód platí 10 minut. Neplatný formát neopravujeme automaticky.</p>
+        </form>
+      </div>
+
+      <div id="loginStep" class="step-block hidden" aria-labelledby="loginTitle">
+        <div class="step-heading">
+          <span class="step-number" aria-hidden="true">2</span>
+          <div>
+            <h2 id="loginTitle">Přihlásit se</h2>
+            <p>Pro potvrzení použij svůj Movly účet.</p>
+          </div>
+        </div>
+        <form id="loginForm" class="login-form" novalidate>
+          <label for="username">Uživatelské jméno nebo e-mail</label>
+          <input id="username" name="username" type="text" autocomplete="username" maxlength="254" required>
+          <label for="password">Heslo</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" maxlength="1024" required>
+          <button class="button button-primary" type="submit">Přihlásit a pokračovat</button>
+        </form>
+      </div>
+
+      <div id="previewStep" class="step-block hidden" aria-labelledby="previewTitle">
+        <div class="step-heading">
+          <span class="step-number" aria-hidden="true">2</span>
+          <div>
+            <h2 id="previewTitle">Zkontrolovat zařízení</h2>
+            <p id="accountLabel"></p>
+          </div>
+        </div>
+        <dl class="device-details">
+          <div><dt>Název</dt><dd id="deviceName"></dd></div>
+          <div><dt>Platforma</dt><dd id="devicePlatform"></dd></div>
+          <div><dt>Typ</dt><dd id="deviceType"></dd></div>
+          <div id="deviceModelRow" class="hidden"><dt>Model</dt><dd id="deviceModel"></dd></div>
+          <div id="deviceVersionRow" class="hidden"><dt>Verze aplikace</dt><dd id="deviceVersion"></dd></div>
+          <div><dt>Platnost kódu</dt><dd id="deviceExpiry"></dd></div>
+        </dl>
+        <div class="decision-row">
+          <button id="denyButton" class="button button-danger" type="button">Zamítnout</button>
+          <button id="approveButton" class="button button-primary" type="button">Povolit připojení</button>
+        </div>
+      </div>
+
+      <div id="resultStep" class="result-block hidden" tabindex="-1">
+        <div id="resultIcon" class="result-icon" aria-hidden="true"></div>
+        <h2 id="resultTitle"></h2>
+        <p id="resultMessage"></p>
+        <a class="button button-secondary" href="/">Zpět na Movly</a>
+      </div>
+
+      <div id="status" class="status hidden" role="status" aria-live="polite"></div>
+    </section>
+
+    <aside class="safety-note">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 4 6v5c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+      <p><strong>Schvaluj jen vlastní zařízení.</strong> Movly po tobě nikdy nebude chtít poslat aktivační kód jiné osobě. QR kód neobsahuje heslo ani přihlašovací token.</p>
+    </aside>
+  </main>
+</body>
+</html>

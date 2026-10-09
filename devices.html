@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0a12">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'">
+  <title>Zařízení a přihlášení — Movly</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/movly-icon.svg">
+  <link rel="stylesheet" href="/activate.css">
+  <link rel="stylesheet" href="/devices.css?v=20260715">
+  <script src="/devices.js?v=20260715" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Movly — úvodní stránka">
+      <img src="/assets/movly-wordmark.svg" alt="Movly" width="104" height="34">
+    </a>
+    <a class="back-link" href="/">Zpět na Movly</a>
+  </header>
+
+  <main class="devices-shell">
+    <section class="intro devices-intro" aria-labelledby="page-title">
+      <div class="tv-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M8 9h8M8 12h5"/></svg>
+      </div>
+      <h1 id="page-title">Zařízení a přihlášení</h1>
+      <p>Pojmenuj svá zařízení a ukonči konkrétní relace. Změny se provádějí jen po výslovném potvrzení.</p>
+    </section>
+
+    <section id="loginPanel" class="activation-card auth-card hidden" aria-labelledby="loginTitle">
+      <div class="step-block">
+        <div class="step-heading">
+          <span class="step-number" aria-hidden="true">1</span>
+          <div>
+            <h2 id="loginTitle">Přihlásit se</h2>
+            <p>Správa zařízení je dostupná pouze vlastníkovi účtu.</p>
+          </div>
+        </div>
+        <form id="loginForm" class="login-form" novalidate>
+          <label for="username">Uživatelské jméno nebo e-mail</label>
+          <input id="username" name="username" type="text" autocomplete="username" maxlength="254" required>
+          <label for="password">Heslo</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" maxlength="1024" required>
+          <button class="button button-primary" type="submit">Přihlásit a zobrazit zařízení</button>
+        </form>
+      </div>
+      <div id="loginStatus" class="status hidden" role="status" aria-live="polite"></div>
+    </section>
+
+    <section id="managementPanel" class="management-panel hidden" aria-label="Správa zařízení a relací">
+      <div class="account-strip">
+        <div>
+          <span class="eyebrow">Přihlášený účet</span>
+          <strong id="accountName"></strong>
+        </div>
+        <button id="refreshButton" class="button button-secondary compact-button" type="button">Obnovit vše</button>
+      </div>
+
+      <section class="management-card" aria-labelledby="devicesTitle">
+        <header class="section-heading">
+          <div>
+            <h2 id="devicesTitle">Zařízení</h2>
+            <p>Televize, počítače a telefony propojené s účtem.</p>
+          </div>
+          <span id="deviceCount" class="count-badge">0</span>
+        </header>
+        <div class="section-tools">
+          <button id="removeInactiveDevices" class="button button-danger compact-button" type="button" disabled>Odstranit neaktivní</button>
+          <p class="section-hint">Odstranit = odpojit a skrýt ze seznamu. Neaktivní jsou odpojená nebo 30+ dní nepoužitá zařízení.</p>
+        </div>
+        <div id="deviceStatus" class="section-status hidden" role="status" aria-live="polite"></div>
+        <div id="deviceList" class="managed-list"></div>
+        <button id="moreDevices" class="button button-secondary load-more hidden" type="button">Načíst další zařízení</button>
+      </section>
+
+      <section class="management-card" aria-labelledby="sessionsTitle">
+        <header class="section-heading">
+          <div>
+            <h2 id="sessionsTitle">Aktivní a historická přihlášení</h2>
+            <p>Každou session lze ukončit samostatně.</p>
+          </div>
+          <span id="sessionCount" class="count-badge">0</span>
+        </header>
+        <div id="sessionStatus" class="section-status hidden" role="status" aria-live="polite"></div>
+        <div id="sessionList" class="managed-list"></div>
+        <button id="moreSessions" class="button button-secondary load-more hidden" type="button">Načíst další přihlášení</button>
+      </section>
+    </section>
+
+    <aside class="safety-note device-note">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 4 6v5c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+      <p><strong>Žádné automatické odpojování.</strong> Movly zařízení ani relaci neukončí bez tvého potvrzení. Odpojením aktuálního zařízení se tento web ihned odhlásí.</p>
+    </aside>
+  </main>
+
+  <dialog id="confirmDialog" class="confirm-dialog" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+    <form method="dialog">
+      <div class="dialog-icon" aria-hidden="true">!</div>
+      <h2 id="confirmTitle">Potvrdit odpojení</h2>
+      <p id="confirmMessage"></p>
+      <div class="dialog-actions">
+        <button id="cancelConfirm" class="button button-secondary" value="cancel" type="submit">Zrušit</button>
+        <button id="acceptConfirm" class="button button-danger" value="confirm" type="submit">Odpojit</button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="deviceTemplate">
+    <article class="managed-item">
+      <div class="item-main">
+        <div class="item-title-row">
+          <h3 data-field="name"></h3>
+          <span data-field="current" class="state-badge current hidden">Toto zařízení</span>
+          <span data-field="revoked" class="state-badge revoked hidden">Odpojeno</span>
+        </div>
+        <p data-field="summary" class="item-summary"></p>
+        <dl class="item-meta">
+          <div><dt>Naposledy aktivní</dt><dd data-field="lastSeen"></dd></div>
+          <div><dt>Přidáno</dt><dd data-field="created"></dd></div>
+          <div data-field="versionRow" class="hidden"><dt>Verze</dt><dd data-field="version"></dd></div>
+        </dl>
+      </div>
+      <div class="item-actions">
+        <button data-action="rename" class="button button-secondary compact-button" type="button">Přejmenovat</button>
+        <button data-action="revoke" class="button button-danger compact-button" type="button">Odpojit</button>
+        <button data-action="remove" class="button button-secondary compact-button" type="button">Odstranit</button>
+      </div>
+      <form data-field="renameForm" class="rename-form hidden" novalidate>
+        <label data-field="renameLabel">Nový název</label>
+        <input data-field="renameInput" type="text" maxlength="100" autocomplete="off">
+        <div class="rename-actions">
+          <button data-action="cancelRename" class="button button-secondary compact-button" type="button">Zrušit</button>
+          <button data-action="saveRename" class="button button-primary compact-button" type="submit">Uložit</button>
+        </div>
+        <p data-field="renameStatus" class="inline-status hidden" role="status" aria-live="polite"></p>
+      </form>
+    </article>
+  </template>
+
+  <template id="sessionTemplate">
+    <article class="managed-item session-item">
+      <div class="item-main">
+        <div class="item-title-row">
+          <h3 data-field="name"></h3>
+          <span data-field="current" class="state-badge current hidden">Tato session</span>
+          <span data-field="inactive" class="state-badge revoked hidden">Neaktivní</span>
+        </div>
+        <p data-field="summary" class="item-summary"></p>
+        <dl class="item-meta">
+          <div><dt>Naposledy aktivní</dt><dd data-field="lastSeen"></dd></div>
+          <div><dt>Nejzazší platnost</dt><dd data-field="expires"></dd></div>
+        </dl>
+      </div>
+      <div class="item-actions">
+        <button data-action="revoke" class="button button-danger compact-button" type="button">Ukončit session</button>
+      </div>
+    </article>
+  </template>
+</body>
+</html>

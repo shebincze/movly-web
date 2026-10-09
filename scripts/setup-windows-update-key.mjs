@@ -47,7 +47,7 @@ console.log(`Privátní klíč (drž OFFLINE, nikdy ho necommituj):\n  ${keyPath
 console.log('Veřejný klíč — vlož do Windows/Movly/Services/UpdateService.cs:');
 console.log(`  private const string PublicKeyBase64 = "${pub}";\n`);
 console.log('Manifest pak podepisuj přes:');
-console.log('  node web/scripts/build-windows-manifest.mjs --version <x.y.z> --build <n> [--notes "…"]');
+console.log('  node Windows/scripts/build-windows-manifest.mjs --version <x.y.z> --build <n> --from-meta <windows-build-metadata.json> --authenticode-cert-sha256 <sha256> [--notes "…"]');
 
 function rawPublicKeyBase64(publicKeyObject) {
   // SPKI DER pro Ed25519 má 44 B; raw 32bytový klíč jsou poslední 4 řádky (poslední 32 B).

@@ -8,10 +8,10 @@ Veřejná URL:
 https://movly.sheri.cz
 ```
 
-Instalačky jsou v LXC uložené tady:
+Aktivní release je v LXC dostupný tady:
 
 ```text
-/srv/movly/downloads
+/srv/movly/downloads -> /srv/movly/.movly-download-releases/<release-id>
 ```
 
 Download server očekává přesné názvy souborů:
@@ -22,11 +22,22 @@ MovlySetup-arm64.exe
 MovlySetup-x86.exe
 Movly-macOS-universal-devsigned.zip
 windows-manifest.json
+windows-build-metadata.json
 ```
 
 Pokud některý soubor chybí nebo má jiný název, web to nezamaskuje. Premium uživatel uvidí, že konkrétní instalačka není nahraná.
 
-`windows-manifest.json` je **podepsaný** manifest pro auto-update Windows appky (servíruje ho `/api/updates/windows` za auth bránou premium/VIP+). Appka ho ověří proti zadrátovanému Ed25519 veřejnému klíči a podle SHA-256 zkontroluje stažený `.exe`. Manifest musíš vždy přegenerovat, když měníš některou Windows instalačku (viz níže).
+`windows-manifest.json` je **podepsaný** manifest pro auto-update Windows appky.
+`GET`/`HEAD /api/updates/windows` je veřejný a vrací pouze podepsaná metadata.
+`POST /api/updates/windows/downloads/{id}/link` vyžaduje přihlášení, ale záměrně
+ne Premium: bezpečnostní aktualizace musí dostat každý přihlášený klient. Ruční
+webové download endpointy zůstávají Premium/VIP+. Appka ověří Ed25519 podpis,
+zahrnutou velikost instalačky, SHA-256, Windows Authenticode trust a přesný
+SHA-256 fingerprint signing certifikátu z podepsaného manifestu.
+
+`windows-build-metadata.json` vzniká ve Windows buildu až po ověření všech tří
+Authenticode podpisů. Obsahuje assembly verzi, fingerprint certifikátu a hashe
+artefaktů; offline publisher jej porovná s reálnými EXE a bez shody nic nepodepíše.
 
 ## Před nahráním: podepiš Windows update manifest
 
@@ -36,84 +47,61 @@ Jednorázově vygeneruj klíč (privátní zůstane offline na Macu, veřejný v
 node web/scripts/setup-windows-update-key.mjs
 ```
 
-Po každém novém buildu Windows instalaček (a po bumpu verze) podepiš manifest. Verze + build musí sedět s `Windows/Movly/Movly.csproj` (`<AssemblyVersion>x.y.z.build</AssemblyVersion>`):
+Po každém novém buildu Windows instalaček (a po bumpu verze) používej kanonický
+signer pod `Windows/scripts`. Vyžaduje všechny tři EXE, metadata a cert fingerprint;
+verze + build musí sedět s `Windows/Movly/Movly.csproj`:
 
 ```bash
-node web/scripts/build-windows-manifest.mjs \
+MOVLY_AUTHENTICODE_CERT_SHA256='<64 lowercase hex>' \
+node Windows/scripts/build-windows-manifest.mjs \
   --version 0.1.2 --build 3 \
+  --security false \
   --notes "Co je nového v této verzi" \
   --installers ~/Downloads \
+  --from-meta ~/Downloads/windows-build-metadata.json \
+  --authenticode-cert-sha256 "$MOVLY_AUTHENTICODE_CERT_SHA256" \
   --out ~/Downloads/windows-manifest.json
 ```
 
 Skript spočítá SHA-256 každé instalačky, podepíše manifest a zapíše `windows-manifest.json` k instalačkám, takže putuje stejnou cestou jako `.exe` níže.
 
-## Rychlý postup z Macu
+## Povinné atomické vydání z Macu
 
-Připrav si nové soubory např. v `Downloads` a zabal je do jednoho taru:
+Použij publisher, který ověří metadata, sestaví manifest, vytvoří verzovaný staging
+v LXC a aktivuje jej jedním přepnutím symlinku pod lockem. Selhání post-deploy kontroly
+vyvolá explicitní rollback. Mac musí mít `osslsigncode`; bez jeho nezávislého ověření
+Authenticode trustu, timestampu a leaf fingerprintu publisher skončí chybou:
 
-```bash
-cd /Users/shebin/Downloads
-
-tar -cf /tmp/movly-installers.tar \
-  MovlySetup-x64.exe \
-  MovlySetup-arm64.exe \
-  MovlySetup-x86.exe \
-  Movly-macOS-universal-devsigned.zip \
-  windows-manifest.json
-```
-
-Nahraj balík na Proxmox host:
+`--metadata` i `--security true|false` jsou povinné; publisher záměrně neodvozuje
+metadata ani bezpečnostní klasifikaci z implicitního defaultu.
 
 ```bash
-scp -P 12211 /tmp/movly-installers.tar root@192.168.191.10:/tmp/
+MOVLY_AUTHENTICODE_CERT_SHA256='<64 lowercase hex>' \
+MOVLY_WINDOWS_HEALTH_BEARER_TOKEN='<platná session běžného uživatele>' \
+bash Windows/scripts/publish-windows-release.sh \
+  --version 0.1.2 --build 3 \
+  --notes "Co je nového" --security false \
+  --installers ~/Downloads \
+  --metadata ~/Downloads/windows-build-metadata.json
 ```
 
-Přihlas se na Proxmox:
+`MOVLY_WINDOWS_HEALTH_BEARER_TOKEN` je povinný pro ostrý deploy. Publisher po aktivaci
+ověří přihlášený update feed a vytvoření odkazu pro všechny tři architektury; jakákoli
+chyba vyvolá rollback na předchozí release. Token se nesmí zapisovat do repozitáře ani
+do příkazové historie. Publisher jej předá curlu jen přes dočasný config s oprávněním
+`0600` v privátním snapshotu a po health checku jej explicitně odstraní; token není
+součástí argv. Explicitně prázdné `MOVLY_WINDOWS_UPDATE_KEY` nebo `MOVLY_SSH_KEY`
+jsou chyba — default se použije pouze tehdy, když proměnná vůbec není nastavená.
 
-```bash
-ssh -p 12211 root@192.168.191.10
-```
-
-Na Proxmoxu rozbal balík do LXC:
-
-```bash
-pct push 214 /tmp/movly-installers.tar /tmp/movly-installers.tar
-
-pct exec 214 -- bash -lc '
-set -e
-cd /srv/movly/downloads
-tar -xf /tmp/movly-installers.tar
-chown root:root /srv/movly/downloads/*
-chmod 644 /srv/movly/downloads/*
-rm -f /tmp/movly-installers.tar
-ls -lh /srv/movly/downloads
-'
-
-rm -f /tmp/movly-installers.tar
-```
-
-## Když aktualizuješ jen jeden soubor
-
-Příklad pro Windows x64:
-
-```bash
-scp -P 12211 /Users/shebin/Downloads/MovlySetup-x64.exe root@192.168.191.10:/tmp/MovlySetup-x64.exe
-ssh -p 12211 root@192.168.191.10
-```
-
-Na Proxmoxu:
-
-```bash
-pct push 214 /tmp/MovlySetup-x64.exe /srv/movly/downloads/MovlySetup-x64.exe
-pct exec 214 -- chmod 644 /srv/movly/downloads/MovlySetup-x64.exe
-pct exec 214 -- chown root:root /srv/movly/downloads/MovlySetup-x64.exe
-rm -f /tmp/MovlySetup-x64.exe
-```
+Ruční kopírování taru nebo jednotlivého EXE do aktivního adresáře je zakázané: obchází
+immutable snapshot, podpisové kontroly, atomickou aktivaci i rollback. Pro diagnostiku
+použij `--dry-run`; přímý HTTP upload endpoint `/api/upload/...` je záměrně vyřazený a
+vrací explicitní `410 Gone`.
 
 ## Restart není potřeba
 
-`movly-web.service` čte soubory z disku při každém požadavku, takže po výměně instalaček není potřeba restartovat server.
+`movly-web.service` čte release přes aktivní symlink, takže po úspěšné atomické aktivaci
+není potřeba restartovat server.
 
 Když chceš službu přesto zkontrolovat:
 
@@ -136,11 +124,13 @@ API bez přihlášení musí vrátit `401`. To je správně, protože instalačk
 curl -I https://movly.sheri.cz/api/downloads
 ```
 
-Stejně tak Windows update manifest musí být bez přihlášení `401` (neveřejný feed):
+Windows update manifest musí být dostupný i bez přihlášení a podporovat `HEAD`:
 
 ```bash
 curl -I https://movly.sheri.cz/api/updates/windows
 ```
+
+Očekávaný stav je `200`. Samotný download link zůstává autentizovaný.
 
 Logy serveru:
 
@@ -148,4 +138,3 @@ Logy serveru:
 ssh -p 12211 root@192.168.191.10
 pct exec 214 -- journalctl -u movly-web -n 80 --no-pager
 ```
-

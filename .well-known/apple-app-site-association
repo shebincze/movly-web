@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "F245LNF966.cz.movly.app"
+        ],
+        "components": [
+          {
+            "/": "/party/*",
+            "comment": "Movly Watch Party invitations"
+          }
+        ]
+      }
+    ]
+  }
+}
