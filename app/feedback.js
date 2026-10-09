@@ -9,6 +9,16 @@ export const feedbackStatuses = {
   declined: "Nebudeme realizovat", cannot_reproduce: "Nepodařilo se reprodukovat",
 };
 const platforms = { ios: "iOS", android: "Android", macos: "macOS", windows: "Windows", tvos: "Apple TV", android_tv: "Android TV", web: "Web", api: "API" };
+let diagnosticDraft = null;
+let diagnosticOwner = null;
+window.addEventListener("movly-offline-revoked", () => { diagnosticDraft = null; diagnosticOwner = null; });
+const diagnosticLabels = {app_version:"Verze aplikace", os_version:"Systém", device:"Zařízení", provider:"Provider", occurred_at:"Čas chyby", stage:"Fáze", error_code:"Technická chyba", http_status:"HTTP"};
+function diagnosticPreview(d) {
+  return el("details", { open: true }, el("summary", {}, t("Přiložená diagnostika")),
+    ...Object.entries(diagnosticLabels).filter(([key]) => d[key]).map(([key,label]) => el("p", {}, `${t(label)}: ${d[key]}`)),
+    ...(d.log || []).map(event => el("p", {}, `${event.at} · ${event.stage} · ${event.code}${event.http_status ? ` · HTTP ${event.http_status}` : ""}`)),
+    el("p", {}, t("Přiložíme pouze technické kódy. Bez hesel, tokenů a odkazů na video.")));
+}
 const terminal = new Set(["released", "duplicate", "declined", "cannot_reproduce"]);
 const stamp = (s) => new Date(s).toLocaleString(document.documentElement.lang || "cs");
 const state = (s) => el("span", { class: `feedback-state feedback-state-${s}` }, t(feedbackStatuses[s] || s));
@@ -49,19 +59,19 @@ async function attachmentPicker(item, admin, refresh) {
     } }, file, submit, message)));
 }
 
-function chooseFeedbackDialog(initialPlatform) {
+function chooseFeedbackDialog(initialPlatform, diagnostics = null) {
   showDialog(el("div", { class: "dialog-body" }, el("h2", {}, t("Nápad nebo chyba")),
     el("p", {}, t("Co chceš týmu Movly poslat?")),
     el("div", { class: "dialog-form" },
       button(t("Přidat nápad"), () => createDialog("idea", "ideas", initialPlatform), "primary", "plus"),
       el("p", {}, t("Navrhni, co by mohlo být v Movly lepší.")),
-      button(t("Nahlásit chybu"), () => createDialog("bug", "mine", initialPlatform), "secondary", "plus"),
+      button(t("Nahlásit chybu"), () => createDialog("bug", "mine", initialPlatform, diagnostics), "secondary", "plus"),
       el("p", {}, t("Popiš, co nefunguje tak, jak má.")))));
 }
 
-function createDialog(kind, view, initialPlatform = "web") {
+function createDialog(kind, view, initialPlatform = "web", diagnostics = null) {
   let requestId = crypto.randomUUID(), attempted = null;
-  const title = el("input", { required: true, minlength: 3, maxlength: 120 });
+  const title = el("input", { required: true, minlength: 3, maxlength: 120, value: diagnostics ? `${diagnostics.provider || "Movly"}: ${diagnostics.stage || "chyba"}` : "" });
   const description = el("textarea", { required: true, minlength: 10, maxlength: 5000, rows: 6 });
   const platform = el("select", {}, ...Object.entries(platforms).map(([value, label]) => el("option", { value, selected: value === initialPlatform }, label)));
   const message = el("p", { role: "alert" });
@@ -69,12 +79,14 @@ function createDialog(kind, view, initialPlatform = "web") {
   const form = el("form", { class: "dialog-form", onSubmit: async (e) => {
     e.preventDefault(); submit.disabled = true;
     try {
-      const input = { kind, title: title.value, description: description.value, platforms: [platform.value], diagnostics: { app_version: "web-v1", os_version: "", screen: "feedback" } };
+      const input = { kind, title: title.value, description: description.value, platforms: [platform.value], diagnostics: diagnostics || { app_version: "web-v1", os_version: "", screen: "feedback" } };
       const encoded = JSON.stringify(input); if (attempted !== null && attempted !== encoded) requestId = crypto.randomUUID(); attempted = encoded;
       const result = await api("feedback/items", { method: "POST", body: { request_id: requestId, ...input } });
-      document.querySelector("#dialog").close(); location.hash = route(kind === "bug" ? "mine" : view, result.item.id);
+      diagnosticDraft = null;
+      document.querySelector("#dialog").close(); toast(`${t("Hlášení přijato")} #${result.item.id}`); location.hash = route(kind === "bug" ? "mine" : view, result.item.id);
     } catch (err) { message.textContent = err.message; submit.disabled = false; }
   } }, formField(t("Název"), title), formField(t(kind === "bug" ? "Co se stalo a co jsi očekával/a?" : "Co bys chtěl/a vylepšit a proč?"), description), formField(t("Platforma"), platform),
+  diagnostics ? diagnosticPreview(diagnostics) : null,
   el("p", {}, t(kind === "idea" ? "Návrh bude veřejný. Screenshoty a diagnostika zůstávají soukromé." : "Hlášení a odpovědi uvidíš jen ty a tým Movly. Screenshot můžeš přidat po odeslání.")), submit, message);
   showDialog(el("div", { class: "dialog-body" }, el("h2", {}, t(kind === "bug" ? "Nahlásit chybu" : "Přidat nápad")), form));
 }
@@ -143,7 +155,7 @@ async function detailContent(id, admin, signal, refresh) {
   const reply = data.events.findLast((event) => event.team && event.message);
   if (reply) node.append(el("div", { class: "feedback-team-reply" }, el("h3", {}, t("Odpověď týmu Movly")), el("p", { class: "feedback-description" }, reply.message)));
   const eventHistory = el("details", { class: "feedback-history" }, el("summary", {}, t("Celá historie požadavku")), el("ol", { class: "feedback-timeline" }, ...data.events.map((event) => el("li", {}, el("small", {}, `${stamp(event.created_at)} · ${t(event.team ? "Tým Movly" : "Autor")}`), el("div", {}, state(event.status)), event.message ? el("p", { class: "feedback-description" }, event.message) : null))));
-  if (item.diagnostics) node.append(el("details", {}, el("summary", {}, t("Přiložená diagnostika")), el("p", {}, Object.values(item.diagnostics).filter(Boolean).join(" · "))));
+  if (item.diagnostics) node.append(diagnosticPreview(item.diagnostics));
   if (item.mine || admin) {
     for (const attachment of data.attachments) {
       node.append(button(t("Zobrazit screenshot"), async () => {
@@ -166,17 +178,24 @@ async function detailContent(id, admin, signal, refresh) {
   if (admin) node.append(adminEditor(item, refresh)); node.append(error); node.feedbackItem = item; return node;
 }
 
-export async function feedback(params, signal) {
+export async function feedback(params, signal, account = null) {
+  const currentOwner = account?.username || null;
+  if (diagnosticOwner !== currentOwner) diagnosticDraft = null;
+  diagnosticOwner = currentOwner;
   let view = ["ideas", "mine", "admin"].includes(params.get("view")) ? params.get("view") : "ideas";
   let id = params.get("id"), newIntent = ["bug", "choose"].includes(params.get("new")) ? params.get("new") : null; const q = params.get("q") || "";
-  const reportPlatform = Object.hasOwn(platforms, params.get("platform")) ? params.get("platform") : "web";
+  let reportPlatform = Object.hasOwn(platforms, params.get("platform")) ? params.get("platform") : "web";
   if (params.has("handoff")) {
     const handoff = await api("feedback/handoffs/consume", { method: "POST", body: { token: params.get("handoff") }, signal });
+    if (handoff.diagnostics) diagnosticDraft = { diagnostics: handoff.diagnostics, platform: handoff.platform || reportPlatform, expiresAt: Date.now() + 10 * 60 * 1000 };
+    reportPlatform = handoff.platform || reportPlatform;
     view = "mine"; id = handoff.item_id ? String(handoff.item_id) : null; newIntent = id ? null : (newIntent || "bug");
     params.delete("handoff"); params.set("view", view); if (id) params.set("id", id); else params.delete("id");
     if (newIntent) params.set("new", newIntent);
     history.replaceState(null, "", `#feedback?${params}`);
   }
+  if (diagnosticDraft?.expiresAt < Date.now()) diagnosticDraft = null;
+  if (diagnosticDraft && !id && !newIntent) { newIntent = "bug"; reportPlatform = diagnosticDraft.platform; }
   const admin = view === "admin";
   const query = new URLSearchParams({ limit: "25", offset: params.get("offset") || "0", sort: params.get("sort") || (view === "ideas" ? "votes" : "updated"), q });
   if (view === "ideas") query.set("kind", "idea"); if (view === "mine") query.set("mine", "true");
@@ -236,8 +255,8 @@ export async function feedback(params, signal) {
     // once it is mounted, so navigation/abort cannot leave a detached dialog.
     requestAnimationFrame(() => {
       if (signal.aborted || !wrapper.isConnected) return;
-      if (newIntent === "choose") chooseFeedbackDialog(reportPlatform);
-      else createDialog("bug", "mine", reportPlatform);
+      if (newIntent === "choose") chooseFeedbackDialog(reportPlatform, diagnosticDraft?.diagnostics);
+      else createDialog("bug", "mine", reportPlatform, diagnosticDraft?.diagnostics);
       params.delete("new"); params.delete("platform");
       history.replaceState(null, "", `#feedback?${params}`);
     });

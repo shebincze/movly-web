@@ -427,7 +427,7 @@ async function render() {
   document.title = `Movly — ${translateUI({ home: translateUI("Home"), movies: translateUI("Filmy"), series: translateUI("Seriály"), lists: translateUI("Moje seznamy"), search: translateUI("Hledání"), collection: translateUI("Katalog"), history: translateUI("Historie"), friends: translateUI("Přátelé"), stats: translateUI("Statistiky"), admin: translateUI("Nahlášené streamy") }[route] || { premium: "Premium", hidden: "Skryté tituly", feedback: "Vylepšujeme Movly" }[route])}`;
   content.replaceChildren(loading());
   try {
-    const result = await (route === "feedback" ? feedback(params, signal) : route === "premium"
+    const result = await (route === "feedback" ? feedback(params, signal, session.account) : route === "premium"
       ? premium(signal)
       : route === "hidden"
         ? (await import("./personal.js")).hiddenTitles(params, signal, actions)

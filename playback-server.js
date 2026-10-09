@@ -59,7 +59,11 @@ async function mediaRequest(value, range, options = {}, redirects = 0) {
     headers[key] = value;
   }
   if (range) headers.Range = range;
-  const addresses = await dns.resolve4(url.hostname);
+  // Use the OS resolver so a long-lived local app follows network/VPN changes.
+  // c-ares resolve4 retains the nameservers from process startup on macOS.
+  // Still pin the connection to the validated public IPv4 answers below.
+  const addresses = (await dns.lookup(url.hostname, { family: 4, all: true }))
+    .map(answer => answer.address);
   if (!addresses.length || !addresses.every(publicIPv4))
     throw fail(422, "Mediální server má nepovolenou adresu.");
   return await new Promise((resolve, reject) => {
@@ -67,7 +71,11 @@ async function mediaRequest(value, range, options = {}, redirects = 0) {
       url,
       {
         headers,
-        lookup: (_host, _opts, cb) => cb(null, addresses[0], 4),
+        // Node's connection family selection may request lookup({ all: true }).
+        // Returning the legacy scalar shape in that case fails on newer Node.
+        lookup: (_host, opts, cb) => opts.all
+          ? cb(null, addresses.map(address => ({ address, family: 4 })))
+          : cb(null, addresses[0], 4),
       },
       (res) => {
         if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
@@ -389,7 +397,12 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
             if (!id) {
               if (p.resources.size >= 20000)
                 throw fail(502, "Příliš mnoho částí zdroje.");
-              id = crypto.randomBytes(16).toString("hex");
+              // FFmpeg 8 checks HLS segment extensions before fetching them.
+              // Keep a known media suffix while the opaque ID still identifies
+              // only a URL already validated and registered by this proxy.
+              const suffix = /\.(?:m3u8|ts|m4s|mp4|aac|vtt|webvtt|key|cmfv|cmfa|fmp4)$/i
+                .exec(new URL(remote).pathname)?.[0].toLowerCase() || "";
+              id = crypto.randomBytes(16).toString("hex") + suffix;
               p.resources.set(id, remote);
               p.resourceIDs.set(remote, id);
             }

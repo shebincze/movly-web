@@ -47,6 +47,34 @@ test("playback only accepts provider HTTPS origins and publicly routed IPv4", ()
     assert.equal(publicIPv4(ip), false, ip);
   assert.equal(publicIPv4("8.8.8.8"), true);
 });
+test("VOD HLS through the protected proxy retains segment extensions and probes real tracks", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "movly-hls-probe-"));
+  const requests = [];
+  const engine = createPlayback({ requestMedia: async url => {
+    const name = path.basename(new URL(url).pathname);
+    assert.match(name, /^(?:master|index)\.m3u8$|^index\d+\.ts$/);
+    requests.push(name);
+    const file = path.join(dir, name), stream = createReadStream(file);
+    stream.statusCode = 200;
+    stream.headers = { "content-type": name.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : "video/mp2t",
+      "content-length": String((await fs.stat(file)).size) };
+    return stream;
+  } });
+  try {
+    const generated = spawnSync("ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "testsrc=size=320x180:rate=24",
+      "-f", "lavfi", "-i", "sine=frequency=440", "-t", "2", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+      "-threads", "1", "-g", "24", "-c:a", "aac", "-f", "hls", "-hls_time", "1", "-hls_playlist_type", "vod",
+      path.join(dir, "index.m3u8")], { timeout: 15000 });
+    assert.equal(generated.status, 0, generated.stderr?.toString());
+    await fs.writeFile(path.join(dir, "master.m3u8"), "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=100000\nindex.m3u8\n");
+    const info = await engine.analyze({ token: "local", device: "local", profile: { id: 1 } },
+      "https://provider.test/master.m3u8", { trustedProvider: true });
+    assert.ok(Number(info.format.duration) >= 1.9);
+    assert.ok(info.streams.some(s => s.codec_type === "video" && s.codec_name === "h264"));
+    assert.ok(info.streams.some(s => s.codec_type === "audio" && s.codec_name === "aac"));
+    assert.ok(requests.some(name => name.endsWith(".ts")));
+  } finally { await engine.close(); await fs.rm(dir, { recursive: true, force: true }); }
+});
 for (const [codec, withSubs, native = false] of [
   ["libx264", false],
   ["libx265", false],
