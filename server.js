@@ -2069,6 +2069,10 @@ function serveStatic(req, res, pathname) {
     relativePath.endsWith('.test.js') ||
     relativePath.startsWith('/downloads') ||
     relativePath === '/server.js' ||
+    relativePath === '/offline-grant.js' ||
+    relativePath === '/native-providers.js' ||
+    relativePath === '/stream-feedback.js' ||
+    relativePath.startsWith('/provider-resolver/') ||
     relativePath === '/package.json' ||
     relativePath.toLowerCase().endsWith('.md') ||
     relativePath.toLowerCase().endsWith('.zip') ||
@@ -2108,6 +2112,7 @@ function serveStatic(req, res, pathname) {
 }
 
 const handleApp = createAppHandler({
+  offlineEnvironment: API_BASE,
   api: (target, method, body, token, sessionId, headers) =>
     movlyApiResponse(target, method, body, token, sessionId, API_TIMEOUT_MS, headers),
   partyStream: async (target, token, sessionId, headers, res) => {

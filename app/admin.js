@@ -1,3 +1,4 @@
+import { translateUI } from "./i18n.js";
 import { api } from "./api.js";
 import {
   el,
@@ -16,11 +17,11 @@ import {
 // vždy na správnou tabulku.
 
 const statusLabel = {
-  pending: "Čeká",
-  approved: "Schváleno (stream skryt)",
-  rejected: "Zamítnuto",
+  pending: translateUI("Čeká"),
+  approved: translateUI("Schváleno (stream skryt)"),
+  rejected: translateUI("Zamítnuto"),
 };
-const sourceLabel = { human: "Databáze", ai: "AI import" };
+const sourceLabel = { human: translateUI("Databáze"), ai: "AI import" };
 
 function formatDate(value) {
   const date = new Date(value);
@@ -36,14 +37,16 @@ function reviewDialog(row, action, refresh) {
     maxlength: 500,
     rows: 3,
     placeholder: approve
-      ? "Např. stream opravdu nejde přehrát"
-      : "Např. stream funguje, nahlášení bylo omylem",
+      ? translateUI("Např. stream opravdu nejde přehrát")
+      : translateUI("Např. stream funguje, nahlášení bylo omylem"),
   });
   const status = el("p", { class: "form-status", role: "alert" });
   const submit = el(
     "button",
     { type: "submit", class: `button ${approve ? "danger" : "primary"}` },
-    approve ? "Schválit a skrýt stream" : "Zamítnout nahlášení",
+    approve
+      ? translateUI("Schválit a skrýt stream")
+      : translateUI("Zamítnout nahlášení"),
   );
   const form = el(
     "form",
@@ -61,8 +64,8 @@ function reviewDialog(row, action, refresh) {
           document.querySelector("#dialog").close();
           toast(
             approve
-              ? `Stream #${row.streamId} byl skryt.`
-              : "Nahlášení bylo zamítnuto.",
+              ? translateUI("Stream #{0} byl skryt.", row.streamId)
+              : translateUI("Nahlášení bylo zamítnuto."),
           );
           refresh();
         } catch (err) {
@@ -71,7 +74,7 @@ function reviewDialog(row, action, refresh) {
         }
       },
     },
-    formField("Komentář pro záznam (nepovinné)", comment),
+    formField(translateUI("Komentář pro záznam (nepovinné)"), comment),
     status,
     submit,
   );
@@ -82,14 +85,23 @@ function reviewDialog(row, action, refresh) {
       el(
         "h2",
         { id: "dialog-title" },
-        approve ? "Schválit nahlášení?" : "Zamítnout nahlášení?",
+        approve
+          ? translateUI("Schválit nahlášení?")
+          : translateUI("Zamítnout nahlášení?"),
       ),
       el(
         "p",
         {},
         approve
-          ? `Stream #${row.streamId} (${row.streamTitle || "bez názvu"}) přestane být dostupný v aplikacích. Jde to vrátit tlačítkem Obnovit.`
-          : `Stream #${row.streamId} zůstane dostupný a nahlášení se uzavře.`,
+          ? translateUI(
+              "Stream #{0} ({1}) přestane být dostupný v aplikacích. Jde to vrátit tlačítkem Obnovit.",
+              row.streamId,
+              row.streamTitle || translateUI("bez názvu"),
+            )
+          : translateUI(
+              "Stream #{0} zůstane dostupný a nahlášení se uzavře.",
+              row.streamId,
+            ),
       ),
       form,
     ),
@@ -101,14 +113,14 @@ function restoreDialog(row, refresh) {
     name: "reason",
     required: true,
     maxlength: 500,
-    placeholder: "Např. stream znovu funguje",
+    placeholder: translateUI("Např. stream znovu funguje"),
     autofocus: true,
   });
   const status = el("p", { class: "form-status", role: "alert" });
   const submit = el(
     "button",
     { type: "submit", class: "button primary" },
-    "Obnovit stream",
+    translateUI("Obnovit stream"),
   );
   const form = el(
     "form",
@@ -124,7 +136,7 @@ function restoreDialog(row, refresh) {
             body: { reason: reason.value },
           });
           document.querySelector("#dialog").close();
-          toast(`Stream #${row.streamId} je znovu dostupný.`);
+          toast(translateUI("Stream #{0} je znovu dostupný.", row.streamId));
           refresh();
         } catch (err) {
           status.textContent = err.message;
@@ -132,7 +144,7 @@ function restoreDialog(row, refresh) {
         }
       },
     },
-    formField("Důvod obnovení", reason),
+    formField(translateUI("Důvod obnovení"), reason),
     status,
     submit,
   );
@@ -140,11 +152,17 @@ function restoreDialog(row, refresh) {
     el(
       "div",
       { class: "dialog-body" },
-      el("h2", { id: "dialog-title" }, `Obnovit stream #${row.streamId}?`),
+      el(
+        "h2",
+        { id: "dialog-title" },
+        translateUI("Obnovit stream #{0}?", row.streamId),
+      ),
       el(
         "p",
         {},
-        "Stream se znovu zobrazí v aplikacích. Důvod se uloží k záznamu.",
+        translateUI(
+          "Stream se znovu zobrazí v aplikacích. Důvod se uloží k záznamu.",
+        ),
       ),
       form,
     ),
@@ -163,7 +181,7 @@ function reportCard(row, refresh) {
       el(
         "div",
         { class: "report-title" },
-        el("strong", {}, row.streamTitle || "Neznámý titul"),
+        el("strong", {}, row.streamTitle || translateUI("Neznámý titul")),
         el(
           "span",
           { class: `badge source-${row.source}` },
@@ -185,9 +203,9 @@ function reportCard(row, refresh) {
           `stream #${row.streamId}`,
           row.streamProvider,
           row.requesterName
-            ? `nahlásil ${row.requesterName}`
+            ? translateUI("nahlásil {0}", row.requesterName)
             : row.requestedBy
-              ? `uživatel ${row.requestedBy}`
+              ? translateUI("uživatel {0}", row.requestedBy)
               : null,
           formatDate(row.createdAt),
         ]
@@ -197,14 +215,16 @@ function reportCard(row, refresh) {
       el(
         "p",
         { class: "report-reason" },
-        row.reason ? `„${row.reason}“` : "Bez udaného důvodu",
+        row.reason ? `„${row.reason}“` : translateUI("Bez udaného důvodu"),
       ),
       row.reviewerName || row.reviewComment
         ? el(
             "p",
             { class: "report-review" },
             [
-              row.reviewerName ? `Vyřídil ${row.reviewerName}` : null,
+              row.reviewerName
+                ? translateUI("Vyřídil {0}", row.reviewerName)
+                : null,
               row.reviewedAt ? formatDate(row.reviewedAt) : null,
               row.reviewComment ? `„${row.reviewComment}“` : null,
             ]
@@ -218,7 +238,7 @@ function reportCard(row, refresh) {
       { class: "report-actions" },
       canReview
         ? button(
-            "Schválit",
+            translateUI("Schválit"),
             () => reviewDialog(row, "approve", refresh),
             "danger",
             "check",
@@ -226,7 +246,7 @@ function reportCard(row, refresh) {
         : null,
       canReview
         ? button(
-            "Zamítnout",
+            translateUI("Zamítnout"),
             () => reviewDialog(row, "reject", refresh),
             "secondary",
             "close",
@@ -234,7 +254,7 @@ function reportCard(row, refresh) {
         : null,
       canRestore
         ? button(
-            "Obnovit stream",
+            translateUI("Obnovit stream"),
             () => restoreDialog(row, refresh),
             "secondary",
           )
@@ -245,12 +265,16 @@ function reportCard(row, refresh) {
 
 function trustedCard(row, refresh) {
   const remove = button(
-    "Odebrat",
+    translateUI("Odebrat"),
     async () => {
       remove.disabled = true;
       try {
-        await api(`admin/trusted-reporters/${row.userId}`, { method: "DELETE" });
-        toast(`${row.username} už nemá automatické schvalování.`);
+        await api(`admin/trusted-reporters/${row.userId}`, {
+          method: "DELETE",
+        });
+        toast(
+          translateUI("{0} už nemá automatické schvalování.", row.username),
+        );
         refresh();
       } catch (e) {
         toast(e.message);
@@ -276,7 +300,9 @@ function trustedCard(row, refresh) {
         "p",
         { class: "meta" },
         [
-          row.grantedByName ? `přidal ${row.grantedByName}` : null,
+          row.grantedByName
+            ? translateUI("přidal {0}", row.grantedByName)
+            : null,
           row.createdAt ? formatDate(row.createdAt) : null,
         ]
           .filter(Boolean)
@@ -291,24 +317,26 @@ function trustedCard(row, refresh) {
 async function trustedView(signal, refresh) {
   const data = await api("admin/trusted-reporters", { signal });
   if (!data || !Array.isArray(data.reporters))
-    throw new Error("Server vrátil neplatný seznam důvěryhodných uživatelů.");
+    throw new Error(
+      translateUI("Server vrátil neplatný seznam důvěryhodných uživatelů."),
+    );
   const username = el("input", {
     name: "username",
     required: true,
     maxlength: 255,
     autocomplete: "off",
-    placeholder: "uživatelské jméno",
+    placeholder: translateUI("uživatelské jméno"),
   });
   const note = el("input", {
     name: "note",
     maxlength: 500,
-    placeholder: "poznámka (nepovinné)",
+    placeholder: translateUI("poznámka (nepovinné)"),
   });
   const status = el("p", { class: "form-status", role: "alert" });
   const submit = el(
     "button",
     { type: "submit", class: "button primary" },
-    "Přidat",
+    translateUI("Přidat"),
   );
   const form = el(
     "form",
@@ -323,7 +351,12 @@ async function trustedView(signal, refresh) {
             method: "POST",
             body: { username: username.value, note: note.value },
           });
-          toast(`${added.username}: nahlášení se teď schvalují automaticky.`);
+          toast(
+            translateUI(
+              "{0}: nahlášení se teď schvalují automaticky.",
+              added.username,
+            ),
+          );
           refresh();
         } catch (err) {
           status.textContent = err.message;
@@ -331,8 +364,8 @@ async function trustedView(signal, refresh) {
         }
       },
     },
-    formField("Uživatel", username),
-    formField("Poznámka", note),
+    formField(translateUI("Uživatel"), username),
+    formField(translateUI("Poznámka"), note),
     submit,
     status,
   );
@@ -342,7 +375,9 @@ async function trustedView(signal, refresh) {
     el(
       "p",
       { class: "meta" },
-      "Nahlášení od těchto uživatelů se rovnou schválí a stream se skryje bez čekání na kontrolu. Objeví se v záložce Schválené se štítkem auto.",
+      translateUI(
+        "Nahlášení od těchto uživatelů se rovnou schválí a stream se skryje bez čekání na kontrolu. Objeví se v záložce Schválené se štítkem auto.",
+      ),
     ),
     form,
     data.reporters.length
@@ -352,8 +387,8 @@ async function trustedView(signal, refresh) {
           data.reporters.map((row) => trustedCard(row, refresh)),
         )
       : empty(
-          "Zatím nikdo",
-          "Přidej uživatele, jehož nahlášením věříš.",
+          translateUI("Zatím nikdo"),
+          translateUI("Přidej uživatele, jehož nahlášením věříš."),
         ),
   );
 }
@@ -377,10 +412,18 @@ export async function admin(params, signal, actions) {
         el(
           "div",
           {},
-          el("h1", {}, "Důvěryhodní uživatelé"),
-          el("p", {}, "Jejich nahlášení se schvalují automaticky."),
+          el("h1", {}, translateUI("Důvěryhodní uživatelé")),
+          el(
+            "p",
+            {},
+            translateUI("Jejich nahlášení se schvalují automaticky."),
+          ),
         ),
-        el("a", { href: "#admin", class: "button secondary" }, "Zpět na nahlášení"),
+        el(
+          "a",
+          { href: "#admin", class: "button secondary" },
+          translateUI("Zpět na nahlášení"),
+        ),
       ),
       await trustedView(signal, refresh),
     );
@@ -390,15 +433,18 @@ export async function admin(params, signal, actions) {
     { signal },
   );
   if (!data || !Array.isArray(data.requests))
-    throw new Error("Server vrátil neplatný seznam nahlášení.");
+    throw new Error(translateUI("Server vrátil neplatný seznam nahlášení."));
   const tabs = el(
     "nav",
-    { class: "filters report-filters", "aria-label": "Stav nahlášení" },
+    {
+      class: "filters report-filters",
+      "aria-label": translateUI("Stav nahlášení"),
+    },
     [
-      ["pending", "Čekající"],
-      ["approved", "Schválené"],
-      ["rejected", "Zamítnuté"],
-      ["all", "Vše"],
+      ["pending", translateUI("Čekající")],
+      ["approved", translateUI("Schválené")],
+      ["rejected", translateUI("Zamítnuté")],
+      ["all", translateUI("Vše")],
     ].map(([value, label]) =>
       el(
         "a",
@@ -415,7 +461,7 @@ export async function admin(params, signal, actions) {
     el(
       "a",
       { href: "#admin?view=trusted", class: "button secondary small" },
-      "Důvěryhodní uživatelé",
+      translateUI("Důvěryhodní uživatelé"),
     ),
   );
   const list = data.requests.length
@@ -425,8 +471,12 @@ export async function admin(params, signal, actions) {
         data.requests.map((row) => reportCard(row, refresh)),
       )
     : empty(
-        status === "pending" ? "Nic nečeká na vyřízení" : "Žádná nahlášení",
-        "Nahlášení z aplikací se tu objeví během chvíle po odeslání.",
+        status === "pending"
+          ? translateUI("Nic nečeká na vyřízení")
+          : translateUI("Žádná nahlášení"),
+        translateUI(
+          "Nahlášení z aplikací se tu objeví během chvíle po odeslání.",
+        ),
       );
   const pagination = el(
     "div",
@@ -438,10 +488,10 @@ export async function admin(params, signal, actions) {
             href: `#admin?status=${status}&page=${page - 1}`,
             class: "button secondary small",
           },
-          "Předchozí",
+          translateUI("Předchozí"),
         )
       : null,
-    el("span", {}, `Strana ${page}`),
+    el("span", {}, translateUI("Strana {0}", page)),
     data.hasMore
       ? el(
           "a",
@@ -449,7 +499,7 @@ export async function admin(params, signal, actions) {
             href: `#admin?status=${status}&page=${page + 1}`,
             class: "button secondary small",
           },
-          "Další",
+          translateUI("Další"),
         )
       : null,
   );
@@ -463,14 +513,18 @@ export async function admin(params, signal, actions) {
       el(
         "div",
         {},
-        el("h1", {}, "Nahlášené streamy"),
+        el("h1", {}, translateUI("Nahlášené streamy")),
         el(
           "p",
           {},
-          `Databáze: ${totals.human ?? "?"} · AI import: ${totals.ai ?? "?"} záznamů ve vybraném stavu`,
+          translateUI(
+            "Databáze: {0} · AI import: {1} záznamů ve vybraném stavu",
+            totals.human ?? "?",
+            totals.ai ?? "?",
+          ),
         ),
       ),
-      button("Obnovit seznam", refresh),
+      button(translateUI("Obnovit seznam"), refresh),
     ),
     tabs,
     list,

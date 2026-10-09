@@ -1,11 +1,21 @@
+import { uiLanguage } from "./i18n.js";
+import { translateUI } from "./i18n.js";
 export class RequestError extends Error {
   constructor(status, body) {
-    super(body?.message || `Požadavek selhal (${status}).`);
+    super(
+      body?.message
+        ? translateUI(body.message)
+        : translateUI("Požadavek selhal ({0}).", status),
+    );
     this.status = status;
     this.code = body?.code;
+    this.body = body;
   }
 }
-export async function api(path, { method = "GET", body, signal } = {}) {
+export async function api(
+  path,
+  { method = "GET", body, signal, expectedOwner } = {},
+) {
   const response = await fetch(`/api/app/${path}`, {
     method,
     credentials: "same-origin",
@@ -14,6 +24,13 @@ export async function api(path, { method = "GET", body, signal } = {}) {
     headers: {
       Accept: "application/json",
       "X-Movly-App": "1",
+      "X-Movly-Language": uiLanguage(),
+      ...(expectedOwner
+        ? {
+            "X-Movly-Expected-Account": String(expectedOwner.accountId),
+            "X-Movly-Expected-Profile": String(expectedOwner.profileId),
+          }
+        : {}),
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -23,14 +40,29 @@ export async function api(path, { method = "GET", body, signal } = {}) {
     data = await response.json();
   } catch {
     throw new RequestError(502, {
-      message: "Server vrátil nečitelnou odpověď.",
+      message: translateUI("Server vrátil nečitelnou odpověď."),
     });
   }
-  if (!response.ok) throw new RequestError(response.status, data);
+  if (!response.ok) {
+    if (
+      response.status === 401 ||
+      [
+        "profile_grant_required",
+        "profile_access_denied",
+        "profile_grant_expired",
+        "invalid_profile_grant",
+        "session_revoked",
+        "account_inactive",
+      ].includes(data?.code)
+    )
+      window.dispatchEvent(new CustomEvent("movly-offline-revoked"));
+    throw new RequestError(response.status, data);
+  }
   return data;
 }
 export function array(value, label = "seznam") {
-  if (!Array.isArray(value)) throw new Error(`API nevrátilo platný ${label}.`);
+  if (!Array.isArray(value))
+    throw new Error(translateUI("API nevrátilo platný {0}.", label));
   return value;
 }
 export function title(value) {
@@ -42,7 +74,7 @@ export function title(value) {
     t.id < 1 ||
     typeof t.title !== "string"
   )
-    throw new Error("API vrátilo neplatný titul.");
+    throw new Error(translateUI("API vrátilo neplatný titul."));
   return {
     ...t,
     progress: value?.watch_progress || t.watch_progress,
@@ -69,7 +101,7 @@ export function imageURL(value, size = "w500") {
 }
 export function listTitle(item) {
   if (!Number.isSafeInteger(item.title_id) || item.title_id < 1)
-    throw new Error("Položce seznamu chybí ID titulu.");
+    throw new Error(translateUI("Položce seznamu chybí ID titulu."));
   return title({
     ...item,
     id: item.title_id,

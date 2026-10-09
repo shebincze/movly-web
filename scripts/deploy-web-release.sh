@@ -28,12 +28,13 @@ dry_run=${1:-}
 
 cd "$web_dir"
 node --check server.js && node --check app-server.js
+sh scripts/build-provider-resolver.sh linux-x64
 # Allowlist: only what the server serves or requires. No git metadata, no
 # design sources, no zip archives, no local download roots.
 COPYFILE_DISABLE=1 tar --no-xattrs -czf "$tarball" \
   --exclude='._*' --exclude='.git' --exclude='node_modules' --exclude='downloads-local' \
   --exclude='design' --exclude='*.zip' --exclude='.DS_Store' \
-  server.js app-server.js providers-server.js sources-server.js playback-server.js support.js package.json \
+  server.js app-server.js providers-server.js sources-server.js playback-server.js native-providers.js offline-grant.js stream-feedback.js provider-resolver support.js package.json \
   index.html privacy.html delete-account.html party.html activate.html devices.html \
   activate.css devices.css activate.js devices.js \
   assets en app .well-known
@@ -63,6 +64,7 @@ tar -xzf "/tmp/\$release.tar.gz" -C "\$dir" --no-same-owner
 cd "\$dir"
 for source in server.js app-server.js providers-server.js sources-server.js playback-server.js app/*.js; do node --check "\$source"; done
 command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
+printf '%s' '{"action":"status"}' | ./provider-resolver/Movly.ProviderResolver
 switched=0
 rollback() {
   code=\$?

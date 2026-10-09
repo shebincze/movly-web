@@ -1,3 +1,4 @@
+import { translateUI } from "./i18n.js";
 import { imageURL } from "./api.js";
 // Lokální překryv osobního stavu (zhlédnuto / rozkoukáno) nad katalogem.
 //
@@ -138,7 +139,7 @@ export function renderCardState(frame, watched, percent) {
   if (watched) {
     const badge = document.createElement("span");
     badge.className = "watched-badge";
-    badge.setAttribute("aria-label", "Zhlédnuto");
+    badge.setAttribute("aria-label", translateUI("Zhlédnuto"));
     badge.textContent = "✓";
     frame.append(badge);
     return;
@@ -147,7 +148,7 @@ export function renderCardState(frame, watched, percent) {
     const bar = document.createElement("progress");
     bar.max = 100;
     bar.value = Math.min(100, Math.max(0, percent));
-    bar.setAttribute("aria-label", "Rozkoukáno");
+    bar.setAttribute("aria-label", translateUI("Rozkoukáno"));
     frame.append(bar);
   }
 }

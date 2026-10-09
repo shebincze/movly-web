@@ -1,3 +1,4 @@
+import { translateUI } from "./i18n.js";
 import { imageURL } from "./api.js";
 import {
   applyUserState,
@@ -53,7 +54,7 @@ export function icon(name) {
 export function button(label, onClick, variant = "secondary", glyph) {
   return el(
     "button",
-    { class: `button ${variant}`, onClick },
+    { type: "button", class: `button ${variant}`, onClick },
     glyph && glyph !== "chevron" ? icon(glyph) : null,
     label,
     glyph === "chevron" ? icon(glyph) : null,
@@ -64,7 +65,7 @@ export const loading = () =>
     "div",
     { class: "loading", role: "status" },
     el("span", { class: "spinner" }),
-    "Načítám…",
+    translateUI("Načítám…"),
   );
 export function empty(heading, copy) {
   return el(
@@ -78,9 +79,9 @@ export function errorBox(error, retry) {
   return el(
     "div",
     { class: "error-state", role: "alert" },
-    el("h2", {}, "Teď se to nepodařilo"),
+    el("h2", {}, translateUI("Teď se to nepodařilo")),
     el("p", {}, error.message),
-    retry ? button("Zkusit znovu", retry) : null,
+    retry ? button(translateUI("Zkusit znovu"), retry) : null,
   );
 }
 export function warning(data) {
@@ -88,9 +89,15 @@ export function warning(data) {
   return el(
     "div",
     { class: "notice", role: "status" },
-    "Některé zdroje jsou dočasně nedostupné. Výsledky mohou být neúplné.",
+    translateUI(
+      "Některé zdroje jsou dočasně nedostupné. Výsledky mohou být neúplné.",
+    ),
     data.degraded_sources?.length
-      ? el("span", {}, ` Zdroje: ${data.degraded_sources.join(", ")}.`)
+      ? el(
+          "span",
+          {},
+          translateUI(" Zdroje: {0}.", data.degraded_sources.join(", ")),
+        )
       : null,
   );
 }
@@ -109,11 +116,15 @@ export function poster(raw, onClick, extra) {
           onError: (e) => {
             e.target.remove();
             frame.append(
-              el("span", { class: "missing-art" }, "Plakát není dostupný"),
+              el(
+                "span",
+                { class: "missing-art" },
+                translateUI("Plakát není dostupný"),
+              ),
             );
           },
         })
-      : el("span", { class: "missing-art" }, "Bez plakátu"),
+      : el("span", { class: "missing-art" }, translateUI("Bez plakátu")),
   );
   const badges = el("span", { class: "poster-badges" });
   if (Number.isFinite(t.rating))
@@ -124,7 +135,7 @@ export function poster(raw, onClick, extra) {
         "span",
         {},
         t.streams.video_width >= 3800 || t.streams.video_height >= 2100
-          ? "4K"
+          ? translateUI("4K")
           : `${t.streams.video_height}p`,
       ),
     );
@@ -147,7 +158,9 @@ export function poster(raw, onClick, extra) {
       el(
         "span",
         { class: "poster-meta" },
-        [t.year, t.type === "tv" ? "Seriál" : null].filter(Boolean).join(" · "),
+        [t.year, t.type === "tv" ? translateUI("Seriál") : null]
+          .filter(Boolean)
+          .join(" · "),
       ),
     ),
     extra,
@@ -170,7 +183,7 @@ export function rail(name, items, onTitle, more) {
         ? el(
             "a",
             { href: more, class: "text-link" },
-            "Zobrazit vše",
+            translateUI("Zobrazit vše"),
             icon("chevron"),
           )
         : null,
@@ -215,12 +228,14 @@ export function hero(t, onTitle, onSave) {
         "div",
         { class: "actions" },
         button(
-          t.type === "tv" ? "Detail seriálu" : "Detail filmu",
+          t.type === "tv"
+            ? translateUI("Detail seriálu")
+            : translateUI("Detail filmu"),
           () => onTitle(t),
           "primary",
           "chevron",
         ),
-        button("Do seznamu", () => onSave(t), "secondary", "plus"),
+        button(translateUI("Do seznamu"), () => onSave(t), "secondary", "plus"),
       ),
     ),
   );

@@ -61,6 +61,7 @@ const series = [
   year: 2023,
 }));
 function createFixture() {
+  const feedbackFixture = require("./feedback-fixture.cjs").createFeedbackFixture();
   const lists = [
       { id: 1, name: "Na víkend", item_count: 0, is_default: false },
     ],
@@ -78,6 +79,7 @@ function createFixture() {
       display_name: "Testovací účet",
       is_active: true,
       is_verified: true,
+      ...(process.env.MOVLY_FIXTURE_FEEDBACK_ADMIN === "1" ? { role: "admin" } : {}),
     };
     if (p === "v1/auth/login") {
       if (
@@ -91,6 +93,7 @@ function createFixture() {
     }
     if (!token || revoked)
       fail(401, "Přihlášení vypršelo.", "invalid_or_expired_session");
+    if (p.startsWith("v1/feedback/") || p.startsWith("v1/admin/feedback/")) return feedbackFixture(path, method, body);
     if (p === "v1/auth/me") return { payload: user };
     if (p === "v1/auth/logout") {
       revoked = true;

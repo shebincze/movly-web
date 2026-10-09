@@ -47,13 +47,14 @@ test("playback only accepts provider HTTPS origins and publicly routed IPv4", ()
     assert.equal(publicIPv4(ip), false, ip);
   assert.equal(publicIPv4("8.8.8.8"), true);
 });
-for (const [codec, withSubs] of [
+for (const [codec, withSubs, native = false] of [
   ["libx264", false],
   ["libx265", false],
   ["libx265", true],
+  ["libx265", false, true],
 ])
   test(
-    `real ${codec} ${withSubs ? "with subtitles " : ""}MKV reaches HLS with H264 video, AAC audio and isolated ownership`,
+    `real ${codec} ${native ? "native HEVC " : ""}${withSubs ? "with subtitles " : ""}MKV reaches HLS with H264 video, AAC audio and isolated ownership`,
     { timeout: 45000 },
     async () => {
       const dir = await fs.mkdtemp(path.join(os.tmpdir(), "movly-codec-test-")),
@@ -136,9 +137,17 @@ for (const [codec, withSubs] of [
         const result = await engine.start(
           session,
           "https://h1.webshare.cz/test",
-          { subtitle: withSubs ? 0 : -1 },
+          {
+            subtitle: withSubs ? 0 : -1,
+            ...(native
+              ? { videoMode: "native", capabilities: { hevc: true } }
+              : {}),
+          },
         );
-        assert.equal(result.mode, codec === "libx264" ? "remux" : "transcode");
+        assert.equal(
+          result.mode,
+          codec === "libx264" || native ? "remux" : "transcode",
+        );
         assert.ok(result.duration >= 9);
         assert.equal(result.audio[0].codec, "ac3");
         await assert.rejects(
@@ -199,10 +208,15 @@ for (const [codec, withSubs] of [
         const playlist = (await capture("index.m3u8")).toString();
         const segment = playlist
           .split("\n")
-          .find((line) => /^index\d+\.ts$/.test(line));
+          .find((line) => /^index\d+\.(?:ts|m4s)$/.test(line));
         assert.ok(segment);
         const segmentFile = path.join(dir, "segment.ts");
-        await fs.writeFile(segmentFile, await capture(segment));
+        await fs.writeFile(
+          segmentFile,
+          native
+            ? Buffer.concat([await capture("init.mp4"), await capture(segment)])
+            : await capture(segment),
+        );
         const probed = spawnSync("ffprobe", [
           "-v",
           "error",
@@ -215,7 +229,7 @@ for (const [codec, withSubs] of [
         const streams = JSON.parse(probed.stdout).streams;
         assert.equal(
           streams.find((s) => s.codec_type === "video").codec_name,
-          "h264",
+          native ? "hevc" : "h264",
         );
         assert.equal(
           streams.find((s) => s.codec_type === "audio").codec_name,
@@ -245,3 +259,112 @@ for (const [codec, withSubs] of [
       }
     },
   );
+test(
+  "audio timing controls shift actual decoded audio while video duration stays intact",
+  { timeout: 15000 },
+  async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "movly-audio-timing-"));
+    try {
+      const input = path.join(dir, "input.mkv");
+      const generated = spawnSync("ffmpeg", [
+        "-v",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "testsrc2=size=160x90:rate=24",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=440:sample_rate=48000",
+        "-t",
+        "2",
+        "-c:v",
+        "libx264",
+        "-threads",
+        "1",
+        "-c:a",
+        "aac",
+        input,
+      ]);
+      assert.equal(generated.status, 0, generated.stderr?.toString());
+      const probe = spawnSync("ffprobe", [
+        "-v",
+        "error",
+        "-show_streams",
+        "-of",
+        "json",
+        input,
+      ]);
+      assert.equal(probe.status, 0);
+      const info = JSON.parse(probe.stdout);
+      for (const delay of [500, -500]) {
+        const folder = path.join(dir, String(delay));
+        await fs.mkdir(folder);
+        const output = path.join(folder, "index.m3u8");
+        const args = ffmpegArgs(input, output, info, 0, 0, -1, {
+          audioDelay: delay,
+        });
+        // This timing test reads its own generated local fixture. Production
+        // continues to permit only the loopback HTTP media proxy.
+        args[args.indexOf("-protocol_whitelist") + 1] += ",file";
+        const encoded = spawnSync("ffmpeg", ["-v", "error", ...args]);
+        assert.equal(encoded.status, 0, encoded.stderr?.toString());
+        const decoded = spawnSync("ffmpeg", [
+          "-v",
+          "error",
+          "-i",
+          output,
+          "-map",
+          "0:a:0",
+          "-ac",
+          "1",
+          "-ar",
+          "48000",
+          "-f",
+          "f32le",
+          "pipe:1",
+        ]);
+        assert.equal(decoded.status, 0, decoded.stderr?.toString());
+        const rms = (start, end) => {
+          let sum = 0,
+            count = 0;
+          for (
+            let i = Math.floor(start * 48000);
+            i < Math.floor(end * 48000) && i * 4 < decoded.stdout.length;
+            i++
+          ) {
+            const value = decoded.stdout.readFloatLE(i * 4);
+            sum += value * value;
+            count++;
+          }
+          assert.ok(count > 0);
+          return Math.sqrt(sum / count);
+        };
+        if (delay > 0) {
+          assert.ok(rms(0.05, 0.3) < 0.001);
+          assert.ok(rms(0.7, 1) > 0.01);
+        } else assert.ok(rms(0.05, 0.3) > 0.01);
+        const video = spawnSync("ffprobe", [
+          "-v",
+          "error",
+          "-count_frames",
+          "-show_streams",
+          "-of",
+          "json",
+          output,
+        ]);
+        assert.equal(video.status, 0);
+        assert.ok(
+          Number(
+            JSON.parse(video.stdout).streams.find(
+              (stream) => stream.codec_type === "video",
+            ).nb_read_frames,
+          ) >= 47,
+        );
+      }
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  },
+);

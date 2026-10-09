@@ -1,4 +1,16 @@
+import { translateShell, uiLanguage, setUILanguage } from "./i18n.js";
+import { translateUI } from "./i18n.js";
+import { premium } from "./premium.js";
+import { setSearchOwner } from "./search-history.js";
 import { leaveParty } from "./party.js";
+import { accountForm } from "./auth.js";
+import {
+  registerOffline,
+  synchronizeOfflineContext,
+  offlineLibrary,
+  clearLibrary,
+  revokeOfflineContext,
+} from "./offline.js";
 import { api, array } from "./api.js";
 import {
   el,
@@ -25,6 +37,27 @@ import { providerSettings, stop as stopPlayback } from "./player.js";
 import { friends } from "./friends.js";
 import { history, stats } from "./personal.js";
 import { admin } from "./admin.js";
+import { feedback } from "./feedback.js";
+translateShell(document.body);
+const languagePicker = document.createElement("select");
+languagePicker.className = "language-picker";
+languagePicker.setAttribute("aria-label", translateUI("Jazyk rozhraní"));
+for (const [value, label] of [
+  ["cs", translateUI("Čeština")],
+  ["sk", translateUI("Slovenčina")],
+  ["en", "English"],
+]) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  languagePicker.append(option);
+}
+languagePicker.value = uiLanguage();
+languagePicker.addEventListener("change", () => {
+  setUILanguage(languagePicker.value);
+  location.reload();
+});
+document.querySelector("header").append(languagePicker);
 const content = document.querySelector("#content"),
   dialog = document.querySelector("#dialog");
 let session = null,
@@ -57,12 +90,13 @@ dialog.addEventListener("close", () => {
   }
 });
 function chrome() {
+  setSearchOwner(session?.account, session?.profile);
   const ready = Boolean(session?.profile);
   document.querySelector("#navigation").hidden = !ready;
   document.querySelector("#header-actions").hidden = !session;
   document.querySelector("#search-link").hidden = !ready;
   document.querySelector("#profile-name").textContent =
-    session?.profile?.name || "Vybrat profil";
+    session?.profile?.name || translateUI("Vybrat profil");
   document
     .querySelector("#avatar")
     .replaceChildren(
@@ -86,7 +120,7 @@ function login(message = "") {
     autocomplete: "username",
     required: true,
     maxlength: 254,
-    placeholder: "Uživatelské jméno nebo e-mail",
+    placeholder: translateUI("Uživatelské jméno nebo e-mail"),
   });
   const password = el("input", {
     type: "password",
@@ -94,13 +128,13 @@ function login(message = "") {
     autocomplete: "current-password",
     required: true,
     maxlength: 1024,
-    placeholder: "Tvé heslo",
+    placeholder: translateUI("Tvé heslo"),
   });
   const status = el("p", { class: "form-status", role: "alert" }, message);
   const submit = el(
     "button",
     { type: "submit", class: "button primary" },
-    "Přihlásit se",
+    translateUI("Přihlásit se"),
   );
   const form = el(
     "form",
@@ -123,10 +157,24 @@ function login(message = "") {
         }
       },
     },
-    formField("Uživatelské jméno nebo e-mail", username),
-    formField("Heslo", password),
+    formField(translateUI("Uživatelské jméno nebo e-mail"), username),
+    formField(translateUI("Heslo"), password),
     status,
     submit,
+    el(
+      "div",
+      { class: "actions" },
+      button(
+        translateUI("Vytvořit účet"),
+        () => accountForm("register", login),
+        "small",
+      ),
+      button(
+        translateUI("Zapomenuté heslo"),
+        () => accountForm("reset", login),
+        "small",
+      ),
+    ),
   );
   content.replaceChildren(
     el(
@@ -138,27 +186,33 @@ function login(message = "") {
         el(
           "h1",
           {},
-          "Tvůj další příběh.",
+          translateUI("Tvůj další příběh."),
           el("br"),
-          el("span", {}, "Na jednom místě."),
+          el("span", {}, translateUI("Na jednom místě.")),
         ),
         el(
           "p",
           {},
-          "Objevuj filmy a seriály. Vracej se ke svým oblíbeným. Vytvářej seznamy na každý večer.",
+          translateUI(
+            "Objevuj filmy a seriály. Vracej se ke svým oblíbeným. Vytvářej seznamy na každý večer.",
+          ),
         ),
       ),
       el(
         "div",
         { class: "login-panel" },
-        el("h2", {}, "Vítej v Movly"),
-        el("p", {}, "Přihlas se stejným účtem, který používáš v aplikaci."),
+        el("h2", {}, translateUI("Vítej v Movly")),
+        el(
+          "p",
+          {},
+          translateUI("Přihlas se stejným účtem, který používáš v aplikaci."),
+        ),
         form,
         el(
           "p",
           { class: "login-note" },
-          "Potřebuješ pomoc s účtem? ",
-          el("a", { href: "/" }, "Přejít na hlavní web"),
+          translateUI("Potřebuješ pomoc s účtem? "),
+          el("a", { href: "/" }, translateUI("Přejít na hlavní web")),
         ),
       ),
     ),
@@ -186,7 +240,7 @@ async function profiles() {
     const choices = el("div", { class: "profile-grid" });
     for (const p of values) {
       if (!Number.isSafeInteger(p.id) || typeof p.name !== "string")
-        throw new Error("API vrátilo neplatný profil.");
+        throw new Error(translateUI("API vrátilo neplatný profil."));
       choices.append(
         el(
           "div",
@@ -199,10 +253,18 @@ async function profiles() {
             el(
               "small",
               {},
-              p.has_pin ? "Chráněno PINem" : p.is_kids ? "Dětský profil" : "",
+              p.has_pin
+                ? translateUI("Chráněno PINem")
+                : p.is_kids
+                  ? translateUI("Dětský profil")
+                  : "",
             ),
           ),
-          button("Upravit", () => editProfile(p, reloadProfiles), "small"),
+          button(
+            translateUI("Upravit"),
+            () => editProfile(p, reloadProfiles),
+            "small",
+          ),
         ),
       );
     }
@@ -210,22 +272,30 @@ async function profiles() {
       el(
         "section",
         { class: "profile-page" },
-        el("h1", {}, "Kdo dnes objevuje?"),
-        el("p", {}, "Vyber si svůj profil a pokračuj ve svých příbězích."),
+        el("h1", {}, translateUI("Kdo dnes objevuje?")),
+        el(
+          "p",
+          {},
+          translateUI("Vyber si svůj profil a pokračuj ve svých příbězích."),
+        ),
         values.length
           ? choices
           : el(
               "p",
               {},
-              "Účet zatím nemá profil. Vytvoř ho v mobilní nebo desktopové aplikaci.",
+              translateUI(
+                "Účet zatím nemá profil. Vytvoř ho v mobilní nebo desktopové aplikaci.",
+              ),
             ),
         button(
-          "Přidat profil",
+          translateUI("Přidat profil"),
           () => editProfile(null, reloadProfiles),
           "primary",
           "plus",
         ),
-        session.profile ? button("Zpět do katalogu", () => render()) : null,
+        session.profile
+          ? button(translateUI("Zpět do katalogu"), () => render())
+          : null,
       ),
     );
   } catch (e) {
@@ -251,7 +321,7 @@ function chooseProfile(profile) {
   const submit = el(
     "button",
     { type: "submit", class: "button primary" },
-    "Pokračovat",
+    translateUI("Pokračovat"),
   );
   const form = el(
     "form",
@@ -269,6 +339,7 @@ function chooseProfile(profile) {
             },
           });
           session.profile = result.profile;
+          await synchronizeOfflineContext();
           dialog.close();
           chrome();
           await render();
@@ -280,8 +351,8 @@ function chooseProfile(profile) {
       },
     },
     profile.has_pin
-      ? formField("PIN profilu", pin)
-      : el("p", {}, `Pokračovat jako ${profile.name}?`),
+      ? formField(translateUI("PIN profilu"), pin)
+      : el("p", {}, translateUI("Pokračovat jako {0}?", profile.name)),
     status,
     submit,
   );
@@ -292,7 +363,9 @@ function chooseProfile(profile) {
       el(
         "h2",
         { id: "dialog-title" },
-        profile.has_pin ? `Odemknout ${profile.name}` : profile.name,
+        profile.has_pin
+          ? translateUI("Odemknout {0}", profile.name)
+          : profile.name,
       ),
       form,
     ),
@@ -300,6 +373,22 @@ function chooseProfile(profile) {
   if (!profile.has_pin) form.requestSubmit();
 }
 async function render() {
+  if (location.hash === "#offline") {
+    document.title = "Movly — " + translateUI("Offline knihovna");
+    document.querySelector("#account-menu").hidden = true;
+    document
+      .querySelector("#account-button")
+      .setAttribute("aria-expanded", "false");
+    controller?.abort();
+    dialog.close();
+    await offlineLibrary(content, () => {
+      location.hash = "#home";
+      if (!navigator.onLine)
+        login(translateUI("Připoj se k internetu pro online aplikaci."));
+      else location.reload();
+    });
+    return;
+  }
   if (!session) return;
   if (!session.profile) {
     await profiles();
@@ -323,6 +412,9 @@ async function render() {
       "history",
       "friends",
       "stats",
+      "feedback",
+      "premium",
+      "hidden",
       ...(session?.account?.canModerate ? ["admin"] : []),
     ].includes(routeRaw)
       ? routeRaw
@@ -332,33 +424,37 @@ async function render() {
     if (link.dataset.page === route) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
-  document.title = `Movly — ${{ home: "Home", movies: "Filmy", series: "Seriály", lists: "Moje seznamy", search: "Hledání", collection: "Katalog", history: "Historie", friends: "Přátelé", stats: "Statistiky", admin: "Nahlášené streamy" }[route]}`;
+  document.title = `Movly — ${translateUI({ home: translateUI("Home"), movies: translateUI("Filmy"), series: translateUI("Seriály"), lists: translateUI("Moje seznamy"), search: translateUI("Hledání"), collection: translateUI("Katalog"), history: translateUI("Historie"), friends: translateUI("Přátelé"), stats: translateUI("Statistiky"), admin: translateUI("Nahlášené streamy") }[route] || { premium: "Premium", hidden: "Skryté tituly", feedback: "Vylepšujeme Movly" }[route])}`;
   content.replaceChildren(loading());
   try {
-    const result = await (route === "friends"
-      ? friends(params, signal, actions)
-      : route === "history"
-        ? history(params, signal, actions)
-        : route === "stats"
-          ? stats(params, signal)
-          : route === "home"
-            ? home(signal, actions)
-            : route === "movies" || route === "series"
-              ? catalog(route, params, signal, actions)
-              : route === "search"
-                ? search(params, signal, actions)
-                : route === "collection"
-                  ? collection(params, signal, actions)
-                  : route === "admin"
-                    ? admin(params, signal, actions)
-                    : library(params, signal, actions));
+    const result = await (route === "feedback" ? feedback(params, signal) : route === "premium"
+      ? premium(signal)
+      : route === "hidden"
+        ? (await import("./personal.js")).hiddenTitles(params, signal, actions)
+        : route === "friends"
+          ? friends(params, signal, actions)
+          : route === "history"
+            ? history(params, signal, actions)
+            : route === "stats"
+              ? stats(params, signal)
+              : route === "home"
+                ? home(signal, actions)
+                : route === "movies" || route === "series"
+                  ? catalog(route, params, signal, actions)
+                  : route === "search"
+                    ? search(params, signal, actions)
+                    : route === "collection"
+                      ? collection(params, signal, actions)
+                      : route === "admin"
+                        ? admin(params, signal, actions)
+                        : library(params, signal, actions));
     if (signal.aborted || revision !== renderRevision) return;
     content.replaceChildren(result);
     window.scrollTo(0, 0);
   } catch (e) {
     if (signal.aborted || revision !== renderRevision) return;
     if (e.status === 401) {
-      login("Přihlášení vypršelo. Přihlas se znovu.");
+      login(translateUI("Přihlášení vypršelo. Přihlas se znovu."));
       return;
     }
     if (
@@ -403,6 +499,7 @@ document.querySelector("#logout").addEventListener("click", async (e) => {
     resetUserState();
     resetCatalogCache();
     document.querySelector("#account-menu").hidden = true;
+    await clearLibrary({ keepHistory: true });
     login();
   } catch (err) {
     toast(err.message);
@@ -411,18 +508,29 @@ document.querySelector("#logout").addEventListener("click", async (e) => {
   }
 });
 window.addEventListener("hashchange", () => {
-  if (session) render();
+  if (session || location.hash === "#offline") render();
 });
 window.addEventListener("offline", () =>
-  toast("Jsi offline. Zkontroluj připojení k internetu."),
+  toast(translateUI("Jsi offline. Zkontroluj připojení k internetu.")),
 );
+window.addEventListener("online", () => {
+  if (session?.profile)
+    synchronizeOfflineContext().catch((error) => toast(error.message));
+});
 try {
+  registerOffline().catch(() => {});
   session = await api("session");
+  if (session.profile) await synchronizeOfflineContext();
   chrome();
   await render();
 } catch (e) {
-  if (e.status === 401) login();
-  else
+  if (e instanceof TypeError || !navigator.onLine) {
+    location.hash = "#offline";
+    await offlineLibrary(content, () => location.reload());
+  } else if (e.status === 401) {
+    await revokeOfflineContext();
+    login();
+  } else
     content.replaceChildren(
       el(
         "div",

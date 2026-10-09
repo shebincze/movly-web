@@ -1,4 +1,13 @@
-import { partyState, partyWaiting, partyPosition, reportPartyReady, partyTransport } from "./party.js";
+import { translateUI } from "./i18n.js";
+import { openProviderSettings } from "./provider-settings.js";
+import { reportStream, uploadStream } from "./stream-feedback.js";
+import {
+  partyState,
+  partyWaiting,
+  partyPosition,
+  reportPartyReady,
+  partyTransport,
+} from "./party.js";
 import { api, array } from "./api.js";
 import { setProgress } from "./user-state.js";
 import {
@@ -11,119 +20,77 @@ import {
   toast,
 } from "./ui.js";
 import Hls from "./vendor/hls.mjs";
+import { nextReleasedEpisode, episodeReleaseState } from "./episode-policy.js";
+import { saveOffline } from "./offline.js";
+let mediaPreferences = {
+  video_mode: "compatible",
+  audio_mode: "stereo",
+  max_width: 1280,
+  playback_rate: 1,
+  audio_delay: 0,
+  subtitle_delay: 0,
+};
+try {
+  mediaPreferences = {
+    ...mediaPreferences,
+    ...JSON.parse(localStorage.getItem("movly.mediaPreferences") || "{}"),
+  };
+} catch {}
+async function browserMediaCapabilities() {
+  const probe = document.createElement("video");
+  const result = {
+    hevc: Boolean(probe.canPlayType('video/mp4; codecs="hvc1.1.6.L93.B0"')),
+    dolbyVision: Boolean(probe.canPlayType('video/mp4; codecs="dvh1.05.06"')),
+    ac3: Boolean(probe.canPlayType('audio/mp4; codecs="ac-3"')),
+    eac3: Boolean(probe.canPlayType('audio/mp4; codecs="ec-3"')),
+    aacMultichannel: false,
+  };
+  try {
+    result.aacMultichannel = (
+      await navigator.mediaCapabilities.decodingInfo({
+        type: "media-source",
+        audio: {
+          contentType: 'audio/mp4; codecs="mp4a.40.2"',
+          channels: "6",
+          bitrate: 512000,
+          samplerate: 48000,
+        },
+      })
+    ).supported;
+  } catch {}
+  return result;
+}
 let current = null;
 const time = (n) =>
   `${Math.floor(n / 3600) ? `${Math.floor(n / 3600)}:` : ""}${String(Math.floor(n / 60) % 60).padStart(2, "0")}:${String(Math.floor(n) % 60).padStart(2, "0")}`;
 export async function providerSettings() {
   await stop();
-  const dialog = showDialog(
-    el(
-      "div",
-      { class: "dialog-body" },
-      el("h2", { id: "dialog-title" }, "Úložiště · Webshare"),
-      loading(),
-    ),
-  );
-  try {
-    const state = await api("providers/webshare");
-    const status = el("p", { role: "alert", class: "form-status" });
-    const user = el("input", {
-      required: true,
-      autocomplete: "username",
-      maxlength: 254,
-    });
-    const password = el("input", {
-      type: "password",
-      required: true,
-      autocomplete: "current-password",
-      maxlength: 1024,
-    });
-    const submit = el(
-      "button",
-      { type: "submit", class: "button primary" },
-      "Připojit Webshare",
-    );
-    const form = el(
-      "form",
-      {
-        class: "dialog-form",
-        onSubmit: async (e) => {
-          e.preventDefault();
-          submit.disabled = true;
-          try {
-            await api("providers/webshare", {
-              method: "POST",
-              body: { username: user.value, password: password.value },
-            });
-            password.value = "";
-            await providerSettings();
-          } catch (e) {
-            status.textContent = e.message;
-            submit.disabled = false;
-          }
-        },
-      },
-      formField("Uživatelské jméno Webshare", user),
-      formField("Heslo Webshare", password),
-      status,
-      submit,
-    );
-    showDialog(
-      el(
-        "div",
-        { class: "dialog-body" },
-        el("h2", { id: "dialog-title" }, "Úložiště · Webshare"),
-        el(
-          "p",
-          {},
-          "Připoj svůj účet úložiště pro přehrávání jeho zdrojů. Přihlášení platí pro tuto webovou relaci.",
-        ),
-        state.connected
-          ? el(
-              "div",
-              {},
-              el(
-                "p",
-                {},
-                `${state.username} · ${state.vip ? "VIP aktivní" : "Bez VIP"}`,
-              ),
-              button(
-                "Odpojit Webshare",
-                async () => {
-                  try {
-                    await api("providers/webshare", { method: "DELETE" });
-                    await providerSettings();
-                  } catch (e) {
-                    status.textContent = e.message;
-                  }
-                },
-                "danger",
-              ),
-              status,
-            )
-          : form,
-      ),
-    );
-  } catch (e) {
-    if (dialog.open)
-      showDialog(
-        el(
-          "div",
-          { class: "dialog-body" },
-          el("h2", { id: "dialog-title" }, "Úložiště"),
-          errorBox(e, providerSettings),
-        ),
-      );
-  }
+  await openProviderSettings();
 }
+const supportedProvider = {
+  test(value) {
+    return /^(?:webshare|hellspy|fastshare|sosac|streamuj|sktorrent|sledujteto|crwiki|ceskawiki|prehrajto|stremio|bombuj|voe|mixdrop|streamtape|doodstream|streamwish|vidhide|lulustream|ct|ceskatelevize|stvr)$/.test(
+      String(value)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f ._-]/g, "")
+        .toLowerCase(),
+    );
+  },
+};
 let sourceRevision = 0;
-export async function sources(t, episode) {
+export async function sources(
+  t,
+  episode,
+  { autoPlay = false, autoDownload = false } = {},
+) {
+  if (episode && episodeReleaseState(episode.air_date) === "upcoming")
+    throw new Error(translateUI("Epizoda ještě neměla premiéru."));
   await stop();
   const revision = ++sourceRevision;
   const content = el(
     "div",
     { class: "dialog-body sources-content" },
-    el("h2", { id: "dialog-title" }, `Přehrát · ${t.title}`),
+    el("h2", { id: "dialog-title" }, translateUI("Přehrát · {0}", t.title)),
     episode
       ? el(
           "p",
@@ -132,33 +99,37 @@ export async function sources(t, episode) {
         )
       : null,
   );
-  const summary = el("p", { role: "status" }, "Hledám ve zdrojích…");
+  const summary = el(
+    "p",
+    { role: "status" },
+    translateUI("Hledám ve zdrojích…"),
+  );
   const search = el("input", {
     type: "search",
-    placeholder: "Název souboru, jazyk, kodek…",
-    "aria-label": "Filtrovat zdroje",
+    placeholder: translateUI("Název souboru, jazyk, kodek…"),
+    "aria-label": translateUI("Filtrovat zdroje"),
   });
   const provider = el(
     "select",
-    { "aria-label": "Poskytovatel" },
-    el("option", { value: "" }, "Všichni poskytovatelé"),
+    { "aria-label": translateUI("Poskytovatel") },
+    el("option", { value: "" }, translateUI("Všichni poskytovatelé")),
   );
   const quality = el(
     "select",
-    { "aria-label": "Kvalita" },
+    { "aria-label": translateUI("Kvalita") },
     ...[
-      ["", "Všechny kvality"],
-      ["2160", "4K"],
-      ["1080", "Full HD"],
-      ["720", "HD"],
+      ["", translateUI("Všechny kvality")],
+      ["2160", translateUI("4K")],
+      ["1080", translateUI("Full HD")],
+      ["720", translateUI("HD")],
     ].map(([value, name]) => el("option", { value }, name)),
   );
   const sort = el(
     "select",
-    { "aria-label": "Řazení zdrojů" },
-    el("option", { value: "quality" }, "Nejvyšší kvalita"),
-    el("option", { value: "small" }, "Nejmenší soubor"),
-    el("option", { value: "large" }, "Největší soubor"),
+    { "aria-label": translateUI("Řazení zdrojů") },
+    el("option", { value: "quality" }, translateUI("Nejvyšší kvalita")),
+    el("option", { value: "small" }, translateUI("Nejmenší soubor")),
+    el("option", { value: "large" }, translateUI("Největší soubor")),
   );
   const statuses = el("div", { class: "source-statuses" }),
     list = el("div", { class: "source-list" });
@@ -166,8 +137,8 @@ export async function sources(t, episode) {
     el(
       "div",
       { class: "actions" },
-      button("Nastavení Webshare", providerSettings, "small"),
-      button("Obnovit zdroje", () => sources(t, episode), "small"),
+      button(translateUI("Úložiště a doplňky"), providerSettings, "small"),
+      button(translateUI("Obnovit zdroje"), () => sources(t, episode), "small"),
     ),
     el("div", { class: "source-filters" }, search, provider, quality, sort),
     summary,
@@ -176,18 +147,45 @@ export async function sources(t, episode) {
   );
   const dialog = showDialog(content),
     results = new Map();
-  let pending = 4;
+  const providerConnections = await Promise.allSettled(
+    ["webshare", "fastshare", "sosac", "stremio"].map((name) =>
+      api(`providers/${name}`),
+    ),
+  );
+  if (revision !== sourceRevision || !dialog.open) return;
+  const connections = Object.fromEntries(
+    ["webshare", "fastshare", "sosac", "stremio"].map((name, index) => [
+      name,
+      providerConnections[index].status === "fulfilled" &&
+        (name === "stremio"
+          ? providerConnections[index].value.addons?.length > 0
+          : providerConnections[index].value.connected === true),
+    ]),
+  );
+  function providerReady(stream) {
+    const name = String(
+      stream.provider_name || stream.provider_identifier || "",
+    )
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f ._-]/g, "")
+      .toLowerCase();
+    return ["webshare", "fastshare", "sosac", "stremio"].includes(name)
+      ? connections[name]
+      : true;
+  }
+  let pending = 5;
   const origins = [
-    "Databáze",
-    "Databáze AI",
-    "Webshare · živé hledání",
-    "Hellspy · živé hledání",
+    translateUI("Databáze"),
+    translateUI("Databáze AI"),
+    translateUI("Webshare · živé hledání"),
+    translateUI("Hellspy · živé hledání"),
+    translateUI("Další poskytovatelé a doplňky"),
   ];
   const rows = origins.map((name) => {
     const n = el(
       "p",
       { class: "source-status", role: "status" },
-      `${name}: hledám…`,
+      translateUI("{0}: hledám…", name),
     );
     statuses.append(n);
     return n;
@@ -195,7 +193,7 @@ export async function sources(t, episode) {
   function render() {
     const seen = new Set(),
       all = [];
-    for (let i = 0; i < 4; i++)
+    for (let i = 0; i < origins.length; i++)
       for (const s of results.get(i) || []) {
         const key = s.source_stream_id
           ? `${(s.provider_name || "").toLowerCase()}:${s.source_stream_id}`
@@ -231,13 +229,20 @@ export async function sources(t, episode) {
             ? (b.file_size || 0) - (a.file_size || 0)
             : (b.video_height || 0) - (a.video_height || 0),
       );
-    summary.textContent = `${filtered.length} z ${all.length} zdrojů${pending ? ` · hledání pokračuje (${pending})` : ""}`;
+    summary.textContent = translateUI(
+      "{0} z {1} zdrojů{2}",
+      filtered.length,
+      all.length,
+      pending ? translateUI(" · hledání pokračuje ({0})", pending) : "",
+    );
     list.replaceChildren(
       ...filtered.map((stream) => {
         const supported =
-          /^(webshare|hellspy)$/i.test(
+          supportedProvider.test(
             stream.provider_name || stream.provider_identifier || "",
-          ) && stream.available !== false;
+          ) &&
+          stream.available !== false &&
+          providerReady(stream);
         const metadata = [
           stream.provider_name,
           stream.video_height ? `${stream.video_height}p` : null,
@@ -259,7 +264,7 @@ export async function sources(t, episode) {
           ...(episode ? { episode_id: episode.id } : {}),
         };
         const choice = button(
-          "Přehrát",
+          translateUI("Přehrát"),
           () => play(t, episode, selection),
           "small",
         );
@@ -273,7 +278,9 @@ export async function sources(t, episode) {
             el(
               "strong",
               {},
-              stream.file_name || metadata || `Zdroj ${stream.id}`,
+              stream.file_name ||
+                metadata ||
+                translateUI("Zdroj {0}", stream.id),
             ),
             el(
               "p",
@@ -285,19 +292,67 @@ export async function sources(t, episode) {
                   "small",
                   {},
                   stream.available === false
-                    ? "Zdroj není dostupný"
-                    : "Přehrávání tohoto poskytovatele zatím není na webu dostupné.",
+                    ? translateUI("Zdroj není dostupný")
+                    : !providerReady(stream)
+                      ? translateUI(
+                          "Nejdřív připoj účet poskytovatele v Úložištích a doplňcích.",
+                        )
+                      : translateUI(
+                          "Přehrávání tohoto poskytovatele zatím není na webu dostupné.",
+                        ),
                 )
               : null,
           ),
           choice,
-          supported ? button("Stáhnout", async () => {
-            try {
-              const download = await api("download", { method: "POST", body: selection });
-              const link = el("a", { href: download.url, download: download.filename });
-              document.body.append(link); link.click(); link.remove();
-            } catch (e) { toast(e.message); }
-          }, "small") : null,
+          stream.origin < 2
+            ? button(
+                translateUI("Nahlásit"),
+                () => reportStream(selection),
+                "small",
+              )
+            : supported && (stream.can_upload || stream.source_stream_id)
+              ? button(
+                  translateUI("Přidat do databáze"),
+                  () => uploadStream(selection, () => sources(t, episode)),
+                  "small",
+                )
+              : null,
+          supported
+            ? button(
+                translateUI("Stáhnout soubor"),
+                async () => {
+                  try {
+                    const download = await api("download", {
+                      method: "POST",
+                      body: selection,
+                    });
+                    const link = el("a", {
+                      href: download.url,
+                      download: download.filename,
+                    });
+                    document.body.append(link);
+                    link.click();
+                    link.remove();
+                  } catch (e) {
+                    toast(e.message);
+                  }
+                },
+                "small",
+              )
+            : null,
+          supported
+            ? button(
+                translateUI("Uložit offline"),
+                async () => {
+                  try {
+                    await saveOffline(t, episode, selection);
+                  } catch (e) {
+                    toast(e.message);
+                  }
+                },
+                "small",
+              )
+            : null,
         );
       }),
     );
@@ -307,8 +362,10 @@ export async function sources(t, episode) {
           "p",
           {},
           all.length
-            ? "Žádné zdroje neodpovídají filtrům."
-            : "Žádné výsledky. Zkontroluj stav poskytovatelů výše.",
+            ? translateUI("Žádné zdroje neodpovídají filtrům.")
+            : translateUI(
+                "Žádné výsledky. Zkontroluj stav poskytovatelů výše.",
+              ),
         ),
       );
   }
@@ -322,6 +379,7 @@ export async function sources(t, episode) {
       `streaming2/titles/${t.id}/streams${suffix}&type=${t.type}`,
       `sources/${t.id}/webshare${ep}`,
       `sources/${t.id}/hellspy${ep}`,
+      `sources/${t.id}/native${ep}`,
     ].map(async (path, i) => {
       try {
         const data = await api(path);
@@ -329,7 +387,7 @@ export async function sources(t, episode) {
         const streams = array(data.streams);
         results.set(i, streams);
         rows[i].textContent =
-          `${origins[i]}: ${data.state === "not_connected" ? data.message : `${streams.length} výsledků`}${data.partial ? " · neúplné hledání" : ""}`;
+          `${origins[i]}: ${data.state === "not_connected" ? translateUI(data.message) : translateUI("{0} výsledků", streams.length)}${data.partial ? translateUI(" · neúplné hledání") : ""}`;
         if (data.warnings?.length)
           rows[i].append(el("small", {}, data.warnings.join(" ")));
       } catch (e) {
@@ -342,6 +400,39 @@ export async function sources(t, episode) {
       }
     }),
   );
+  if (
+    (autoPlay || autoDownload) &&
+    revision === sourceRevision &&
+    dialog.open
+  ) {
+    const options = [...results]
+      .flatMap(([origin, streams]) =>
+        streams.map((stream) => ({ ...stream, origin })),
+      )
+      .filter(
+        (stream) =>
+          supportedProvider.test(
+            stream.provider_name || stream.provider_identifier || "",
+          ) &&
+          stream.available !== false &&
+          providerReady(stream),
+      )
+      .sort((a, b) => (b.video_height || 0) - (a.video_height || 0));
+    if (options.length) {
+      const stream = options[0];
+      const selection = {
+        title_id: t.id,
+        ...(stream.origin >= 2
+          ? { source: "live", ticket: stream.ticket }
+          : { source: stream.origin ? "ai" : "human", stream_id: stream.id }),
+        episode_id: episode.id,
+      };
+      if (autoDownload) {
+        await saveOffline(t, episode, selection);
+        dialog.close();
+      } else await play(t, episode, selection);
+    } else toast(translateUI("Další epizoda nemá dostupný podporovaný zdroj."));
+  }
 }
 async function play(
   t,
@@ -381,7 +472,15 @@ async function play(
     }
     const session = await api("playback", {
       method: "POST",
-      body: { ...selection, offset, audio, subtitle },
+      body: {
+        ...selection,
+        offset,
+        audio,
+        subtitle,
+        ...mediaPreferences,
+        ...(inParty ? { playback_rate: 1 } : {}),
+        capabilities: await browserMediaCapabilities(),
+      },
     });
     handle.session = session;
     if (handle.cancelled || !dialog.open) {
@@ -395,16 +494,52 @@ async function play(
       class: "video-player",
     });
     handle.video = video;
+    video.playbackRate = inParty ? 1 : mediaPreferences.playback_rate;
     if (inParty) {
-      let applying = false, seeking = false, remoteSeek = null, remotePaused = null;
+      let applying = false,
+        seeking = false,
+        remoteSeek = null,
+        remotePaused = null;
       const publish = () => {
         if (!applying && !seeking && !handle.cancelled && !partyWaiting())
-          partyTransport(!video.paused, offset + video.currentTime).catch(e => toast(e.message));
+          partyTransport(!video.paused, offset + video.currentTime).catch((e) =>
+            toast(e.message),
+          );
       };
-      video.addEventListener('play', () => { if (partyWaiting()) { remotePaused = true; video.pause(); return; } if (remotePaused === false) { remotePaused = null; return; } publish(); });
-      video.addEventListener('pause', () => { if (remotePaused === true) { remotePaused = null; return; } publish(); });
-      video.addEventListener('seeking', () => { seeking = true; });
-      video.addEventListener('seeked', () => { seeking = false; if (remoteSeek !== null && Math.abs(video.currentTime - remoteSeek) < .5) { remoteSeek = null; return; } remoteSeek = null; publish(); });
+      video.addEventListener("play", () => {
+        if (partyWaiting()) {
+          remotePaused = true;
+          video.pause();
+          return;
+        }
+        if (remotePaused === false) {
+          remotePaused = null;
+          return;
+        }
+        publish();
+      });
+      video.addEventListener("pause", () => {
+        if (remotePaused === true) {
+          remotePaused = null;
+          return;
+        }
+        publish();
+      });
+      video.addEventListener("seeking", () => {
+        seeking = true;
+      });
+      video.addEventListener("seeked", () => {
+        seeking = false;
+        if (
+          remoteSeek !== null &&
+          Math.abs(video.currentTime - remoteSeek) < 0.5
+        ) {
+          remoteSeek = null;
+          return;
+        }
+        remoteSeek = null;
+        publish();
+      });
       handle.partyTimer = setInterval(() => {
         if (handle.cancelled || partyState()?.title_id !== t.id) return;
         const ready = video.readyState >= 3 && !video.error;
@@ -414,20 +549,41 @@ async function play(
         if (!ready) return;
         const target = waiting ? 0 : partyPosition();
         applying = true;
-        if (Math.abs(video.currentTime + offset - target) > .5) { remoteSeek = Math.max(0, target - offset); video.currentTime = remoteSeek; }
-        const shouldPlay = !waiting && partyState().status === 'playing';
-        if (shouldPlay && video.paused) { remotePaused = false; video.play().catch(() => { remotePaused = null; status.textContent = 'Prohlížeč vyžaduje klepnutí na přehrát.'; }); }
-        if (!shouldPlay && !video.paused) { remotePaused = true; video.pause(); }
+        if (Math.abs(video.currentTime + offset - target) > 0.5) {
+          remoteSeek = Math.max(0, target - offset);
+          video.currentTime = remoteSeek;
+        }
+        const shouldPlay = !waiting && partyState().status === "playing";
+        if (shouldPlay && video.paused) {
+          remotePaused = false;
+          video.play().catch(() => {
+            remotePaused = null;
+            status.textContent = translateUI(
+              "Prohlížeč vyžaduje klepnutí na přehrát.",
+            );
+          });
+        }
+        if (!shouldPlay && !video.paused) {
+          remotePaused = true;
+          video.pause();
+        }
         // DOM media events are queued after play/pause/currentTime changes.
-        setTimeout(() => { applying = false; }, 0);
-        if (waiting) status.textContent = `Čekáme na přehrávače (${partyState().preparation.devices.filter(d => d.ready).length}/${partyState().preparation.devices.length})`;
+        setTimeout(() => {
+          applying = false;
+        }, 0);
+        if (waiting)
+          status.textContent = translateUI(
+            "Čekáme na přehrávače ({0}/{1})",
+            partyState().preparation.devices.filter((d) => d.ready).length,
+            partyState().preparation.devices.length,
+          );
         position.disabled = waiting;
       }, 100);
     }
     const status = el(
       "p",
       { role: "status", class: "player-status" },
-      "Připravuji video…",
+      translateUI("Připravuji video…"),
     );
     const position = el("input", {
       type: "range",
@@ -435,26 +591,30 @@ async function play(
       max: Math.floor(session.duration),
       value: Math.floor(offset),
       step: 1,
-      "aria-label": "Pozice ve filmu",
+      "aria-label": translateUI("Pozice ve filmu"),
     });
     const clock = el("span", {}, `${time(offset)} / ${time(session.duration)}`);
     const tracks = el(
       "select",
-      { "aria-label": "Zvuková stopa" },
+      { "aria-label": translateUI("Zvuková stopa") },
       ...session.audio.map((a) =>
         el(
           "option",
           { value: a.index, selected: a.index === audio },
           a.name ||
             [a.language, a.codec].filter(Boolean).join(" · ") ||
-            `Zvuk ${a.index + 1}`,
+            translateUI("Zvuk {0}", a.index + 1),
         ),
       ),
     );
     const subtitles = el(
       "select",
-      { "aria-label": "Titulky" },
-      el("option", { value: -1, selected: subtitle < 0 }, "Titulky vypnuté"),
+      { "aria-label": translateUI("Titulky") },
+      el(
+        "option",
+        { value: -1, selected: subtitle < 0 },
+        translateUI("Titulky vypnuté"),
+      ),
       ...session.subtitles.map((s) =>
         el(
           "option",
@@ -464,8 +624,10 @@ async function play(
             disabled: !s.supported,
           },
           [
-            s.name || s.language || `Stopa ${s.index + 1}`,
-            !s.supported ? "obrazové titulky nejsou podporované" : null,
+            s.name || s.language || translateUI("Stopa {0}", s.index + 1),
+            !s.supported
+              ? translateUI("formát titulků není podporovaný")
+              : null,
           ]
             .filter(Boolean)
             .join(" · "),
@@ -489,7 +651,10 @@ async function play(
         body: {
           title_id: t.id,
           type: t.type,
-          watch_status: video.ended ? "completed" : "watching",
+          watch_status:
+            video.ended || positionNow() >= session.duration * 0.85
+              ? "completed"
+              : "watching",
           progress_seconds: Math.floor(positionNow()),
           duration_seconds: Math.floor(session.duration),
           ...(episode
@@ -502,7 +667,13 @@ async function play(
       });
     };
     handle.history = history;
-    position.addEventListener("change", () => inParty ? partyTransport(partyState().status === "playing", Number(position.value)).catch(e => toast(e.message)) : play(t, episode, selection, Number(position.value), audio, subtitle),
+    position.addEventListener("change", () =>
+      inParty
+        ? partyTransport(
+            partyState().status === "playing",
+            Number(position.value),
+          ).catch((e) => toast(e.message))
+        : play(t, episode, selection, Number(position.value), audio, subtitle),
     );
     tracks.addEventListener("change", () =>
       play(
@@ -532,14 +703,200 @@ async function play(
       status.textContent = "";
     });
     video.addEventListener("waiting", () => {
-      status.textContent = "Načítám video…";
+      status.textContent = translateUI("Načítám video…");
     });
     video.addEventListener("error", () => {
-      status.textContent = "Prohlížeč nemůže video přehrát. Zkus jiný zdroj.";
+      status.textContent = translateUI(
+        "Prohlížeč nemůže video přehrát. Zkus jiný zdroj.",
+      );
     });
-    video.addEventListener("ended", () => {
-      history().catch((e) => toast(`Historie se neuložila: ${e.message}`));
-      status.textContent = "Přehrávání dokončeno.";
+    const quality = el(
+      "select",
+      { "aria-label": translateUI("Kvalita videa") },
+      el("option", { value: "native" }, translateUI("Původní kvalita")),
+      el("option", { value: "1920" }, translateUI("Kompatibilní Full HD")),
+      el("option", { value: "1280" }, translateUI("Úsporná kvalita HD")),
+    );
+    quality.value =
+      mediaPreferences.video_mode === "native"
+        ? "native"
+        : String(mediaPreferences.max_width);
+    const sound = el(
+      "select",
+      { "aria-label": translateUI("Zvukový výstup") },
+      el("option", { value: "native" }, translateUI("Zvuk podle zdroje")),
+      el("option", { value: "surround" }, translateUI("Vícekanálový zvuk")),
+      el("option", { value: "stereo" }, translateUI("Kompatibilní stereo")),
+    );
+    sound.value = mediaPreferences.audio_mode;
+    async function updateMediaPreferences() {
+      mediaPreferences = {
+        ...mediaPreferences,
+        video_mode: quality.value === "native" ? "native" : "compatible",
+        max_width: quality.value === "native" ? 3840 : Number(quality.value),
+        audio_mode: sound.value,
+      };
+      localStorage.setItem(
+        "movly.mediaPreferences",
+        JSON.stringify(mediaPreferences),
+      );
+      await play(
+        t,
+        episode,
+        selection,
+        session.offset + video.currentTime,
+        audio,
+        subtitle,
+      );
+    }
+    quality.addEventListener("change", () =>
+      updateMediaPreferences().catch((e) => toast(e.message)),
+    );
+    sound.addEventListener("change", () =>
+      updateMediaPreferences().catch((e) => toast(e.message)),
+    );
+    const speed = el(
+      "select",
+      { "aria-label": translateUI("Rychlost přehrávání"), disabled: inParty },
+      ...[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) =>
+        el("option", { value: rate }, rate + "×"),
+      ),
+    );
+    speed.value = String(inParty ? 1 : mediaPreferences.playback_rate);
+    speed.addEventListener("change", async () => {
+      mediaPreferences.playback_rate = Number(speed.value);
+      localStorage.setItem(
+        "movly.mediaPreferences",
+        JSON.stringify(mediaPreferences),
+      );
+      await play(t, episode, selection, positionNow(), audio, subtitle);
+    });
+    const audioDelay = el("input", {
+      type: "number",
+      min: -10000,
+      max: 10000,
+      step: 100,
+      value: mediaPreferences.audio_delay,
+      "aria-label": translateUI("Posun zvuku (ms)"),
+    });
+    const subtitleDelay = el("input", {
+      type: "number",
+      min: -10000,
+      max: 10000,
+      step: 100,
+      value: mediaPreferences.subtitle_delay,
+      "aria-label": translateUI("Posun titulků (ms)"),
+      disabled: session.quality?.subtitles === "burned",
+    });
+    audioDelay.addEventListener("change", async () => {
+      if (!audioDelay.checkValidity()) return;
+      mediaPreferences.audio_delay = Number(audioDelay.value);
+      localStorage.setItem(
+        "movly.mediaPreferences",
+        JSON.stringify(mediaPreferences),
+      );
+      await play(t, episode, selection, positionNow(), audio, subtitle);
+    });
+    const originalCue = new WeakMap();
+    handle.subtitleTimer = setInterval(() => {
+      const delay = mediaPreferences.subtitle_delay / 1000;
+      for (const track of video.textTracks)
+        for (const cue of track.cues || []) {
+          if (!originalCue.has(cue))
+            originalCue.set(cue, { start: cue.startTime, end: cue.endTime });
+          const original = originalCue.get(cue);
+          cue.startTime = Math.max(0, original.start + delay);
+          cue.endTime = Math.max(cue.startTime, original.end + delay);
+        }
+    }, 250);
+    subtitleDelay.addEventListener("change", () => {
+      if (!subtitleDelay.checkValidity()) return;
+      mediaPreferences.subtitle_delay = Number(subtitleDelay.value);
+      localStorage.setItem(
+        "movly.mediaPreferences",
+        JSON.stringify(mediaPreferences),
+      );
+    });
+    const chapters = el(
+      "select",
+      {
+        "aria-label": translateUI("Kapitoly"),
+        disabled: !session.chapters?.length,
+      },
+      el(
+        "option",
+        { value: "" },
+        session.chapters?.length
+          ? translateUI("Vybrat kapitolu")
+          : translateUI("Zdroj neobsahuje kapitoly"),
+      ),
+      ...(session.chapters || []).map((chapter, index) =>
+        el(
+          "option",
+          { value: chapter.start },
+          chapter.name || translateUI("Kapitola ") + (index + 1),
+        ),
+      ),
+    );
+    chapters.addEventListener("change", () => {
+      if (chapters.value === "") return;
+      const target = Number(chapters.value);
+      if (inParty)
+        partyTransport(partyState().status === "playing", target).catch((e) =>
+          toast(e.message),
+        );
+      else void play(t, episode, selection, target, audio, subtitle);
+    });
+    const skipIntro = button(
+      translateUI("Přeskočit úvod"),
+      () => {
+        const chapter = session.chapters?.find(
+          (c) =>
+            positionNow() >= c.start &&
+            positionNow() < c.end &&
+            /(?:^|\W)(intro|opening|úvod|znelka|znělka)(?:$|\W)/i.test(c.name),
+        );
+        if (!chapter) return;
+        if (inParty)
+          partyTransport(partyState().status === "playing", chapter.end).catch(
+            (e) => toast(e.message),
+          );
+        else void play(t, episode, selection, chapter.end, audio, subtitle);
+      },
+      "small",
+    );
+    video.addEventListener("timeupdate", () => {
+      skipIntro.hidden = !session.chapters?.some(
+        (c) =>
+          positionNow() >= c.start &&
+          positionNow() < c.end &&
+          /(?:^|\W)(intro|opening|úvod|znelka|znělka)(?:$|\W)/i.test(c.name),
+      );
+    });
+    skipIntro.hidden = true;
+    video.addEventListener("ended", async () => {
+      try {
+        await history();
+      } catch (e) {
+        toast(translateUI("Historie se neuložila: {0}", e.message));
+      }
+      status.textContent = translateUI("Přehrávání dokončeno.");
+      if (
+        !episode ||
+        handle.cancelled ||
+        partyState() ||
+        localStorage.getItem("movly.autoplayNext") === "false"
+      )
+        return;
+      try {
+        const data = await api(`titles/${t.id}`);
+        const seasons = data.seasons || (await api(`titles/${t.id}/seasons`));
+        const next = nextReleasedEpisode(array(seasons), episode.id);
+        if (next && current === handle && !handle.cancelled)
+          await sources(t, next, { autoPlay: true });
+      } catch (e) {
+        toast(translateUI("Další díl se nepodařilo připravit: {0}", e.message));
+      }
     });
     showDialog(
       el(
@@ -554,14 +911,61 @@ async function play(
           { class: "actions" },
           tracks,
           subtitles,
-          button("Jiný zdroj", () => sources(t, episode), "small"),
+          speed,
+          chapters,
+          skipIntro,
+          formField(translateUI("Posun zvuku (ms)"), audioDelay),
+          formField(translateUI("Posun titulků (ms)"), subtitleDelay),
+          quality,
+          sound,
+          button(translateUI("Jiný zdroj"), () => sources(t, episode), "small"),
+          ...(episode
+            ? [
+                el(
+                  "label",
+                  {},
+                  el("input", {
+                    type: "checkbox",
+                    checked:
+                      localStorage.getItem("movly.autoplayNext") !== "false",
+                    onChange: (event) =>
+                      localStorage.setItem(
+                        "movly.autoplayNext",
+                        String(event.target.checked),
+                      ),
+                  }),
+                  translateUI(" Automaticky další díl"),
+                ),
+              ]
+            : []),
         ),
         el(
           "p",
           { class: "login-note" },
-          session.mode === "remux"
-            ? "Původní obraz · zvuk AAC"
-            : "Kompatibilní přehrávání · převod obrazu do H.264, nejvýše 720p",
+          [
+            session.quality?.originalVideo
+              ? translateUI("Původní obraz")
+              : translateUI(
+                  "Kompatibilní video · šířka nejvýše {0} px",
+                  session.quality?.maxWidth || 1280,
+                ),
+            session.quality?.hdr ? translateUI("HDR zachován") : null,
+            session.quality?.dolbyVision
+              ? translateUI("Dolby Vision zachován")
+              : null,
+            translateUI(
+              "{0} · {1} kanály",
+              session.quality?.audio === "original"
+                ? translateUI("Původní zvuk")
+                : "AAC",
+              session.quality?.audioChannels || 2,
+            ),
+            session.quality?.subtitles === "burned"
+              ? translateUI("Obrazové titulky v obrazu")
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
         ),
       ),
     );
@@ -574,13 +978,24 @@ async function play(
         if (!state.ready) {
           if (++attempts > 40)
             throw new Error(
-              "Příprava videa trvá příliš dlouho. Vyber jiný zdroj.",
+              translateUI(
+                "Příprava videa trvá příliš dlouho. Vyber jiný zdroj.",
+              ),
             );
           handle.prepare = setTimeout(prepare, 1000);
           return;
         }
         if (handle.cancelled) return;
-        if (Hls.isSupported()) {
+        if (
+          video.canPlayType("application/vnd.apple.mpegurl") &&
+          mediaPreferences.video_mode === "native"
+        ) {
+          video.src = session.playlist;
+          if (!inParty)
+            video.play().catch(() => {
+              status.textContent = translateUI("Stiskni přehrát.");
+            });
+        } else if (Hls.isSupported()) {
           const hls = new Hls({
             enableWorker: false,
             liveSyncDurationCount: 3,
@@ -590,8 +1005,9 @@ async function play(
           handle.hls = hls;
           hls.on(Hls.Events.ERROR, (_event, data) => {
             if (data.fatal)
-              status.textContent =
-                "Přehrávání se přerušilo. Vyber zdroj znovu.";
+              status.textContent = translateUI(
+                "Přehrávání se přerušilo. Vyber zdroj znovu.",
+              );
           });
           hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => {
             if (subtitle >= 0) {
@@ -610,20 +1026,28 @@ async function play(
               hls.subtitleTrack = 0;
               hls.subtitleDisplay = true;
             }
-            if (!inParty) video.play().catch(() => {
-              status.textContent = "Stiskni přehrát.";
-            });
+            if (!inParty)
+              video.play().catch(() => {
+                status.textContent = translateUI("Stiskni přehrát.");
+              });
           });
         } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
           video.src = session.playlist;
-          if (!inParty) video.play().catch(() => {
-            status.textContent = "Stiskni přehrát.";
-          });
-        } else throw new Error("Tento prohlížeč nepodporuje HLS video.");
+          if (!inParty)
+            video.play().catch(() => {
+              status.textContent = translateUI("Stiskni přehrát.");
+            });
+        } else
+          throw new Error(
+            translateUI("Tento prohlížeč nepodporuje HLS video."),
+          );
         handle.timer = setInterval(
           () =>
             history().catch((e) => {
-              status.textContent = `Historie se neuložila: ${e.message}`;
+              status.textContent = translateUI(
+                "Historie se neuložila: {0}",
+                e.message,
+              );
             }),
           20000,
         );
@@ -642,7 +1066,7 @@ async function play(
           errorBox(e, () =>
             play(t, episode, selection, offset, audio, subtitle),
           ),
-          button("Připojit Webshare", providerSettings),
+          button(translateUI("Připojit Webshare"), providerSettings),
         ),
       );
   }
@@ -654,6 +1078,7 @@ export async function stop() {
   handle.cancelled = true;
   clearTimeout(handle.prepare);
   clearInterval(handle.timer);
+  clearInterval(handle.subtitleTimer);
   clearInterval(handle.partyTimer);
   reportPartyReady(false);
   handle.video?.pause();
@@ -661,7 +1086,9 @@ export async function stop() {
   if (handle.history)
     await handle
       .history()
-      .catch((e) => toast(`Historie se neuložila: ${e.message}`));
+      .catch((e) =>
+        toast(translateUI("Historie se neuložila: {0}", e.message)),
+      );
   if (handle.session)
     await api(`playback/${handle.session.id}`, { method: "DELETE" }).catch(
       () => {},

@@ -1,3 +1,4 @@
+import { translateUI } from "./i18n.js";
 import { hostParty } from "./party.js";
 import { api, array, listTitle, imageURL, title } from "./api.js";
 import {
@@ -17,6 +18,7 @@ import {
 import { sources } from "./player.js";
 import { titleActivity } from "./personal.js";
 import { noteArtwork } from "./user-state.js";
+import { episodeState, toggleEpisodeWatched } from "./episode-state.js";
 let detailRevision = 0;
 export function invalidateDetail() {
   detailRevision++;
@@ -35,7 +37,7 @@ export async function detail(t, actions) {
     const data = await api(`titles/${t.id}`);
     if (revision !== detailRevision || !dialog.open) return;
     if (data.id !== t.id || typeof data.title !== "string")
-      throw new Error("API vrátilo neplatný detail titulu.");
+      throw new Error(translateUI("API vrátilo neplatný detail titulu."));
     // Karta v seznamu mohla přijít bez plakátu; po zavření detailu ho dostane.
     noteArtwork(data.id, data.poster_path, data.backdrop_path);
     const art = imageURL(data.backdrop_path, "w1280");
@@ -48,7 +50,7 @@ export async function detail(t, actions) {
         { class: "meta" },
         [
           data.year || data.release_date?.slice(0, 4),
-          data.type === "tv" ? "Seriál" : "Film",
+          data.type === "tv" ? translateUI("Seriál") : translateUI("Film"),
           ...(data.genres || []).map((g) => g.name_cs || g.name),
           data.runtime ? `${data.runtime} min` : null,
         ]
@@ -58,17 +60,33 @@ export async function detail(t, actions) {
       el(
         "p",
         { class: "synopsis" },
-        data.overview || "Popis tohoto titulu zatím není dostupný.",
+        data.overview ||
+          translateUI("Popis tohoto titulu zatím není dostupný."),
       ),
       el(
         "div",
         { class: "actions" },
         data.type !== "tv"
-          ? button("Přehrát", () => sources(data), "primary")
+          ? button(translateUI("Přehrát"), () => sources(data), "primary")
           : null,
-        data.type !== "tv" ? button("Sledovat společně", () => hostParty(data), "secondary") : null,
-        button("Do seznamu", () => actions.save(data), "secondary", "plus"),
-        button("Sledování a hodnocení", () => titleActivity(data), "secondary"),
+        data.type !== "tv"
+          ? button(
+              translateUI("Sledovat společně"),
+              () => hostParty(data),
+              "secondary",
+            )
+          : null,
+        button(
+          translateUI("Do seznamu"),
+          () => actions.save(data),
+          "secondary",
+          "plus",
+        ),
+        button(
+          translateUI("Sledování a hodnocení"),
+          () => titleActivity(data),
+          "secondary",
+        ),
       ),
     );
     if (data.tagline)
@@ -126,7 +144,8 @@ export async function detail(t, actions) {
       .sort(
         (a, b) =>
           (b.language === "cs") - (a.language === "cs") ||
-          (b.type === "Trailer") - (a.type === "Trailer") ||
+          (b.type === translateUI("Trailer")) -
+            (a.type === translateUI("Trailer")) ||
           Number(b.official) - Number(a.official),
       )[0];
     if (trailer)
@@ -139,12 +158,16 @@ export async function detail(t, actions) {
             target: "_blank",
             rel: "noopener noreferrer",
           },
-          "Trailer",
+          translateUI("Trailer"),
         ),
       );
     if (data.original_title && data.original_title !== data.title)
       body.append(
-        el("p", { class: "meta" }, `Původní název: ${data.original_title}`),
+        el(
+          "p",
+          { class: "meta" },
+          translateUI("Původní název: {0}", data.original_title),
+        ),
       );
     const directors = (data.credits || []).filter((c) => c.job === "Director");
     if (directors.length)
@@ -152,13 +175,13 @@ export async function detail(t, actions) {
         el(
           "p",
           { class: "meta" },
-          `Režie: ${directors.map((c) => c.name).join(", ")}`,
+          translateUI("Režie: {0}", directors.map((c) => c.name).join(", ")),
         ),
       );
     if (data.collection?.length)
       body.append(
         rail(
-          data.collection_info?.name || "Filmová kolekce",
+          data.collection_info?.name || translateUI("Filmová kolekce"),
           data.collection.map((c) =>
             title({ ...c, title: c.title || c.original_title }),
           ),
@@ -170,7 +193,7 @@ export async function detail(t, actions) {
       .slice(0, 30);
     if (cast.length)
       body.append(
-        el("h3", {}, "Obsazení"),
+        el("h3", {}, translateUI("Obsazení")),
         el(
           "div",
           { class: "cast" },
@@ -200,7 +223,7 @@ export async function detail(t, actions) {
         ? { seasons: data.seasons }
         : await api(`titles/${data.id}/seasons`);
       if (revision !== detailRevision || !dialog.open) return;
-      body.append(el("h3", {}, "Řady a epizody"));
+      body.append(el("h3", {}, translateUI("Řady a epizody")));
       for (const season of array(seasons.seasons)) {
         body.append(
           el(
@@ -209,10 +232,75 @@ export async function detail(t, actions) {
             el(
               "summary",
               {},
-              `${season.name || `Řada ${season.season_number}`} · ${season.episodes?.length || season.episode_count || 0} epizod`,
+              translateUI(
+                "{0} · {1} epizod",
+                season.name || translateUI("Řada {0}", season.season_number),
+                season.episodes?.length || season.episode_count || 0,
+              ),
             ),
-            ...array(season.episodes).map((episode) =>
-              el(
+            ...array(season.episodes).map((episode) => {
+              const state = episodeState(episode);
+              const play = button(
+                translateUI("Přehrát"),
+                () =>
+                  sources(data, {
+                    ...episode,
+                    season_number: season.season_number,
+                  }),
+                "small",
+              );
+              const party = button(
+                translateUI("Sledovat společně"),
+                () =>
+                  hostParty(data, {
+                    ...episode,
+                    season_number: season.season_number,
+                  }),
+                "small",
+              );
+              const watched = button(
+                state.watched
+                  ? translateUI("✓ Viděno · odznačit")
+                  : translateUI("Viděno"),
+                async () => {
+                  watched.disabled = true;
+                  try {
+                    const confirmed = await toggleEpisodeWatched(
+                      api,
+                      data,
+                      season.season_number,
+                      episode,
+                    );
+                    episode.watch_history = confirmed;
+                    episode.watch_progress = null;
+                    watched.textContent =
+                      confirmed?.watch_status === "completed"
+                        ? translateUI("✓ Viděno · odznačit")
+                        : translateUI("Viděno");
+                    watched.setAttribute(
+                      "aria-pressed",
+                      String(confirmed?.watch_status === "completed"),
+                    );
+                    document.dispatchEvent(
+                      new CustomEvent("movly:personal-changed"),
+                    );
+                    toast(
+                      confirmed?.watch_status === "completed"
+                        ? translateUI("Epizoda označena jako zhlédnutá.")
+                        : translateUI("Epizoda označena jako nezhlédnutá."),
+                    );
+                  } catch (error) {
+                    toast(error.message);
+                  } finally {
+                    watched.disabled = episodeState(episode).upcoming;
+                  }
+                },
+                "small",
+              );
+              watched.setAttribute("aria-pressed", String(state.watched));
+              for (const action of [play, party, watched])
+                action.disabled = state.upcoming;
+              return el(
                 "div",
                 { class: "episode-row" },
                 imageURL(episode.still_path)
@@ -229,47 +317,31 @@ export async function detail(t, actions) {
                   el(
                     "strong",
                     {},
-                    `${episode.episode_number}. ${episode.name || "Epizoda"}`,
+                    `${episode.episode_number}. ${episode.name || translateUI("Epizoda")}`,
                   ),
                   episode.overview ? el("p", {}, episode.overview) : null,
+                  state.upcoming
+                    ? el(
+                        "p",
+                        { class: "meta" },
+                        translateUI(
+                          "Premiéra: {0}",
+                          episode.air_date.slice(0, 10),
+                        ),
+                      )
+                    : !episode.air_date
+                      ? el(
+                          "p",
+                          { class: "meta" },
+                          translateUI("Datum premiéry zatím neznáme"),
+                        )
+                      : null,
                 ),
-                button(
-                  "Přehrát",
-                  () =>
-                    sources(data, {
-                      ...episode,
-                      season_number: season.season_number,
-                    }),
-                  "small",
-                ),
-                button("Sledovat společně", () => hostParty(data, { ...episode, season_number: season.season_number }), "small"),
-                button(
-                  "Viděno",
-                  async (e) => {
-                    const b = e.currentTarget;
-                    b.disabled = true;
-                    try {
-                      await api("watch-history", {
-                        method: "POST",
-                        body: {
-                          title_id: data.id,
-                          type: "tv",
-                          watch_status: "completed",
-                          season_number: season.season_number,
-                          episode_number: episode.episode_number,
-                        },
-                      });
-                      b.textContent = "✓ Viděno";
-                      toast("Epizoda označena jako zhlédnutá.");
-                    } catch (err) {
-                      toast(err.message);
-                      b.disabled = false;
-                    }
-                  },
-                  "small",
-                ),
-              ),
-            ),
+                play,
+                party,
+                watched,
+              );
+            }),
           ),
         );
       }
@@ -292,7 +364,9 @@ export async function detail(t, actions) {
         progress: x.watch_progress,
       }));
     if (similar.length)
-      body.append(rail("Podobné příběhy", similar, actions.detail));
+      body.append(
+        rail(translateUI("Podobné příběhy"), similar, actions.detail),
+      );
     showDialog(
       el(
         "div",
@@ -329,7 +403,7 @@ export async function save(t, refresh) {
     el(
       "div",
       { class: "dialog-body" },
-      el("h2", { id: "dialog-title" }, "Uložit do seznamu"),
+      el("h2", { id: "dialog-title" }, translateUI("Uložit do seznamu")),
       loading(),
     ),
   );
@@ -346,7 +420,7 @@ export async function save(t, refresh) {
     const content = el(
       "div",
       { class: "dialog-body" },
-      el("h2", { id: "dialog-title" }, "Uložit do seznamu"),
+      el("h2", { id: "dialog-title" }, translateUI("Uložit do seznamu")),
       el("p", {}, t.title),
       status,
     );
@@ -372,14 +446,16 @@ export async function save(t, refresh) {
               const items = array(await api(`watchlists/${list.id}`));
               itemID = items.find((i) => i.title_id === t.id)?.id;
               if (!itemID)
-                throw new Error("API nepotvrdilo členství titulu v seznamu.");
+                throw new Error(
+                  translateUI("API nepotvrdilo členství titulu v seznamu."),
+                );
             }
             choice.setAttribute("aria-pressed", String(Boolean(itemID)));
             choice.replaceChildren(icon(itemID ? "check" : "plus"), list.name);
             toast(
               itemID
-                ? `Uloženo do „${list.name}“.`
-                : `Odebráno z „${list.name}“.`,
+                ? translateUI("Uloženo do „{0}“.", list.name)
+                : translateUI("Odebráno z „{0}“.", list.name),
             );
           } catch (e) {
             status.textContent = e.message;
@@ -394,13 +470,15 @@ export async function save(t, refresh) {
       choices.append(choice);
     }
     if (!lists.length)
-      content.append(el("p", {}, "Ještě nemáš žádný seznam. Vytvoř si první."));
+      content.append(
+        el("p", {}, translateUI("Ještě nemáš žádný seznam. Vytvoř si první.")),
+      );
     content.append(
       choices,
       el(
         "div",
         { class: "actions" },
-        button("Vytvořit seznam a přidat", () =>
+        button(translateUI("Vytvořit seznam a přidat"), () =>
           editList(null, async (list) => {
             try {
               await api(`watchlists/${list.id}/items`, {
@@ -422,7 +500,7 @@ export async function save(t, refresh) {
         el(
           "div",
           { class: "dialog-body" },
-          el("h2", { id: "dialog-title" }, "Uložit do seznamu"),
+          el("h2", { id: "dialog-title" }, translateUI("Uložit do seznamu")),
           errorBox(e, () => save(t, refresh)),
         ),
       );
@@ -435,14 +513,14 @@ export function editList(list, done) {
     required: true,
     maxlength: 100,
     value: list?.name || "",
-    placeholder: "Například Na víkend",
+    placeholder: translateUI("Například Na víkend"),
     autofocus: true,
   });
   const status = el("p", { class: "form-status", role: "alert" }),
     submit = el(
       "button",
       { type: "submit", class: "button primary" },
-      list ? "Uložit změny" : "Vytvořit seznam",
+      list ? translateUI("Uložit změny") : translateUI("Vytvořit seznam"),
     );
   const form = el(
     "form",
@@ -461,7 +539,11 @@ export function editList(list, done) {
             },
           );
           document.querySelector("#dialog").close();
-          toast(list ? "Seznam byl přejmenován." : "Seznam byl vytvořen.");
+          toast(
+            list
+              ? translateUI("Seznam byl přejmenován.")
+              : translateUI("Seznam byl vytvořen."),
+          );
           done(created);
         } catch (err) {
           status.textContent = err.message;
@@ -469,7 +551,7 @@ export function editList(list, done) {
         }
       },
     },
-    formField("Název seznamu", name),
+    formField(translateUI("Název seznamu"), name),
     status,
     submit,
   );
@@ -480,12 +562,14 @@ export function editList(list, done) {
       el(
         "h2",
         { id: "dialog-title" },
-        list ? "Přejmenovat seznam" : "Nový seznam",
+        list ? translateUI("Přejmenovat seznam") : translateUI("Nový seznam"),
       ),
       el(
         "p",
         {},
-        "Soukromý seznam dostupný ve tvém profilu na všech zařízeních.",
+        translateUI(
+          "Soukromý seznam dostupný ve tvém profilu na všech zařízeních.",
+        ),
       ),
       form,
     ),
@@ -494,13 +578,13 @@ export function editList(list, done) {
 function confirmDelete(list, done) {
   const status = el("p", { class: "form-status", role: "alert" });
   const accept = button(
-    "Smazat seznam",
+    translateUI("Smazat seznam"),
     async () => {
       accept.disabled = true;
       try {
         await api(`watchlists/${list.id}`, { method: "DELETE" });
         document.querySelector("#dialog").close();
-        toast("Seznam byl smazán.");
+        toast(translateUI("Seznam byl smazán."));
         done();
       } catch (e) {
         status.textContent = e.message;
@@ -513,17 +597,21 @@ function confirmDelete(list, done) {
     el(
       "div",
       { class: "dialog-body" },
-      el("h2", { id: "dialog-title" }, `Smazat „${list.name}“?`),
+      el("h2", { id: "dialog-title" }, translateUI("Smazat „{0}“?", list.name)),
       el(
         "p",
         {},
-        "Seznam a jeho položky se odstraní i z ostatních zařízení. Samotné tituly zůstanou v katalogu.",
+        translateUI(
+          "Seznam a jeho položky se odstraní i z ostatních zařízení. Samotné tituly zůstanou v katalogu.",
+        ),
       ),
       status,
       el(
         "div",
         { class: "actions" },
-        button("Ponechat", () => document.querySelector("#dialog").close()),
+        button(translateUI("Ponechat"), () =>
+          document.querySelector("#dialog").close(),
+        ),
         accept,
       ),
     ),
@@ -541,7 +629,10 @@ export async function library(params, signal, actions) {
   const id = params.get("id");
   if (id) {
     const list = lists.find((l) => String(l.id) === id);
-    if (!list) throw new Error("Seznam neexistuje nebo k němu nemáš přístup.");
+    if (!list)
+      throw new Error(
+        translateUI("Seznam neexistuje nebo k němu nemáš přístup."),
+      );
     const items = array(
       await api(
         list.shared ? `watchlists/shared/${list.id}` : `watchlists/${list.id}`,
@@ -555,14 +646,14 @@ export async function library(params, signal, actions) {
         "button",
         {
           class: "remove-item",
-          "aria-label": `Odebrat ${t.title}`,
+          "aria-label": translateUI("Odebrat {0}", t.title),
           onClick: async () => {
             remove.disabled = true;
             try {
               await api(`watchlists/${list.id}/items/${item.id}`, {
                 method: "DELETE",
               });
-              toast("Titul odebrán ze seznamu.");
+              toast(translateUI("Titul odebrán ze seznamu."));
               actions.refresh();
             } catch (e) {
               toast(e.message);
@@ -571,14 +662,18 @@ export async function library(params, signal, actions) {
           },
         },
         icon("trash"),
-        "Odebrat",
+        translateUI("Odebrat"),
       );
       grid.append(poster(t, actions.detail, list.shared ? null : remove));
     }
     return el(
       "div",
       { class: "page" },
-      el("a", { href: "#lists", class: "text-link" }, "Všechny seznamy"),
+      el(
+        "a",
+        { href: "#lists", class: "text-link" },
+        translateUI("Všechny seznamy"),
+      ),
       el(
         "div",
         { class: "page-heading" },
@@ -589,18 +684,27 @@ export async function library(params, signal, actions) {
           el(
             "p",
             {},
-            countLabel(items.length, "položka", "položky", "položek"),
+            countLabel(
+              items.length,
+              translateUI("položka"),
+              translateUI("položky"),
+              translateUI("položek"),
+            ),
           ),
         ),
         !list.shared && !list.is_default
-          ? button("Přejmenovat", () => editList(list, actions.refresh))
+          ? button(translateUI("Přejmenovat"), () =>
+              editList(list, actions.refresh),
+            )
           : null,
       ),
       items.length
         ? grid
         : empty(
-            "Tady začíná tvůj další večer",
-            "Otevři detail filmu nebo seriálu a přidej ho do tohoto seznamu.",
+            translateUI("Tady začíná tvůj další večer"),
+            translateUI(
+              "Otevři detail filmu nebo seriálu a přidej ho do tohoto seznamu.",
+            ),
           ),
     );
   }
@@ -613,11 +717,11 @@ export async function library(params, signal, actions) {
       el(
         "div",
         {},
-        el("h1", {}, "Moje seznamy"),
-        el("p", {}, "Příběhy, ke kterým se chceš vrátit."),
+        el("h1", {}, translateUI("Moje seznamy")),
+        el("p", {}, translateUI("Příběhy, ke kterým se chceš vrátit.")),
       ),
       button(
-        "Nový seznam",
+        translateUI("Nový seznam"),
         () => editList(null, actions.refresh),
         "primary",
         "plus",
@@ -652,22 +756,26 @@ export async function library(params, signal, actions) {
                     "div",
                     { class: "actions" },
                     !list.shared
-                      ? button("Sdílet", () => shareList(list), "small")
+                      ? button(
+                          translateUI("Sdílet"),
+                          () => shareList(list),
+                          "small",
+                        )
                       : button(
-                          "Opustit",
+                          translateUI("Opustit"),
                           () => leaveList(list, actions.refresh),
                           "small danger",
                         ),
                     !list.shared && !list.is_default
                       ? button(
-                          "Přejmenovat",
+                          translateUI("Přejmenovat"),
                           () => editList(list, actions.refresh),
                           "small",
                         )
                       : null,
                     !list.shared && !list.is_default
                       ? button(
-                          "Smazat",
+                          translateUI("Smazat"),
                           () => confirmDelete(list, actions.refresh),
                           "small danger",
                         )
@@ -682,13 +790,16 @@ export async function library(params, signal, actions) {
                     { class: "list-meta" },
                     [
                       list.shared
-                        ? `Sdílí ${list.owner_display_name || list.owner_username}`
+                        ? translateUI(
+                            "Sdílí {0}",
+                            list.owner_display_name || list.owner_username,
+                          )
                         : null,
                       countLabel(
                         list.item_count,
-                        "položka",
-                        "položky",
-                        "položek",
+                        translateUI("položka"),
+                        translateUI("položky"),
+                        translateUI("položek"),
                       ),
                     ]
                       .filter(Boolean)
@@ -701,7 +812,9 @@ export async function library(params, signal, actions) {
                   el(
                     "p",
                     { class: "list-meta" },
-                    "Zatím prázdný seznam. Přidej film nebo seriál z jeho detailu.",
+                    translateUI(
+                      "Zatím prázdný seznam. Přidej film nebo seriál z jeho detailu.",
+                    ),
                   ),
                 );
               return section;
@@ -709,8 +822,10 @@ export async function library(params, signal, actions) {
           ),
         )
       : empty(
-          "Tvůj první seznam čeká",
-          "Ulož si filmy na víkend, oblíbené seriály nebo tipy od přátel.",
+          translateUI("Tvůj první seznam čeká"),
+          translateUI(
+            "Ulož si filmy na víkend, oblíbené seriály nebo tipy od přátel.",
+          ),
         ),
   );
 }
@@ -720,7 +835,7 @@ async function shareList(list) {
     el(
       "div",
       { class: "dialog-body" },
-      el("h2", { id: "dialog-title" }, `Sdílení · ${list.name}`),
+      el("h2", { id: "dialog-title" }, translateUI("Sdílení · {0}", list.name)),
       loading(),
     ),
   );
@@ -731,12 +846,12 @@ async function shareList(list) {
     const username = el("input", {
       required: true,
       maxlength: 100,
-      placeholder: "Uživatelské jméno",
+      placeholder: translateUI("Uživatelské jméno"),
     });
     const submit = el(
       "button",
       { type: "submit", class: "button primary" },
-      "Sdílet s uživatelem",
+      translateUI("Sdílet s uživatelem"),
     );
     const form = el(
       "form",
@@ -757,25 +872,31 @@ async function shareList(list) {
           }
         },
       },
-      formField("Uživatel Movly", username),
+      formField(translateUI("Uživatel Movly"), username),
       status,
       submit,
     );
     const publicControls = el(
       "div",
       { class: "dialog-form" },
-      el("h3", {}, "Veřejný odkaz"),
+      el("h3", {}, translateUI("Veřejný odkaz")),
       el(
         "p",
         {},
         link.active
-          ? "Odkaz je aktivní. Kdokoli s odkazem může seznam zobrazit."
-          : "Vytvořením odkazu zpřístupníš seznam každému, kdo odkaz získá.",
+          ? translateUI(
+              "Odkaz je aktivní. Kdokoli s odkazem může seznam zobrazit.",
+            )
+          : translateUI(
+              "Vytvořením odkazu zpřístupníš seznam každému, kdo odkaz získá.",
+            ),
       ),
     );
     publicControls.append(
       button(
-        link.active ? "Vytvořit nový odkaz" : "Vytvořit veřejný odkaz",
+        link.active
+          ? translateUI("Vytvořit nový odkaz")
+          : translateUI("Vytvořit veřejný odkaz"),
         async (e) => {
           e.currentTarget.disabled = true;
           try {
@@ -783,12 +904,13 @@ async function shareList(list) {
               method: "POST",
               body: {},
             });
-            if (!result.url) throw new Error("Server nevrátil veřejný odkaz.");
+            if (!result.url)
+              throw new Error(translateUI("Server nevrátil veřejný odkaz."));
             publicControls.append(
               el("input", {
                 readonly: true,
                 value: result.url,
-                "aria-label": "Veřejný odkaz",
+                "aria-label": translateUI("Veřejný odkaz"),
                 onFocus: (e) => e.target.select(),
               }),
             );
@@ -803,7 +925,7 @@ async function shareList(list) {
     if (link.active)
       publicControls.append(
         button(
-          "Zrušit veřejný odkaz",
+          translateUI("Zrušit veřejný odkaz"),
           async () => {
             try {
               await api(`watchlists/${list.id}/public-link`, {
@@ -821,11 +943,17 @@ async function shareList(list) {
       el(
         "div",
         { class: "dialog-body" },
-        el("h2", { id: "dialog-title" }, `Sdílení · ${list.name}`),
+        el(
+          "h2",
+          { id: "dialog-title" },
+          translateUI("Sdílení · {0}", list.name),
+        ),
         el(
           "p",
           {},
-          "Sdílený seznam se objeví v aplikacích vybraného uživatele.",
+          translateUI(
+            "Sdílený seznam se objeví v aplikacích vybraného uživatele.",
+          ),
         ),
         ...shares.map((user) =>
           el(
@@ -833,7 +961,7 @@ async function shareList(list) {
             { class: "share-row" },
             el("span", {}, user.display_name || user.username),
             button(
-              "Odebrat přístup",
+              translateUI("Odebrat přístup"),
               async (e) => {
                 e.currentTarget.disabled = true;
                 try {
@@ -860,7 +988,7 @@ async function shareList(list) {
         el(
           "div",
           { class: "dialog-body" },
-          el("h2", { id: "dialog-title" }, "Sdílení seznamu"),
+          el("h2", { id: "dialog-title" }, translateUI("Sdílení seznamu")),
           errorBox(e, () => shareList(list)),
         ),
       );
@@ -873,11 +1001,21 @@ function leaveList(list, done) {
     el(
       "div",
       { class: "dialog-body" },
-      el("h2", { id: "dialog-title" }, `Opustit „${list.name}“?`),
-      el("p", {}, "Seznam zmizí z tvého účtu. Vlastníkovi zůstane zachovaný."),
+      el(
+        "h2",
+        { id: "dialog-title" },
+        translateUI("Opustit „{0}“?", list.name),
+      ),
+      el(
+        "p",
+        {},
+        translateUI(
+          "Seznam zmizí z tvého účtu. Vlastníkovi zůstane zachovaný.",
+        ),
+      ),
       status,
       button(
-        "Opustit seznam",
+        translateUI("Opustit seznam"),
         async (e) => {
           e.currentTarget.disabled = true;
           try {
@@ -902,7 +1040,7 @@ async function person(credit, actions) {
         "div",
         { class: "dialog-body" },
         el("h2", { id: "dialog-title" }, credit.name),
-        el("p", {}, "Profil osoby zatím není dostupný."),
+        el("p", {}, translateUI("Profil osoby zatím není dostupný.")),
       ),
     );
     return;
@@ -934,8 +1072,12 @@ async function person(credit, actions) {
               alt: "",
             })
           : null,
-        el("p", {}, data.biography || "Biografie zatím není dostupná."),
-        el("h3", {}, "Filmografie"),
+        el(
+          "p",
+          {},
+          data.biography || translateUI("Biografie zatím není dostupná."),
+        ),
+        el("h3", {}, translateUI("Filmografie")),
         el(
           "div",
           { class: "catalog-grid" },

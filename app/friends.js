@@ -1,3 +1,4 @@
+import { translateUI } from "./i18n.js";
 import { partyJoinForm } from "./party.js";
 import { api, array } from "./api.js";
 import { el, button, formField, toast, showDialog, errorBox } from "./ui.js";
@@ -11,12 +12,12 @@ export async function friends(_params, signal, actions) {
   const username = el("input", {
     required: true,
     maxlength: 255,
-    placeholder: "Uživatelské jméno",
+    placeholder: translateUI("Uživatelské jméno"),
   });
   const submit = el(
     "button",
     { type: "submit", class: "button primary" },
-    "Odeslat žádost",
+    translateUI("Odeslat žádost"),
   );
   const form = el(
     "form",
@@ -30,7 +31,7 @@ export async function friends(_params, signal, actions) {
             method: "POST",
             body: { username: username.value },
           });
-          toast("Žádost odeslána.");
+          toast(translateUI("Žádost odeslána."));
           actions.refresh();
         } catch (e) {
           status.textContent = e.message;
@@ -38,7 +39,7 @@ export async function friends(_params, signal, actions) {
         }
       },
     },
-    formField("Přidat přítele", username),
+    formField(translateUI("Přidat přítele"), username),
     submit,
     status,
   );
@@ -58,10 +59,10 @@ export async function friends(_params, signal, actions) {
         el(
           "h2",
           { id: "dialog-title" },
-          `${block ? "Zablokovat" : "Odebrat"} ${person.username}?`,
+          `${block ? translateUI("Zablokovat") : translateUI("Odebrat")} ${person.username}?`,
         ),
         button(
-          "Potvrdit",
+          translateUI("Potvrdit"),
           async () => {
             document.querySelector("#dialog").close();
             await mutate(
@@ -87,7 +88,7 @@ export async function friends(_params, signal, actions) {
             Object.entries(choices).map(([k, v]) => [k, v.checked]),
           ),
         });
-        toast("Soukromí uloženo.");
+        toast(translateUI("Soukromí uloženo."));
       } catch (e) {
         status.textContent = e.message;
       } finally {
@@ -96,9 +97,9 @@ export async function friends(_params, signal, actions) {
     },
   });
   for (const [key, label] of [
-    ["activity_opt_in", "Sdílet aktivitu s přáteli"],
-    ["show_completed", "Ukazovat zhlédnuté tituly"],
-    ["show_ratings", "Ukazovat hodnocení"],
+    ["activity_opt_in", translateUI("Sdílet aktivitu s přáteli")],
+    ["show_completed", translateUI("Ukazovat zhlédnuté tituly")],
+    ["show_ratings", translateUI("Ukazovat hodnocení")],
   ]) {
     choices[key] = el("input", { type: "checkbox", checked: privacy[key] });
     privateForm.append(el("label", {}, choices[key], ` ${label}`));
@@ -107,17 +108,23 @@ export async function friends(_params, signal, actions) {
     el(
       "button",
       { type: "submit", class: "button secondary" },
-      "Uložit soukromí",
+      translateUI("Uložit soukromí"),
     ),
   );
   return el(
     "div",
     { class: "page" },
-    el("h1", {}, "Přátelé"),
-    el("p", {}, "Tvoji přátelé a stejné nastavení soukromí jako v aplikacích."),
+    el("h1", {}, translateUI("Přátelé")),
+    el(
+      "p",
+      {},
+      translateUI(
+        "Tvoji přátelé a stejné nastavení soukromí jako v aplikacích.",
+      ),
+    ),
     partyJoinForm(),
     form,
-    el("h2", {}, "Žádosti"),
+    el("h2", {}, translateUI("Žádosti")),
     ...array(requests).map((p) =>
       el(
         "div",
@@ -125,15 +132,19 @@ export async function friends(_params, signal, actions) {
         el("span", {}, p.username),
         p.direction === "incoming"
           ? button(
-              "Přijmout",
+              translateUI("Přijmout"),
               () => mutate(`friends/requests/${p.id}/accept`, "POST"),
               "small",
             )
-          : el("span", {}, "Čeká na přijetí"),
-        button("Zrušit / odmítnout", () => confirmation(p), "small"),
+          : el("span", {}, translateUI("Čeká na přijetí")),
+        button(
+          translateUI("Zrušit / odmítnout"),
+          () => confirmation(p),
+          "small",
+        ),
       ),
     ),
-    el("h2", {}, "Moji přátelé"),
+    el("h2", {}, translateUI("Moji přátelé")),
     ...array(people).map((p) =>
       el(
         "div",
@@ -142,12 +153,16 @@ export async function friends(_params, signal, actions) {
         el(
           "div",
           { class: "actions" },
-          button("Odebrat", () => confirmation(p), "small"),
-          button("Blokovat", () => confirmation(p, true), "small danger"),
+          button(translateUI("Odebrat"), () => confirmation(p), "small"),
+          button(
+            translateUI("Blokovat"),
+            () => confirmation(p, true),
+            "small danger",
+          ),
         ),
       ),
     ),
-    el("h2", {}, "Soukromí aktivity"),
+    el("h2", {}, translateUI("Soukromí aktivity")),
     privateForm,
   );
 }

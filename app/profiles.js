@@ -1,3 +1,4 @@
+import { translateUI } from "./i18n.js";
 import { api, array } from "./api.js";
 import {
   el,
@@ -17,7 +18,7 @@ export async function editProfile(profile, done) {
       el(
         "h2",
         { id: "dialog-title" },
-        profile ? "Upravit profil" : "Nový profil",
+        profile ? translateUI("Upravit profil") : translateUI("Nový profil"),
       ),
       loading(),
     ),
@@ -39,8 +40,8 @@ export async function editProfile(profile, done) {
       maxlength: 8,
       autocomplete: "new-password",
       placeholder: profile?.has_pin
-        ? "Prázdné pole ponechá stávající PIN"
-        : "Volitelné, 4 až 8 číslic",
+        ? translateUI("Prázdné pole ponechá stávající PIN")
+        : translateUI("Volitelné, 4 až 8 číslic"),
     });
     const kids = el("input", { type: "checkbox", checked: profile?.is_kids });
     const unrated = el("input", {
@@ -62,7 +63,7 @@ export async function editProfile(profile, done) {
     const grid = el("div", {
       class: "avatar-grid",
       role: "group",
-      "aria-label": "Avatar profilu",
+      "aria-label": translateUI("Avatar profilu"),
     });
     for (const a of avatars) {
       const choice = el(
@@ -87,7 +88,7 @@ export async function editProfile(profile, done) {
     const submit = el(
       "button",
       { type: "submit", class: "button primary" },
-      "Uložit profil",
+      translateUI("Uložit profil"),
     );
     const form = el(
       "form",
@@ -109,7 +110,7 @@ export async function editProfile(profile, done) {
               },
             });
             dialog.close();
-            toast("Profil uložen.");
+            toast(translateUI("Profil uložen."));
             done();
           } catch (err) {
             status.textContent = err.message;
@@ -117,23 +118,28 @@ export async function editProfile(profile, done) {
           }
         },
       },
-      formField("Jméno", name),
-      el("h3", {}, "Avatar"),
+      formField(translateUI("Jméno"), name),
+      el("h3", {}, translateUI("Avatar")),
       grid,
-      formField("PIN", pin),
-      el("label", {}, kids, " Dětský profil"),
-      formField("Věková hranice", age),
-      el("label", {}, unrated, " Povolit tituly bez věkového hodnocení"),
+      formField(translateUI("PIN"), pin),
+      el("label", {}, kids, translateUI(" Dětský profil")),
+      formField(translateUI("Věková hranice"), age),
+      el(
+        "label",
+        {},
+        unrated,
+        translateUI(" Povolit tituly bez věkového hodnocení"),
+      ),
       status,
       submit,
     );
     if (profile && !profile.is_default)
       form.append(
         button(
-          "Smazat profil",
+          translateUI("Smazat profil"),
           () => {
             const confirm = button(
-              "Ano, smazat profil",
+              translateUI("Ano, smazat profil"),
               async () => {
                 confirm.disabled = true;
                 try {
@@ -148,7 +154,11 @@ export async function editProfile(profile, done) {
               "danger",
             );
             form.append(
-              el("p", {}, "Odstranit profil včetně jeho seznamů a historie?"),
+              el(
+                "p",
+                {},
+                translateUI("Odstranit profil včetně jeho seznamů a historie?"),
+              ),
               confirm,
             );
           },
@@ -162,7 +172,7 @@ export async function editProfile(profile, done) {
         el(
           "h2",
           { id: "dialog-title" },
-          profile ? "Upravit profil" : "Nový profil",
+          profile ? translateUI("Upravit profil") : translateUI("Nový profil"),
         ),
         form,
       ),
@@ -172,7 +182,7 @@ export async function editProfile(profile, done) {
       el(
         "div",
         { class: "dialog-body" },
-        el("h2", { id: "dialog-title" }, "Profily"),
+        el("h2", { id: "dialog-title" }, translateUI("Profily")),
         errorBox(e, () => editProfile(profile, done)),
       ),
     );
