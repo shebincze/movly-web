@@ -512,6 +512,7 @@ function createAppHandler({
     ["DELETE", /^saved-filters\/[1-9]\d*$/, []],
     ["GET", /^titles\/[1-9]\d*$/, []],
     ["GET", /^search$/, ["q", "type", "limit", "offset"]],
+    ["POST", /^track-search$/, []],
     ["GET", /^watchlists$/, []],
     ["POST", /^watchlists$/, []],
     ["GET", /^watchlists\/[1-9]\d*$/, []],
@@ -1477,6 +1478,14 @@ function createAppHandler({
           if (!integer(body.plan_id))
             throw new HttpError(400, "Vyber platný plán Premium.");
           body = { plan_id: Number(body.plan_id) };
+        } else if (target === "track-search") {
+          if (typeof body.query !== "string" || !body.query.trim() || body.query.length > 500 ||
+              !integer(body.title_id) || body.interaction_type !== "click" ||
+              !Number.isSafeInteger(body.position_in_results) || body.position_in_results < 1 || body.position_in_results > 1000) {
+            throw new HttpError(400, "Neplatná událost hledání.");
+          }
+          body = { query: body.query.trim(), title_id: Number(body.title_id), interaction_type: "click",
+            position_in_results: body.position_in_results, language };
         } else if (target === "user/hidden-titles") {
           if (!integer(body.title_id) || body.source !== "continue_watching")
             throw new HttpError(400, "Neplatné skrytí titulu.");
@@ -1692,7 +1701,9 @@ function createAppHandler({
         `${rule[3] || target}${query}`,
         req.method,
         body,
-        /^streaming2?\//.test(target) ? { "X-Cache-Refresh": "true" } : {},
+        target === "search"
+          ? { "X-Movly-Search-Purpose": Number(url.searchParams.get("offset") || 0) === 0 ? "user-query" : "pagination" }
+          : /^streaming2?\//.test(target) ? { "X-Cache-Refresh": "true" } : {},
       );
       if (
         target.endsWith("/public-link") &&

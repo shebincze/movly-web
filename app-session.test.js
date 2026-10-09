@@ -1005,3 +1005,30 @@ test("feedback administration requires the server role and preserves PATCH body"
   const call = admin.calls.at(-1);
   assert.match(call[0], /^v1\/admin\/feedback\/items\/1/); assert.equal(call[1], "PATCH"); assert.deepEqual(call[2], body);
 });
+
+test("search discovery marks user queries but not additional result pages", async () => {
+  const h = harness();
+  const s = await h.selected();
+  for (const [offset, purpose] of [[0, "user-query"], [24, "pagination"]]) {
+    const r = await h.request(`search?q=matrix&type=both&limit=24&offset=${offset}`, { cookie: s.cookie });
+    assert.equal(r.status, 200);
+    assert.equal(h.calls.at(-1)[5]["X-Movly-Search-Purpose"], purpose);
+  }
+});
+
+test("search clicks pin the selected profile and accept only validated click payloads", async () => {
+  const h = harness({ override: (path) => path.split("?")[0] === "v1/track-search" ? { payload: { status: "success" } } : undefined });
+  const s = await h.selected();
+  const body = { query: " matrix ", title_id: 7, interaction_type: "click", position_in_results: 2, profile_id: 900 };
+  const r = await h.request("track-search", { method: "POST", cookie: s.cookie, body });
+  assert.equal(r.status, 200);
+  const call = h.calls.at(-1);
+  assert.equal(call[5]["X-Profile-ID"], "1");
+  assert.deepEqual(call[2], { query: "matrix", title_id: 7, interaction_type: "click", position_in_results: 2, language: "cs" });
+  const before = h.calls.filter((c) => c[0].split("?")[0] === "v1/track-search").length;
+  for (const patch of [{ interaction_type: "view" }, { position_in_results: 0 }, { title_id: -1 }, { query: " " }]) {
+    const rejected = await h.request("track-search", { method: "POST", cookie: s.cookie, body: { ...body, ...patch } });
+    assert.equal(rejected.status, 400);
+  }
+  assert.equal(h.calls.filter((c) => c[0].split("?")[0] === "v1/track-search").length, before);
+});
