@@ -1,0 +1,86 @@
+[
+    {
+        "name": "Woman",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089389/avatar_woman_zda6dq.jpg",
+        "category": "people",
+        "display_order": 1
+    },
+    {
+        "name": "Wolf",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089385/avatar_wolf_jrxa0y.jpg",
+        "category": "animals",
+        "display_order": 2
+    },
+    {
+        "name": "Tiger",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089380/avatar_tiger_wpaf32.jpg",
+        "category": "animals",
+        "display_order": 3
+    },
+    {
+        "name": "Skull",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089376/avatar_skull_ku51qx.jpg",
+        "category": "other",
+        "display_order": 4
+    },
+    {
+        "name": "Robot",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089372/avatar_robot_egjgwh.jpg",
+        "category": "other",
+        "display_order": 5
+    },
+    {
+        "name": "Rabbit",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089368/avatar_rabbit_i93c95.jpg",
+        "category": "animals",
+        "display_order": 6
+    },
+    {
+        "name": "Panda",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089364/avatar_panda_rgtevl.jpg",
+        "category": "animals",
+        "display_order": 7
+    },
+    {
+        "name": "Hero",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089352/avatar_hero_wyggxg.jpg",
+        "category": "other",
+        "display_order": 8
+    },
+    {
+        "name": "Girl",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089348/avatar_girl_obdyqc.jpg",
+        "category": "people",
+        "display_order": 9
+    },
+    {
+        "name": "Fox",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089345/avatar_fox_xjioz5.jpg",
+        "category": "animals",
+        "display_order": 10
+    },
+    {
+        "name": "Dragon",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089341/avatar_dragon_go0nov.jpg",
+        "category": "animals",
+        "display_order": 11
+    },
+    {
+        "name": "Cat",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089337/avatar_cat_hrqhkq.jpg",
+        "category": "animals",
+        "display_order": 12
+    },
+    {
+        "name": "Boy",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089333/avatar_boy_ingeqh.jpg",
+        "category": "people",
+        "display_order": 13
+    },
+    {
+        "name": "Alien",
+        "url": "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089330/avatar_alien_i0phys.jpg",
+        "category": "other",
+        "display_order": 14
+    }
+]
