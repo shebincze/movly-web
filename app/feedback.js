@@ -49,11 +49,11 @@ async function attachmentPicker(item, admin, refresh) {
     } }, file, submit, message)));
 }
 
-function createDialog(kind, view) {
+function createDialog(kind, view, initialPlatform = "web") {
   let requestId = crypto.randomUUID(), attempted = null;
   const title = el("input", { required: true, minlength: 3, maxlength: 120 });
   const description = el("textarea", { required: true, minlength: 10, maxlength: 5000, rows: 6 });
-  const platform = el("select", {}, ...Object.entries(platforms).map(([value, label]) => el("option", { value, selected: value === "web" }, label)));
+  const platform = el("select", {}, ...Object.entries(platforms).map(([value, label]) => el("option", { value, selected: value === initialPlatform }, label)));
   const message = el("p", { role: "alert" });
   const submit = el("button", { type: "submit", class: "button primary" }, t("Odeslat"));
   const form = el("form", { class: "dialog-form", onSubmit: async (e) => {
@@ -145,12 +145,14 @@ async function detailContent(id, admin, signal, refresh) {
 
 export async function feedback(params, signal) {
   let view = ["ideas", "mine", "admin"].includes(params.get("view")) ? params.get("view") : "ideas";
-  let id = params.get("id"), newHandoff = false; const q = params.get("q") || "";
+  let id = params.get("id"), newHandoff = params.get("new") === "bug"; const q = params.get("q") || "";
+  const reportPlatform = Object.hasOwn(platforms, params.get("platform")) ? params.get("platform") : "web";
   if (params.has("handoff")) {
     const handoff = await api("feedback/handoffs/consume", { method: "POST", body: { token: params.get("handoff") }, signal });
     view = "mine"; id = handoff.item_id ? String(handoff.item_id) : null; newHandoff = !id;
     params.delete("handoff"); params.set("view", view); if (id) params.set("id", id); else params.delete("id");
-    history.replaceState(null, "", route(view, id));
+    if (newHandoff) params.set("new", "bug");
+    history.replaceState(null, "", `#feedback?${params}`);
   }
   const admin = view === "admin";
   const query = new URLSearchParams({ limit: "25", offset: params.get("offset") || "0", sort: params.get("sort") || (view === "ideas" ? "votes" : "updated"), q });
@@ -206,6 +208,15 @@ export async function feedback(params, signal) {
   if (data.offset + data.limit < data.total) list.append(el("a", { href: `#feedback?${new URLSearchParams({ ...Object.fromEntries(params), offset: String(data.offset + data.limit) })}` }, t("Další")));
   wrapper.append(el("div", { class: "feedback-layout" }, list, detail), el("p", { class: "feedback-hint" }, glyph("info"), t("Stav a odpovědi najdeš v detailu.")));
   if (id && /^[1-9]\d*$/.test(id)) await refresh(); else detail.append(el("p", {}, t("Vyber požadavek a zobraz jeho stav a odpovědi.")));
-  if (newHandoff && !signal.aborted) createDialog("bug", "mine");
+  if (newHandoff && !signal.aborted) {
+    // The router mounts the result after this async function returns. Open only
+    // once it is mounted, so navigation/abort cannot leave a detached dialog.
+    requestAnimationFrame(() => {
+      if (signal.aborted || !wrapper.isConnected) return;
+      createDialog("bug", "mine", reportPlatform);
+      params.delete("new"); params.delete("platform");
+      history.replaceState(null, "", `#feedback?${params}`);
+    });
+  }
   return wrapper;
 }
