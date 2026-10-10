@@ -1,0 +1,7 @@
+# Web player failure diagnostics
+
+Addresses #5, related to shebincze/Movly#41 and #42. Source resolution, video analysis, preparation timeout/error, browser media and fatal HLS failures offer a private feedback report with preview. Only closed technical codes, allowlisted provider, time, status, screen and web version enter diagnostics; raw errors, URLs, credentials and full HLS payloads do not. The provider is attached as nonenumerable local metadata, so it does not change source authorization request bodies.
+
+Verified locally: 109 Node tests, syntax checks, and Chromium interaction with the production player/feedback modules under a loopback-only synthetic API. Source failure → report preview → first POST 503 → text preserved → second POST accepted #300. Both attempts retained the same request ID, description and diagnostic event. Browser console errors were the intentionally injected 404/503 HTTP responses, with no JavaScript errors after fixture setup. Screenshot shows the diagnostic preview and retained retry form. The fixture is test-support code and must not be deployed.
+
+The BFF explicitly requests `X-Movly-Feedback-Diagnostics: 1` from the core API. Existing TV handoff/admin functionality is preserved. The native Windows implementation and guarded API migration are tracked in the parent repository. Production deployment and owner-only upstream merge require separate receipts.

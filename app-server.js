@@ -113,6 +113,7 @@ function createAppHandler({
     return (
       await api(`v1/${target}`, method, body, s?.token, s?.device, {
         ...headersFor(identityOnly ? { ...s, profile: null } : s),
+        ...(/^(?:admin\/)?feedback(?:\/|$)/.test(target) ? { "X-Movly-Feedback-Diagnostics": "1" } : {}),
         ...extra,
       })
     ).payload;
@@ -1249,7 +1250,8 @@ function createAppHandler({
               409,
               "Nejdřív připoj účet Webshare v nastavení.",
             );
-          link = await providerClient.resolve(s.webshare.token, ident);
+          try { link = await providerClient.resolve(s.webshare.token, ident); }
+          catch (error) { error.diagnosticStage = "source_resolve"; throw error; }
         } else if (
           provider === "hellspy" &&
           /^[1-9]\d*\/[a-zA-Z0-9_-]{1,128}$/.test(ident || "")
@@ -1270,7 +1272,7 @@ function createAppHandler({
             fastshare: s.fastshare,
             sosac: s.sosac,
             addons: s.addons,
-          });
+          }).catch(error => { error.diagnosticStage = "source_resolve"; throw error; });
           link = resolved.url;
           resolvedHeaders = resolved.headers;
           trustedProvider = true;
@@ -1750,6 +1752,7 @@ function createAppHandler({
       json(res, status, {
         message: error.message || "Požadavek se nepodařilo dokončit.",
         code: error.code || error.payload?.code || null,
+        ...(["source_resolve", "video_analysis", "playback"].includes(error.diagnosticStage) ? { diagnostic_stage: error.diagnosticStage } : {}),
       });
     }
     return true;

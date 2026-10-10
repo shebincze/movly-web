@@ -1,3 +1,5 @@
+import { createDialog as createFeedbackDialog } from "./feedback.js";
+import { playbackDiagnostics } from "./playback-diagnostics.js";
 import { translateUI } from "./i18n.js";
 import { openProviderSettings } from "./provider-settings.js";
 import { reportStream, uploadStream } from "./stream-feedback.js";
@@ -263,6 +265,7 @@ export async function sources(
             : { source: stream.origin ? "ai" : "human", stream_id: stream.id }),
           ...(episode ? { episode_id: episode.id } : {}),
         };
+        Object.defineProperty(selection, "diagnostic_provider", { value: stream.provider_name || stream.provider_identifier });
         const choice = button(
           translateUI("Přehrát"),
           () => play(t, episode, selection),
@@ -427,6 +430,7 @@ export async function sources(
           : { source: stream.origin ? "ai" : "human", stream_id: stream.id }),
         episode_id: episode.id,
       };
+      Object.defineProperty(selection, "diagnostic_provider", { value: stream.provider_name || stream.provider_identifier });
       if (autoDownload) {
         await saveOffline(t, episode, selection);
         dialog.close();
@@ -483,6 +487,14 @@ async function play(
       },
     });
     handle.session = session;
+    let failureDiagnostics = null;
+    const reportFailure = button(translateUI("Nahlásit chybu"), () => createFeedbackDialog("bug", "mine", "web", failureDiagnostics), "small");
+    reportFailure.hidden = true;
+    function captureFailure(stage, error, code) {
+      if (handle.cancelled) return;
+      failureDiagnostics = playbackDiagnostics(stage, selection.diagnostic_provider, error, code);
+      reportFailure.hidden = false;
+    }
     if (handle.cancelled || !dialog.open) {
       await api(`playback/${session.id}`, { method: "DELETE" });
       return;
@@ -706,6 +718,7 @@ async function play(
       status.textContent = translateUI("Načítám video…");
     });
     video.addEventListener("error", () => {
+      captureFailure("playback", { mediaCode: video.error?.code });
       status.textContent = translateUI(
         "Prohlížeč nemůže video přehrát. Zkus jiný zdroj.",
       );
@@ -905,6 +918,7 @@ async function play(
         el("h2", { id: "dialog-title" }, t.title),
         video,
         status,
+        reportFailure,
         el("div", { class: "player-seek" }, position, clock),
         el(
           "div",
@@ -974,14 +988,19 @@ async function play(
       if (handle.cancelled) return;
       try {
         const state = await api(`playback/${session.id}/status`);
-        if (state.error) throw new Error(state.error);
+        if (state.error) {
+          captureFailure("playback", {}, "playback_prepare_failed");
+          throw new Error(state.error);
+        }
         if (!state.ready) {
-          if (++attempts > 40)
+          if (++attempts > 40) {
+            captureFailure("playback", {}, "playback_prepare_timeout");
             throw new Error(
               translateUI(
                 "Příprava videa trvá příliš dlouho. Vyber jiný zdroj.",
               ),
             );
+          }
           handle.prepare = setTimeout(prepare, 1000);
           return;
         }
@@ -1004,10 +1023,12 @@ async function play(
           });
           handle.hls = hls;
           hls.on(Hls.Events.ERROR, (_event, data) => {
-            if (data.fatal)
+            if (data.fatal) {
+              captureFailure("playback", { status: data.response?.code }, data.type === Hls.ErrorTypes.NETWORK_ERROR ? "hls_network_failed" : data.type === Hls.ErrorTypes.MEDIA_ERROR ? "hls_media_failed" : "hls_other_failed");
               status.textContent = translateUI(
                 "Přehrávání se přerušilo. Vyber zdroj znovu.",
               );
+            }
           });
           hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => {
             if (subtitle >= 0) {
@@ -1037,10 +1058,12 @@ async function play(
             video.play().catch(() => {
               status.textContent = translateUI("Stiskni přehrát.");
             });
-        } else
+        } else {
+          captureFailure("playback", {}, "browser_hls_unsupported");
           throw new Error(
             translateUI("Tento prohlížeč nepodporuje HLS video."),
           );
+        }
         handle.timer = setInterval(
           () =>
             history().catch((e) => {
@@ -1052,6 +1075,7 @@ async function play(
           20000,
         );
       } catch (e) {
+        if (!failureDiagnostics) captureFailure("playback", e, "playback_prepare_failed");
         status.textContent = e.message;
       }
     }
@@ -1067,6 +1091,7 @@ async function play(
             play(t, episode, selection, offset, audio, subtitle),
           ),
           button(translateUI("Připojit Webshare"), providerSettings),
+          button(translateUI("Nahlásit chybu"), () => createFeedbackDialog("bug", "mine", "web", playbackDiagnostics(e.body?.diagnostic_stage || "source_resolve", selection.diagnostic_provider, e)), "small"),
         ),
       );
   }
