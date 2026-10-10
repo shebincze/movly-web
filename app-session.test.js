@@ -1166,3 +1166,18 @@ test("profile listing is identity-only while creation retains the adult manageme
   assert.equal(created.status, 200);
   assert.equal(created.body.id, 3);
 });
+
+test("account notification defaults work before profile selection and preserve multiple selections",async()=>{
+  const h=harness(),login=await h.login();
+  const preferences={events:["stream_available","czsk_available"],channels:["in_app","email"],use_defaults:false};
+  const save=await h.request("notifications/defaults",{cookie:login.cookie,method:"PUT",body:preferences});
+  assert.equal(save.status,200);assert.deepEqual(save.body.preferences,preferences);
+  const read=await h.request("notifications/defaults",{cookie:login.cookie});assert.deepEqual(read.body.effective,preferences);
+  const series=await h.request("notifications/series/20",{cookie:login.cookie,method:"PUT",body:{events:[],channels:[],use_defaults:true}});
+  assert.equal(series.status,200);assert.deepEqual(series.body.effective,preferences);
+  const custom={events:["episode_released"],channels:["desktop"],use_defaults:false};
+  const override=await h.request("notifications/series/20",{cookie:login.cookie,method:"PUT",body:custom});assert.deepEqual(override.body.effective,custom);
+  const defaults=await h.request("notifications/defaults",{cookie:login.cookie});assert.deepEqual(defaults.body.effective,preferences);
+  assert.equal((await h.request("notifications/defaults")).status,401);
+  assert.equal((await h.request("notifications/series/20",{cookie:login.cookie,method:"PUT",body:custom,headers:{"x-movly-expected-account":"999","x-movly-expected-profile":"undefined"}})).status,409);
+});

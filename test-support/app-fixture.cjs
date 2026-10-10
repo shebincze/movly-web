@@ -68,6 +68,8 @@ function createFixture() {
     items = new Map([[1, []]]);
   let next = 2,
     revoked = false;
+  let notificationDefaults={events:[],channels:[],use_defaults:false};
+  const notificationSeries=new Map();
   return async function fixture(path, method, body, token, device, headers) {
     const u = new URL(path, "http://fixture/"),
       p = u.pathname.replace(/^\//, "");
@@ -95,6 +97,14 @@ function createFixture() {
     if (!token || revoked)
       fail(401, "Přihlášení vypršelo.", "invalid_or_expired_session");
     if (p.startsWith("v1/feedback/") || p.startsWith("v1/admin/feedback/")) return feedbackFixture(path, method, body);
+    if(p.startsWith("v1/notifications/")) {
+      const scope=p.slice("v1/notifications/".length);
+      if(scope==="inbox"||scope==="system-inbox")return {payload:{items:[]}};
+      if(scope.endsWith("/read")||scope.endsWith("/delivered"))return {payload:{}};
+      if(method==="PUT") {if(scope==="defaults")notificationDefaults=structuredClone(body);else notificationSeries.set(scope,structuredClone(body));}
+      const preferences=scope==="defaults"?notificationDefaults:notificationSeries.get(scope)??{events:[],channels:[],use_defaults:true};
+      return {payload:{preferences,defaults:notificationDefaults,effective:preferences.use_defaults?notificationDefaults:preferences,subscribed:notificationSeries.has(scope),capabilities:{in_app:true,desktop:true,email:true,mobile_push:false}}};
+    }
     if (p === "v1/auth/me") return { payload: user };
     if (p === "v1/auth/logout") {
       revoked = true;
@@ -434,7 +444,7 @@ if (require.main === module) {
   process.env.MOVLY_API_KEY = "fixture-api-key";
   process.env.DOWNLOAD_TOKEN_SECRET = "fixture-session-secret-not-production";
   process.env.NODE_ENV = "development";
-  process.env.MOVLY_API_BASE = "http://127.0.0.1:8087";
+  process.env.MOVLY_API_BASE = `http://127.0.0.1:${process.env.MOVLY_FIXTURE_UPSTREAM_PORT||8087}`;
   const fixture = createFixture();
   const upstream = http.createServer(async (req, res) => {
     let raw = "";
@@ -458,10 +468,10 @@ if (require.main === module) {
       res.end(JSON.stringify({ message: e.message, code: e.code }));
     }
   });
-  upstream.listen(8087, "127.0.0.1", () => {
+  upstream.listen(Number(process.env.MOVLY_FIXTURE_UPSTREAM_PORT||8087), "127.0.0.1", () => {
     require("../server")
       .createServer()
-      .listen(8086, "127.0.0.1", () =>
+      .listen(Number(process.env.MOVLY_FIXTURE_PORT||8086), "127.0.0.1", () =>
         console.log(
           "TEST FIXTURE ONLY http://localhost:8086/app — test / movly-test",
         ),

@@ -1,3 +1,5 @@
+import { openNotifications } from "./notifications.js";
+import { notificationLabel } from "./notification-labels.js";
 import { translateUI } from "./i18n.js";
 import { hostParty } from "./party.js";
 import { api, array, listTitle, imageURL, title } from "./api.js";
@@ -66,6 +68,7 @@ export async function detail(t, actions) {
       el(
         "div",
         { class: "actions" },
+        data.type === "tv" ? button(notificationLabel("NotificationsEntry"),()=>openNotifications(data.id),"secondary") : null,
         data.type !== "tv"
           ? button(translateUI("Přehrát"), () => sources(data), "primary")
           : null,
