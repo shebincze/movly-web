@@ -1,0 +1,20 @@
+{
+  "previous_release": "/srv/movly/.movly-web-releases/series-notifications-20261011",
+  "release": "/srv/movly/.movly-web-releases/series-notifications-20261011-v2",
+  "changed_files": [
+    "app-server.js",
+    "app/index.html",
+    "app/library.js",
+    "app/main.js",
+    "app/notification-labels.js",
+    "app/notifications.js",
+    "app/offline-sw.js",
+    "app/provider-settings.js",
+    "app/styles.css"
+  ],
+  "public_hashes_verified": true,
+  "service": "active",
+  "client_binaries_published": false,
+  "timestamp_utc": "2026-10-10T23:36:51Z",
+  "runtime_fix": "Use deployed cleanQuery signature in notification account proxy"
+}

@@ -1,0 +1,25 @@
+{
+  "previous_release": "/srv/movly/.movly-web-releases/home-101417-20261010-2ed7d2d-v4",
+  "base_hashes": {
+    "app-server.js": "d7b9992aead7ff87b2a9cd6730f7198abb812f83eebc50bcd60b329f9099d8dd",
+    "app/main.js": "a2883e014ae84670909f50fbacad51dfdfe75c53f8b22eaff3da548d39b4fe78",
+    "app/index.html": "6d9a47eea00acdf3070bdcd8526dbd5f18d55f935c4c77fea6142ebdbdf03350",
+    "app/library.js": "178d1eaa377b2844a104783da1f7fcabc210215437e6816bf44d1168f7a5376a",
+    "app/styles.css": "60baed81994ebb24dd9cff8480f70805392b361a083737735083845a5930b776",
+    "app/offline-sw.js": "ac7188a6fda5c9167d0e9d748093c18390e5a1ec74bbb21f45ca07db3d3f0312",
+    "app/provider-settings.js": "ae8ac1d43a93da214d26f35a2d2bb5d4e38e6e5e0938e426935701181d35bd85"
+  },
+  "expected_hashes": {
+    "app-server.js": "6bb49e4b92e113e0594b35d2a60247f0db8c2c373e1c9ee63cc7794b731cfe2c",
+    "app/main.js": "2dbe1f1e9585e936e024ff91ebaee2e706407205c62f7bec085d2e5edd9fbf26",
+    "app/index.html": "9f41446b93ea8a0b55e27157b90e98f6c68510af05bca4774b8bcb43273b6c27",
+    "app/library.js": "211d1dcc7a80398d0c98b299ccd6a2ead6b506880d8f1512862803d245167c69",
+    "app/styles.css": "446c58a750f42a1098db176e9cbdc055a925e1c9a86beb20c68189a24be9ac0f",
+    "app/offline-sw.js": "01b3d3aec119db62205a50e777176d40e082686ae6bb77893d8912269ec36823",
+    "app/provider-settings.js": "8a0db76b4c78067df1edcc9e2a1b3e498ed066e8b2e01708c4e72476e58ea41b",
+    "app/notifications.js": "2c5ae01e0a4b13ef39b1770d5debc0f6ce4c12a02447f7c63d88bfda4bba4d78",
+    "app/notification-labels.js": "6de17d541a425910847621d5f5ce1746595cd34f5e6e2d184eff57906e65e7c3"
+  },
+  "patch_sha256": "f0d1828e91ab69dc15d4fb035df6f1e9b6ea3a35a4320bb7c60d4a9fde22d979",
+  "scope": "Notification changes only; preserve deployed Home, feedback and provider code"
+}

@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "checks": [
+    "multi-event multi-channel account preferences",
+    "private no-store",
+    "series inherits account dynamically",
+    "changed defaults propagate",
+    "foreign custom choices unchanged",
+    "in-app notification is delivered",
+    "inbox isolated by account",
+    "foreign read cannot mutate owner",
+    "read persists",
+    "desktop delivery is queued",
+    "optout cancels desktop delivery",
+    "reenable does not resurrect old alerts",
+    "validation and anonymous protection",
+    "web account settings before profile selection",
+    "web saves multiple selections",
+    "web rejects wrong account owner"
+  ],
+  "capabilities": {
+    "desktop": true,
+    "email": true,
+    "in_app": true,
+    "mobile_push": true
+  },
+  "scope": "Live API/web/in-app/desktop queue; no claim of physical push or email delivery",
+  "client_binaries_published": false,
+  "cleanup": "passed"
+}

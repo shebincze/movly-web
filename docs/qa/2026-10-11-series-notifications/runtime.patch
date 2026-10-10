@@ -1,0 +1,141 @@
+--- a/app-server.js
++++ b/app-server.js
+@@ -422,6 +422,12 @@
+     return `?${q}`;
+   }
+   const routes = [
++    ["GET", /^notifications\/(?:defaults|series\/[1-9]\d*)$/, []],
++    ["PUT", /^notifications\/(?:defaults|series\/[1-9]\d*)$/, []],
++    ["GET", /^notifications\/inbox$/, ["before"]],
++    ["GET", /^notifications\/system-inbox$/, []],
++    ["PUT", /^notifications\/system-inbox\/[1-9]\d*\/delivered$/, []],
++    ["PUT", /^notifications\/inbox\/[1-9]\d*\/read$/, []],
+     ["GET", /^integrations$/, []],
+     ["POST", /^integrations\/(?:trakt|simkl)\/(?:authorization(?:\/poll)?|sync|import)$/, []],
+     ["DELETE", /^integrations\/(?:trakt|simkl)$/, []],
+@@ -607,9 +613,8 @@
+       if (
+         (expectedAccount !== undefined || expectedProfile !== undefined) &&
+         (!integer(expectedAccount) ||
+-          !integer(expectedProfile) ||
+           Number(expectedAccount) !== accountUser.id ||
+-          Number(expectedProfile) !== s.profile?.id)
++          (!/^notifications\//.test(target) && (!integer(expectedProfile) || Number(expectedProfile) !== s.profile?.id)))
+       )
+         throw new HttpError(409, "Aktivní profil se změnil.", {
+           code: "offline_owner_changed",
+@@ -755,6 +760,13 @@
+         writeSession(res, next);
+         json(res, 200, { profile: next.profile });
+         return true;
++      }
++      if (/^notifications\//.test(target)) {
++        const rule=routes.find(([method,pattern])=>method===req.method&&pattern.test(target));
++        if(!rule)throw new HttpError(404,"Položka nebyla nalezena.");
++        const body=req.method==="PUT"?objectBody(await readBody(req,4096)):null;
++        const result=await call(s,target+cleanQuery(url,rule[2]),req.method,body);
++        json(res,200,result??{});return true;
+       }
+       if (!s.profile)
+         throw new HttpError(409, "Nejdřív vyber profil.", {
+--- a/app/main.js
++++ b/app/main.js
+@@ -1,4 +1,6 @@
+ import { feedback } from "./feedback.js";
++import { notificationLabel } from "./notification-labels.js";
++import { startSystemNotifications, openNotifications } from "./notifications.js";
+ import { setPlaybackOwner } from "./playback-memory.js";
+ import { leaveParty } from "./party.js";
+ import { accountForm } from "./auth.js";
+@@ -42,6 +44,7 @@
+     }),
+   refresh: () => render(),
+ };
++startSystemNotifications(actions);
+ document.querySelector(".skip-link").addEventListener("click", (e) => {
+   e.preventDefault();
+   content.focus();
+@@ -61,6 +64,7 @@
+   }
+ });
+ function chrome() {
++  document.querySelector("#notification-settings").textContent=notificationLabel("NotificationsEntry");
+   setPlaybackOwner(session?.account, session?.profile);
+   const ready = Boolean(session?.profile);
+   document.querySelector("#navigation").hidden = !ready;
+@@ -394,6 +398,7 @@
+ document
+   .querySelector("#provider-settings")
+   .addEventListener("click", providerSettings);
++document.querySelector("#notification-settings").addEventListener("click",()=>openNotifications());
+ document.querySelector("#account-button").addEventListener("click", () => {
+   const menu = document.querySelector("#account-menu");
+   menu.hidden = !menu.hidden;
+--- a/app/index.html
++++ b/app/index.html
+@@ -49,7 +49,7 @@
+         <div class="account-menu" id="account-menu" hidden>
+           <strong id="account-name"></strong
+           ><button id="switch-profile">Změnit profil</button
+-          ><button id="provider-settings">Úložiště a přehrávání</button
++          ><button id="notification-settings">Upozornění</button><button id="provider-settings">Úložiště a přehrávání</button
+           ><a href="#history">Historie sledování</a
+           ><a href="#friends">Přátelé</a
+           ><a href="#stats">Moje statistiky</a
+--- a/app/library.js
++++ b/app/library.js
+@@ -1,3 +1,5 @@
++import { openNotifications } from "./notifications.js";
++import { notificationLabel } from "./notification-labels.js";
+ import { hostParty } from "./party.js";
+ import { api, array, listTitle, imageURL, title } from "./api.js";
+ import {
+@@ -63,6 +65,7 @@
+       el(
+         "div",
+         { class: "actions" },
++        data.type === "tv" ? button(notificationLabel("NotificationsEntry"),()=>openNotifications(data.id),"secondary") : null,
+         data.type !== "tv"
+           ? button("Přehrát", () => sources(data), "primary")
+           : null,
+--- a/app/styles.css
++++ b/app/styles.css
+@@ -1876,3 +1876,12 @@
+ }
+ 
+ .source-section-title { margin: 20px 0 4px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
++
++.notification-choice { display:flex; gap:12px; align-items:center; padding:12px 0; min-height:44px; }
++.notification-choice input { width:20px; height:20px; flex-shrink:0; }
++
++.notification-editor .dialog-form { gap: 12px; }
++.notification-editor fieldset { margin: 0; border: 1px solid rgba(255,255,255,.16); border-radius: 12px; padding: 12px 16px; }
++.notification-editor .notification-choice { margin: 0; padding: 6px 0; min-height: 44px; }
++.notification-editor input[type="checkbox"] { padding: 0; min-height: 20px; width: 20px; height: 20px; accent-color: var(--accent); }
++.notification-editor h3 { margin-top: 24px; }
+--- a/app/offline-sw.js
++++ b/app/offline-sw.js
+@@ -1,6 +1,6 @@
+ import { get, mayRead, CHUNK_BYTES } from "./offline-store.js";
+-const CACHE = "movly-offline-shell-v6-home-resume";
+-const FILES = ["/app/", "/app/styles.css", ...["main", "api", "ui", "catalog", "home", "home-state", "playback-memory", "library", "profiles", "personal", "friends", "admin", "auth", "provider-settings", "tracking-settings", "stream-feedback", "stream-recommendations", "player", "party", "party-clock", "user-state", "episode-policy", "offline", "offline-store"].map(s => `/app/${s}.js`), "/app/vendor/hls.mjs"];
++const CACHE = "movly-offline-shell-v7-notifications";
++const FILES = ["/app/", "/app/styles.css", ...["main", "api", "ui", "catalog", "home", "home-state", "playback-memory", "library", "profiles", "personal", "friends", "admin", "auth", "provider-settings", "tracking-settings", "notifications", "notification-labels", "i18n", "translations", "stream-feedback", "stream-recommendations", "player", "party", "party-clock", "user-state", "episode-policy", "offline", "offline-store"].map(s => `/app/${s}.js`), "/app/vendor/hls.mjs"];
+ self.addEventListener("install", event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting())));
+ self.addEventListener("activate", event => event.waitUntil(Promise.all([self.clients.claim(), caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith("movly-offline-shell-") && k !== CACHE).map(k => caches.delete(k))))])));
+ 
+--- a/app/provider-settings.js
++++ b/app/provider-settings.js
+@@ -1,3 +1,5 @@
++import { openNotifications } from "./notifications.js";
++import { notificationLabel } from "./notification-labels.js";
+ import { appendTrackingSettings } from "./tracking-settings.js";
+ import { api } from "./api.js";
+ import { el, button, showDialog, formField, loading } from "./ui.js";
+@@ -29,5 +31,6 @@
+     } }, formField(name === "stremio" ? "Adresa manifestu doplňku" : "Uživatelské jméno", user), name !== "stremio" ? formField("Heslo", password) : null, submit));
+     content.append(section);
+   }
++  content.append(button(notificationLabel("NotificationsAccount"),()=>openNotifications()));
+   await appendTrackingSettings(content, dialog);
+ }
