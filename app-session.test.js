@@ -1122,3 +1122,21 @@ test("authorized child selection without a management grant clears the adult gra
   assert.equal(call[5]["X-Profile-ID"], "2");
   assert.equal(Object.hasOwn(call[5], "X-Profile-Grant"), false);
 });
+
+test("profile listing is identity-only while creation retains the adult management grant", async () => {
+  const h = harness({ override: (path, method, body, token, device, headers) => {
+    if (path === "v1/profiles" && method === "POST") {
+      assert.equal(headers["X-Profile-ID"], "1");
+      assert.equal(headers["X-Profile-Grant"], "grant-1");
+      return { payload: { id: 3, name: body.name } };
+    }
+  } });
+  const adult = await h.selected();
+  assert.equal((await h.request("profiles", { cookie: adult.cookie })).status, 200);
+  const listCall = h.calls.findLast(c => c[0] === "v1/profiles" && c[1] === "GET");
+  assert.equal(Object.hasOwn(listCall[5], "X-Profile-ID"), false);
+  assert.equal(Object.hasOwn(listCall[5], "X-Profile-Grant"), false);
+  const created = await h.request("profiles", { method: "POST", cookie: adult.cookie, body: { name: "New QA profile" } });
+  assert.equal(created.status, 200);
+  assert.equal(created.body.id, 3);
+});

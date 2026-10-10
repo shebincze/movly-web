@@ -1,6 +1,6 @@
 --- a/app-server.js
 +++ b/app-server.js
-@@ -106,7 +106,7 @@
+@@ -106,11 +106,11 @@
      "X-Client-App": "movly-web",
      "X-Movly-Profile-Authorization": "explicit-grant-v1",
      ...(s?.profile
@@ -9,6 +9,11 @@
        : {}),
    });
    async function call(s, target, method = "GET", body = null, extra = {}) {
+-    const identityOnly = target.startsWith("auth/") || target === "profiles";
++    const identityOnly = target.startsWith("auth/") || (target === "profiles" && method === "GET");
+     return (
+       await api(`v1/${target}`, method, body, s?.token, s?.device, {
+         ...headersFor(identityOnly ? { ...s, profile: null } : s),
 @@ -142,6 +142,7 @@
        throw new HttpError(403, "Účet musí být aktivní a ověřený.");
      const role = roles.includes(user.role) ? user.role : "user";

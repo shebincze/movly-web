@@ -65,6 +65,7 @@ async function browserMediaCapabilities() {
   return result;
 }
 let current = null;
+let playRevision = 0;
 const time = (n) =>
   `${Math.floor(n / 3600) ? `${Math.floor(n / 3600)}:` : ""}${String(Math.floor(n / 60) % 60).padStart(2, "0")}:${String(Math.floor(n) % 60).padStart(2, "0")}`;
 export async function providerSettings() {
@@ -497,7 +498,9 @@ async function play(
   subtitle = null,
 ) {
   const scope = selection.playback_owner || playbackOwner();
+  const revision = ++playRevision;
   await stop();
+  if (revision !== playRevision) return false;
   if (scope?.generation !== playbackOwner()?.generation) return false;
   const dialog = showDialog(
     el(
@@ -558,7 +561,7 @@ async function play(
       failureDiagnostics = playbackDiagnostics(stage, selection.diagnostic_provider, error, code);
       reportFailure.hidden = false;
     }
-    if (handle.cancelled || !dialog.open) {
+    if (handle.cancelled || current !== handle || !dialog.open) {
       await api(`playback/${session.id}`, { method: "DELETE" });
       return;
     }
@@ -750,26 +753,13 @@ async function play(
           ).catch((e) => toast(e.message))
         : play(t, episode, selection, Number(position.value), audio, subtitle),
     );
-    tracks.addEventListener("change", () =>
-      play(
-        t,
-        episode,
-        selection,
-        positionNow(),
-        Number(tracks.value),
-        subtitle,
-      ),
-    );
-    subtitles.addEventListener("change", () =>
-      play(
-        t,
-        episode,
-        selection,
-        positionNow(),
-        audio,
-        Number(subtitles.value),
-      ),
-    );
+    const changeTracks = () => {
+      audio = Number(tracks.value);
+      subtitle = Number(subtitles.value);
+      play(t, episode, selection, positionNow(), audio, subtitle);
+    };
+    tracks.addEventListener("change", changeTracks);
+    subtitles.addEventListener("change", changeTracks);
     video.addEventListener("timeupdate", () => {
       position.value = Math.floor(positionNow());
       clock.textContent = `${time(positionNow())} / ${time(session.duration)}`;
@@ -1146,7 +1136,7 @@ async function play(
     prepare();
     return true;
   } catch (e) {
-    if (!handle.cancelled && dialog.open)
+    if (!handle.cancelled && current === handle && dialog.open)
       showDialog(
         el(
           "div",
