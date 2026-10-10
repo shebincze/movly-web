@@ -1916,3 +1916,15 @@ body:has(.feedback-page) #navigation [data-page=feedback] { display: flex; }
  .feedback-row .feedback-state-in_progress { color: #2dd4bf; border-color: #2dd4bf66; background: #2dd4bf15; }
  .feedback-row .feedback-state-ready_for_release, .feedback-row .feedback-state-partially_released { color: #fbbf24; border-color: #fbbf2466; background: #fbbf2415; }
 }
+
+/* Reserve space for Home carousel controls below the title actions. */
+.home-carousel .hero {
+  padding-bottom: 100px;
+}
+.home-section > .text-link {
+  display: inline-block;
+  margin-inline: var(--gutter);
+}
+.home-section > .error-state {
+  margin-inline: var(--gutter);
+}

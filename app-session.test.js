@@ -68,7 +68,7 @@ function harness({
       await handler(req, res, new URL(`http://movly.test/api/app/${path}`));
     } catch (e) {
       res.status = e.status;
-      res.body = { message: e.message };
+      res.body = { message: e.message, ...e.payload };
     }
     return { ...res, cookie: res.headers["Set-Cookie"]?.split(";")[0] };
   }
@@ -1031,4 +1031,44 @@ test("search clicks pin the selected profile and accept only validated click pay
     assert.equal(rejected.status, 400);
   }
   assert.equal(h.calls.filter((c) => c[0].split("?")[0] === "v1/track-search").length, before);
+});
+
+test("Home gateway preserves authenticated profile, selectors and policy scope", async()=>{
+ const h=harness(),s=await h.selected();
+ const r=await h.request("home?section=resume&page=2&include_highlights=true",{cookie:s.cookie});
+ assert.equal(r.status,200);assert.equal(r.body.sections[0].slug,"resume");
+ assert.equal(r.body.viewer_scope.profile_id,1);assert.equal(r.body.viewer_scope.account_id,1);
+ const upstream=h.calls.find(c=>c[0].startsWith("v1/home?"));
+ assert.equal(upstream[5]["X-Profile-ID"],"1");assert.equal(upstream[5]["X-Profile-Grant"],"grant-1");
+ const q=new URL(upstream[0],"https://test").searchParams;assert.equal(q.get("page"),"2");assert.equal(q.get("section"),"resume");
+ for(const query of ["section=a&collection=b","page=0","section=../bad","include_highlights=yes","include_inactive=true"]) {
+  assert.equal((await h.request("home?"+query,{cookie:s.cookie})).status,400);
+ }
+ assert.equal((await h.request("home")).status,401);
+});
+test("Home tracking validates actions and rejects stale profile ownership",async()=>{
+ const h=harness(),s=await h.selected();
+ const body={request_id:"rec-test",title_id:1,action:"view",position:1,section:"for_you",list_slug:"recommendations",platform:"evil",session_id:"forged"};
+ const r=await h.request("recommendations/action",{cookie:s.cookie,method:"POST",body});assert.equal(r.status,200);
+ const sent=h.calls.find(c=>c[0].startsWith("v1/recommendations/action"));assert.equal(sent[2].platform,"web");assert.equal(sent[2].session_id,undefined);
+ assert.equal((await h.request("recommendations/action",{cookie:s.cookie,method:"POST",body:{...body,action:"delete"}})).status,400);
+ assert.equal((await h.request("recommendations/action",{cookie:s.cookie,method:"POST",body,headers:{"x-movly-expected-account":"1","x-movly-expected-profile":"2"}})).status,409);
+});
+
+test("Home gateway reflects current child policy instead of stale profile cookie metadata",async()=>{
+ let kids=false;
+ const h=harness({override:path=>path==="v1/profiles"?{payload:[{id:1,name:"Profile",has_pin:false,is_kids:kids,max_certification:kids?7:18,allow_unrated:!kids}]}:undefined}),s=await h.selected();
+ const first=await h.request("home",{cookie:s.cookie});assert.equal(first.body.viewer_scope.is_kids,false);
+ kids=true;const changed=await h.request("home",{cookie:s.cookie});
+ assert.equal(changed.body.viewer_scope.is_kids,true);assert.equal(changed.body.viewer_scope.max_certification,7);assert.equal(changed.body.viewer_scope.allow_unrated,false);
+});
+
+test("Home refuses a policy change during load and carries scope even on upstream failure",async()=>{
+ let kids=false,fail=false;
+ const h=harness({override:path=>{
+  if(path==="v1/profiles")return {payload:[{id:1,name:"Profile",has_pin:false,is_kids:kids,max_certification:kids?7:18,allow_unrated:!kids}]};
+  if(path.startsWith("v1/home?")) {kids=true;if(fail)throw new HttpError(500,"upstream failure");}
+ }}),s=await h.selected();
+ let r=await h.request("home",{cookie:s.cookie});assert.equal(r.status,409);assert.equal(r.body.code,"home_policy_changed");assert.equal(r.body.viewer_scope.max_certification,7);
+ fail=true;r=await h.request("home",{cookie:s.cookie});assert.equal(r.status,500);assert.equal(r.body.viewer_scope.is_kids,true);assert.equal(r.body.sections,undefined);
 });

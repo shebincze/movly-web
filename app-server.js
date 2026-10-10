@@ -394,6 +394,10 @@ function createAppHandler({
         throw new HttpError(400, "Neplatný titul nebo epizoda.");
       if (k === "offset" && (!/^\d+$/.test(v) || Number(v) > 100000))
         throw new HttpError(400, "Neplatné stránkování.");
+      if (["section", "collection"].includes(k) && !/^[a-z0-9_-]{1,100}$/.test(v))
+        throw new HttpError(400, "Neplatná řada Domů.");
+      if (k === "include_highlights" && !["true", "false"].includes(v))
+        throw new HttpError(400, "Neplatný filtr katalogu.");
       if (k === "type" && !["movie", "tv", "both"].includes(v))
         throw new HttpError(400, "Neplatný typ titulu.");
       if (
@@ -421,6 +425,7 @@ function createAppHandler({
         throw new HttpError(400, "Neplatné hodnocení.");
       q.set(k, v);
     }
+    if (q.has("section") && q.has("collection")) throw new HttpError(400, "Neplatná řada Domů.");
     q.set("lang", language);
     return `?${q}`;
   }
@@ -445,6 +450,8 @@ function createAppHandler({
     ["GET", /^party\/[a-f0-9]{32}$/, []],
     ["POST", /^party\/[a-f0-9]{32}\/(?:preparation|leave)$/, []],
     ["PUT", /^party\/[a-f0-9]{32}\/state$/, []],
+    ["GET", /^home$/, ["section", "collection", "page", "include_highlights"]],
+    ["POST", /^recommendations\/action$/, []],
     ["GET", /^themed-lists$/, []],
     ["GET", /^themed-lists\/[a-z0-9_-]+$/, ["page", "limit"]],
     ["GET", /^titles\/[1-9]\d*\/similar$/, ["limit"]],
@@ -1456,6 +1463,33 @@ function createAppHandler({
           "Tato funkce není ve webové aplikaci dostupná.",
         );
       let query = cleanQuery(url, rule[2], language);
+      if (target === "home") {
+        if (!Number.isSafeInteger(account.id) || account.id < 1) throw new HttpError(502, "API vrátilo neplatný účet.");
+        const currentScope = async () => {
+          const current = (await call(s, "profiles")).find(p => p.id === s.profile.id);
+          if (!current) throw new HttpError(403, "Profil již není dostupný.");
+          return { account_id: account.id, profile_id: current.id,
+            is_kids: current.is_kids === true, max_certification: current.max_certification ?? 18,
+            allow_unrated: current.allow_unrated === true };
+        };
+        const before = await currentScope();
+        let result;
+        try { result = await call(s, target + query); }
+        catch (error) {
+          const scope = await currentScope();
+          const unavailable = new HttpError(error.status || 502, "Domů se nepodařilo načíst.", { code: error.payload?.code || "home_unavailable" });
+          unavailable.homeViewerScope = scope;
+          throw unavailable;
+        }
+        const scope = await currentScope();
+        if (JSON.stringify(before) !== JSON.stringify(scope)) {
+          const changed = new HttpError(409, "Pravidla profilu se změnila. Zkusit znovu.", { code: "home_policy_changed" });
+          changed.homeViewerScope = scope;
+          throw changed;
+        }
+        json(res, 200, { ...result, viewer_scope: scope });
+        return true;
+      }
       if (/^titles\/[1-9]\d*$/.test(target))
         query +=
           "&expand=credits,seasons,collection,videos,ratings,streams,watch_history";
@@ -1480,6 +1514,17 @@ function createAppHandler({
           if (!integer(body.plan_id))
             throw new HttpError(400, "Vyber platný plán Premium.");
           body = { plan_id: Number(body.plan_id) };
+        } else if (target === "recommendations/action") {
+          if (typeof body.request_id !== "string" || !body.request_id || body.request_id.length > 200 ||
+              !integer(body.title_id) || !["view", "click"].includes(body.action) ||
+              !Number.isSafeInteger(body.position) || body.position < 1 || body.position > 10000 ||
+              typeof body.section !== "string" || !body.section || body.section.length > 100 ||
+              typeof body.list_slug !== "string" || !body.list_slug || body.list_slug.length > 100 ||
+              (body.seed_title_id != null && !integer(body.seed_title_id)))
+            throw new HttpError(400, "Neplatná událost doporučení.");
+          body = { request_id: body.request_id, title_id: Number(body.title_id), action: body.action,
+            position: body.position, section: body.section, list_slug: body.list_slug,
+            ...(body.seed_title_id ? { seed_title_id: Number(body.seed_title_id) } : {}), device_type: "web", platform: "web" };
         } else if (target === "track-search") {
           if (typeof body.query !== "string" || !body.query.trim() || body.query.length > 500 ||
               !integer(body.title_id) || body.interaction_type !== "click" ||
@@ -1752,6 +1797,7 @@ function createAppHandler({
       json(res, status, {
         message: error.message || "Požadavek se nepodařilo dokončit.",
         code: error.code || error.payload?.code || null,
+        ...(target === "home" && error.homeViewerScope ? { viewer_scope: error.homeViewerScope } : {}),
         ...(["source_resolve", "video_analysis", "playback"].includes(error.diagnosticStage) ? { diagnostic_stage: error.diagnosticStage } : {}),
       });
     }

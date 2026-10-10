@@ -75,6 +75,7 @@ function createFixture() {
       throw Object.assign(new Error(message), { status, code });
     };
     const user = {
+      id: 1,
       username: "test",
       display_name: "Testovací účet",
       is_active: true,
@@ -116,6 +117,7 @@ function createFixture() {
           {
             id: 2,
             name: "Chráněný profil",
+            is_kids: true, max_certification: 7, allow_unrated: false,
             has_pin: true,
             avatar_url:
               "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089364/avatar_panda_rgtevl.jpg",
@@ -143,6 +145,22 @@ function createFixture() {
       fail(403, "Chybí profil.", "profile_grant_required");
     const type = u.searchParams.get("type"),
       all = type === "tv" ? series : films;
+    if (p === "v1/recommendations/action") return { payload: { status: "ok" } };
+    if (p === "v1/home") {
+      const make = (slug, kind, name, order, values = films.slice(0, 4)) => ({
+        slug, kind, name, display_order: order, content_key: `fixture:${slug}`,
+        state: "ready", items: values.map(t => ({ title: t })), collections: [], premieres: [],
+        pagination: { page: Number(u.searchParams.get("page") || 1), total_pages: 2 }, has_more: Number(u.searchParams.get("page") || 1) < 2,
+      });
+      if (headers["X-Profile-ID"] === "2") return { payload: { version: 1, sections: [make("kids-selection", "hero", "Pro dětský profil", 1, [{ id: 77, title: "Dětský výběr (testovací data)", type: "movie", year: 2020 }])] } };
+      const rows = [make("personal-hero", "hero", "Výběr pro vás", 1),
+        { ...make("resume", "continue", "Pokračovat ve sledování", 2, series.slice(0, 3)), items: series.slice(0, 3).map(t => ({ title: t, watch_progress: { watch_status: "watched", next_season_number: 3, next_episode_number: 1 } })) },
+        make("favourites", "rail", "Můj seznam", 3),
+        { ...make("collections", "collections", "Kolekce", 4, []), collections: [{ slug: "star-wars", name: "Star Wars", total_items: 8 }] },
+        make("popular", "top10", "Nejsledovanější", 5)];
+      const section = u.searchParams.get("section"), collection = u.searchParams.get("collection");
+      return { payload: { version: 1, sections: collection ? [make(collection, "rail", "Star Wars", 1)] : section ? rows.filter(r => r.slug === section) : rows } };
+    }
     if (p === "v1/themed-lists")
       return {
         payload: {
