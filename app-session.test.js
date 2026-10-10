@@ -244,11 +244,11 @@ test("partial upstream results remain explicitly degraded", async () => {
     payload,
   );
 });
-test("missing profile grant fails closed", async () => {
+test("malformed profile management grant fails closed", async () => {
   const h = harness({
       override: (p) =>
         p.endsWith("/select")
-          ? { payload: { profile_id: 1, name: "Test" } }
+          ? { payload: { profile_id: 1, name: "Test", grant_token: 123 } }
           : undefined,
     }),
     l = await h.login();
@@ -1126,4 +1126,43 @@ test("manual audio review is bound to profile/source and reuses the measured tra
   assert.deepEqual(stored.audio_streams.map(t => t.audio_language), ["eng", "cze"]);
   const reused = await h.request("streams/upload", { method: "POST", cookie: session.cookie, body: confirmation });
   assert.equal(reused.status, 403);
+});
+
+test("authorized child selection without a management grant clears the adult grant", async () => {
+  const h = harness({ override: (path, method, body, token, device, headers) => {
+    if (path === "v1/profiles/2/select") {
+      assert.equal(headers["X-Profile-Grant"], "pin-grant");
+      return { payload: { profile_id: 2, name: "Chráněný profil" } };
+    }
+    if (path.startsWith("v1/home?")) return { payload: { version: 1, sections: [] } };
+  } });
+  const adult = await h.selected();
+  const child = await h.request("profile", { method: "POST", cookie: adult.cookie, body: { id: 2, pin: "1234" } });
+  assert.equal(child.status, 200);
+  assert.equal(child.body.profile.id, 2);
+  const home = await h.request("home", { cookie: child.cookie });
+  assert.equal(home.status, 200);
+  assert.equal(home.body.viewer_scope.profile_id, 2);
+  assert.equal(home.body.viewer_scope.is_kids, true);
+  const call = h.calls.findLast(c => c[0].startsWith("v1/home?"));
+  assert.equal(call[5]["X-Profile-ID"], "2");
+  assert.equal(Object.hasOwn(call[5], "X-Profile-Grant"), false);
+});
+
+test("profile listing is identity-only while creation retains the adult management grant", async () => {
+  const h = harness({ override: (path, method, body, token, device, headers) => {
+    if (path === "v1/profiles" && method === "POST") {
+      assert.equal(headers["X-Profile-ID"], "1");
+      assert.equal(headers["X-Profile-Grant"], "grant-1");
+      return { payload: { id: 3, name: body.name } };
+    }
+  } });
+  const adult = await h.selected();
+  assert.equal((await h.request("profiles", { cookie: adult.cookie })).status, 200);
+  const listCall = h.calls.findLast(c => c[0] === "v1/profiles" && c[1] === "GET");
+  assert.equal(Object.hasOwn(listCall[5], "X-Profile-ID"), false);
+  assert.equal(Object.hasOwn(listCall[5], "X-Profile-Grant"), false);
+  const created = await h.request("profiles", { method: "POST", cookie: adult.cookie, body: { name: "New QA profile" } });
+  assert.equal(created.status, 200);
+  assert.equal(created.body.id, 3);
 });
