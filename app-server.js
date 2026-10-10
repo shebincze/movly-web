@@ -432,6 +432,12 @@ function createAppHandler({
     return `?${q}`;
   }
   const routes = [
+    ["GET", /^notifications\/(?:defaults|series\/[1-9]\d*)$/, []],
+    ["PUT", /^notifications\/(?:defaults|series\/[1-9]\d*)$/, []],
+    ["GET", /^notifications\/inbox$/, ["before"]],
+    ["GET", /^notifications\/system-inbox$/, []],
+    ["PUT", /^notifications\/system-inbox\/[1-9]\d*\/delivered$/, []],
+    ["PUT", /^notifications\/inbox\/[1-9]\d*\/read$/, []],
     ["GET", /^auth\/premium\/plans$/, []],
     ["POST", /^auth\/premium\/purchase$/, []],
     ["GET", /^user\/hidden-titles$/, ["source", "limit", "offset"]],
@@ -669,9 +675,8 @@ function createAppHandler({
       if (
         (expectedAccount !== undefined || expectedProfile !== undefined) &&
         (!integer(expectedAccount) ||
-          !integer(expectedProfile) ||
           Number(expectedAccount) !== accountUser.id ||
-          Number(expectedProfile) !== s.profile?.id)
+          (!/^notifications\//.test(target) && (!integer(expectedProfile) || Number(expectedProfile) !== s.profile?.id)))
       )
         throw new HttpError(409, "Aktivní profil se změnil.", {
           code: "offline_owner_changed",
@@ -817,6 +822,13 @@ function createAppHandler({
         writeSession(res, next);
         json(res, 200, { profile: next.profile });
         return true;
+      }
+      if (/^notifications\//.test(target)) {
+        const rule=routes.find(([method,pattern])=>method===req.method&&pattern.test(target));
+        if(!rule)throw new HttpError(404,"Položka nebyla nalezena.");
+        const body=req.method==="PUT"?objectBody(await readBody(req,4096)):null;
+        const result=await call(s,target+cleanQuery(url,rule[2],language),req.method,body);
+        json(res,200,result??{});return true;
       }
       if (!s.profile)
         throw new HttpError(409, "Nejdřív vyber profil.", {

@@ -1,3 +1,5 @@
+import { notificationLabel } from "./notification-labels.js";
+import { startSystemNotifications, openNotifications } from "./notifications.js";
 import { translateShell, uiLanguage, setUILanguage } from "./i18n.js";
 import { translateUI } from "./i18n.js";
 import { premium } from "./premium.js";
@@ -72,6 +74,7 @@ const actions = {
     }),
   refresh: () => render(),
 };
+startSystemNotifications(actions);
 document.querySelector(".skip-link").addEventListener("click", (e) => {
   e.preventDefault();
   content.focus();
@@ -91,6 +94,7 @@ dialog.addEventListener("close", () => {
   }
 });
 function chrome() {
+  document.querySelector("#notification-settings").textContent=notificationLabel("NotificationsEntry");
   setSearchOwner(session?.account, session?.profile);
   setPlaybackOwner(session?.account, session?.profile);
   const ready = Boolean(session?.profile);
@@ -477,6 +481,7 @@ document.querySelector("#switch-profile").addEventListener("click", profiles);
 document
   .querySelector("#provider-settings")
   .addEventListener("click", providerSettings);
+document.querySelector("#notification-settings").addEventListener("click",()=>openNotifications());
 document.querySelector("#account-button").addEventListener("click", () => {
   const menu = document.querySelector("#account-menu");
   menu.hidden = !menu.hidden;
