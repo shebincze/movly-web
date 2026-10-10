@@ -396,3 +396,34 @@ test(
     }
   },
 );
+
+test("restored track descriptors select the same audio/subtitle and preserve explicit off", {timeout: 45000}, async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "movly-track-resume-"));
+  const file = path.join(dir, "input.mkv"), subs = path.join(dir, "captions.srt");
+  await fs.writeFile(subs, "1\n00:00:00,500 --> 00:00:08,000\nResume test\n");
+  const generated = spawnSync("ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "testsrc2=size=160x90:rate=12",
+    "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-f", "lavfi", "-i", "sine=frequency=880:sample_rate=48000",
+    "-i", subs, "-map", "0:v", "-map", "1:a", "-map", "2:a", "-map", "3:s", "-t", "9", "-c:v", "libx264",
+    "-threads", "1", "-c:a", "ac3", "-c:s", "srt", "-metadata:s:a:0", "language=cze", "-metadata:s:a:0", "title=Czech",
+    "-metadata:s:a:1", "language=eng", "-metadata:s:a:1", "title=English", "-metadata:s:s:0", "language=cze", "-y", file], {timeout: 15000});
+  assert.equal(generated.status, 0, generated.stderr?.toString());
+  const source = async (_url, range) => {
+    const size = (await fs.stat(file)).size, start = range ? Number(range.match(/\d+/)[0]) : 0;
+    const stream = createReadStream(file, {start}); stream.statusCode = range ? 206 : 200;
+    stream.headers = {"content-type": "video/x-matroska", "content-length": String(size-start), "accept-ranges": "bytes",
+      ...(range ? {"content-range": `bytes ${start}-${size-1}/${size}`} : {})};
+    return stream;
+  };
+  const session = {token: "fixture-account", device: "fixture-device", profile: {id: 1}, grant: "fixture-grant"};
+  const audioSelector = JSON.stringify(["eng", "English", "ac3"]), subtitleSelector = JSON.stringify(["cze", null, "subrip"]);
+  try {
+    for (const [key, expected] of [[subtitleSelector, 0], ["off", -1], ["missing-track", -1]]) {
+      const engine = createPlayback({requestMedia: source});
+      try {
+        const result = await engine.start(session, "https://h1.webshare.cz/resume", {offset: 2, audio: 0, subtitle: -1, audioSelector, subtitleSelector: key});
+        assert.equal(result.selected_audio, 1); assert.equal(result.selected_subtitle, expected);
+        assert.equal(result.audio[1].language, "eng");
+      } finally { await engine.close(); }
+    }
+  } finally { await fs.rm(dir, {recursive: true, force: true}); }
+});

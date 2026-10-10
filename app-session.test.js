@@ -1072,3 +1072,32 @@ test("Home refuses a policy change during load and carries scope even on upstrea
  let r=await h.request("home",{cookie:s.cookie});assert.equal(r.status,409);assert.equal(r.body.code,"home_policy_changed");assert.equal(r.body.viewer_scope.max_certification,7);
  fail=true;r=await h.request("home",{cookie:s.cookie});assert.equal(r.status,500);assert.equal(r.body.viewer_scope.is_kids,true);assert.equal(r.body.sections,undefined);
 });
+
+test("remembered live source survives a fresh BFF/session without another provider search and rejects another profile/title", async () => {
+  let searches = 0; const played = [];
+  const first = harness({providerClient: {searchFiles: async () => { searches++; return [{provider_name: "Hellspy",
+    source_stream_id: "42/hash", file_name: "Duna Cast druha 2024 1080p.mkv", available: true}]; }}});
+  const selected = await first.selected();
+  const found = await first.request("sources/1/hellspy", {cookie: selected.cookie});
+  assert.equal(found.status, 200);
+  const ticket = found.body.streams[0].resume_ticket;
+  assert.equal(typeof ticket, "string");
+  const beforeResume = searches;
+  const restarted = harness({playbackEngine: {start: async (_s, url, options) => {
+    played.push({url, options}); return {id: "resumed"}; }}});
+  const fresh = await restarted.selected();
+  const response = await restarted.request("playback", {method: "POST", cookie: fresh.cookie,
+    body: {source: "resume", title_id: 1, ticket, offset: 123, audio: 1, subtitle: -1, audio_selector: "remembered-audio", subtitle_selector: "off"}});
+  assert.equal(response.status, 200);
+  assert.equal(searches, beforeResume);
+  assert.equal(played[0].url, "https://api.hellspy.to/gw/video/42/hash/download");
+  assert.equal(played[0].options.offset, 123); assert.equal(played[0].options.audioSelector, "remembered-audio");
+  assert.equal(played[0].options.subtitleSelector, "off");
+  const otherProfile = await restarted.request("profile", {method: "POST", cookie: fresh.cookie, body: {id: 2, pin: "1234"}});
+  assert.equal(otherProfile.status, 200);
+  for (const [cookie, title_id, altered] of [[otherProfile.cookie, 1, ticket], [fresh.cookie, 2, ticket], [fresh.cookie, 1, ticket + "A"]]) {
+    const denied = await restarted.request("playback", {method: "POST", cookie, body: {source: "resume", title_id, ticket: altered}});
+    assert.equal(denied.status, 403);
+  }
+  assert.equal(played.length, 1);
+});

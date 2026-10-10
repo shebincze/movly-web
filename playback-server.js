@@ -555,8 +555,10 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
       if (!Number.isFinite(duration) || duration <= 0)
         throw Object.assign(fail(422, "Zdroj neobsahuje platnou délku videa."), { diagnosticStage: "video_analysis" });
       const offset = Number(options.offset || 0),
-        audio = Number(options.audio || 0),
         tracks = info.streams.filter((t) => t.codec_type === "audio");
+      const trackKey = t => JSON.stringify([t.tags?.language || null, t.tags?.title || null, t.codec_name || null]);
+      const audioMatch = typeof options.audioSelector === "string" ? tracks.findIndex(t => trackKey(t) === options.audioSelector) : -1;
+      const audio = options.audioSelector ? Math.max(0, audioMatch) : Number(options.audio || 0);
       if (
         !Number.isFinite(offset) ||
         offset < 0 ||
@@ -568,7 +570,9 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
         throw fail(400, "Neplatná pozice nebo zvuková stopa.");
       const subtitles = info.streams.filter((t) => t.codec_type === "subtitle");
       const subtitle =
-        options.subtitle === undefined ? -1 : Number(options.subtitle);
+        options.subtitleSelector === "off" ? -1 : typeof options.subtitleSelector === "string"
+          ? subtitles.findIndex(t => trackKey(t) === options.subtitleSelector)
+          : options.subtitle === undefined ? -1 : Number(options.subtitle);
       const textCodecs = ["subrip", "ass", "ssa", "webvtt", "mov_text", "text"];
       if (
         !Number.isInteger(subtitle) ||
@@ -710,6 +714,8 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
           audioChannels: plan.channels,
           subtitles: plan.bitmap ? "burned" : subtitle >= 0 ? "text" : "off",
         },
+        selected_audio: audio,
+        selected_subtitle: subtitle,
         audio: tracks.map((t, index) => ({
           index,
           language: t.tags?.language || null,
