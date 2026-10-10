@@ -24,7 +24,9 @@ run(['git','-C',str(release),'apply','--check',str(patch)]);run(['git','-C',str(
 # The old caller predates the owner-bound diagnostic draft parameter.
 main=release/'app/main.js';text=main.read_text();assert text.count('feedback(params, signal)')==1
 main.write_text(text.replace('feedback(params, signal)','feedback(params, signal, session.account)',1))
-for name in sorted(ALLOWED):run(['node','--check',str(release/name)])
+for name in sorted(ALLOWED):
+ os.chmod(release/name,0o644)
+ run(['node','--check',str(release/name)])
 after=hashes(release);changed={name for name in after if after[name]!=before.get(name)}
 assert changed<=ALLOWED and not(set(before)-set(after))
 # No source files outside the explicit feedback selection change.
