@@ -1615,6 +1615,12 @@ footer span {
   .source-row {
     gap: 8px;
   }
+  .sources-content .source-row {
+    flex-wrap: wrap;
+  }
+  .sources-content .source-row > div {
+    flex: 1 0 100%;
+  }
 }
 
 .badge.auto {
@@ -1928,3 +1934,5 @@ body:has(.feedback-page) #navigation [data-page=feedback] { display: flex; }
 .home-section > .error-state {
   margin-inline: var(--gutter);
 }
+
+.source-section-title { margin: 20px 0 4px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }

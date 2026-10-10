@@ -594,6 +594,7 @@ export const translations = {
     "Popis tohto titulu zatiaľ nie je dostupný.",
     "This title has no description yet.",
   ],
+  "Doporučené": ["Odporúčané", "Recommended"],
   "Populární streamy": ["Populárne streamy", "Popular streams"],
   Poskytovatel: ["Poskytovateľ", "Provider"],
   "Poslat kód": ["Poslať kód", "Send code"],
