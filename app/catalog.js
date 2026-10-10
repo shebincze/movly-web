@@ -1,3 +1,5 @@
+import { serverHome, homeItems, homeTracking, decorateHomeCards, resetHomeImpressions } from "./home.js";
+import { homeQuery, homeSections } from "./home-state.js";
 import { translateUI } from "./i18n.js";
 import {
   searchHistory,
@@ -36,6 +38,8 @@ function carousel(items, actions) {
   function show(next) {
     index = (next + items.length) % items.length;
     slide.replaceChildren(hero(items[index], actions.detail, actions.save));
+    if (items[index].homeHighlight?.label || items[index].homeHeading) slide.querySelector(".hero-content").prepend(el("p", { class: "meta" }, items[index].homeHighlight?.label || items[index].homeHeading));
+    actions.onHero?.(slide.firstElementChild, items[index]);
     dots
       .querySelectorAll("button")
       .forEach((b, i) => b.setAttribute("aria-pressed", String(i === index)));
@@ -85,90 +89,7 @@ function feedRail(group, actions, source = "main") {
   return node;
 }
 export async function home(signal, actions) {
-  const slugs = ["top-home", "top-watched", "popular-streaming", "csfd-tips"];
-  const results = await Promise.allSettled([
-    ...slugs.map((slug) =>
-      api(
-        `themed-lists/${slug}?page=1&limit=${slug === "top-watched" ? 10 : 30}`,
-        { signal },
-      ),
-    ),
-    api("themed-lists", { signal }),
-  ]);
-  const content = el("div", { class: "native-home" });
-  const heroResult = results[0];
-  if (heroResult.status === "fulfilled") {
-    const items = array(heroResult.value.items).map(title);
-    if (items.length) content.append(carousel(items.slice(0, 10), actions));
-  }
-  const collections = results[4];
-  if (collections.status === "fulfilled") {
-    const values = array(collections.value.lists);
-    if (values.length)
-      content.append(
-        el(
-          "section",
-          { class: "rail-section" },
-          el("h2", {}, translateUI("Kolekce")),
-          el(
-            "div",
-            { class: "collection-banners" },
-            values.map((c) =>
-              el(
-                "a",
-                {
-                  href: `#collection?source=themed&slug=${encodeURIComponent(c.slug)}`,
-                  class: "collection-banner",
-                },
-                imageURL(c.banner_url)
-                  ? el("img", {
-                      src: imageURL(c.banner_url),
-                      alt: "",
-                      loading: "lazy",
-                      onError: (e) => e.target.remove(),
-                    })
-                  : null,
-                el("strong", {}, c.name),
-                Number.isInteger(c.total_items)
-                  ? el("span", {}, translateUI("{0} titulů", c.total_items))
-                  : null,
-              ),
-            ),
-          ),
-        ),
-      );
-  }
-  results.forEach((r, i) => {
-    if (r.status === "rejected")
-      content.append(
-        el(
-          "div",
-          { class: "rail-section" },
-          el("p", {}, i === 4 ? translateUI("Kolekce") : slugs[i]),
-          errorBox(r.reason, actions.refresh),
-        ),
-      );
-    else if (i > 0 && i < 4)
-      content.append(
-        feedRail(
-          {
-            ...r.value,
-            name:
-              r.value.name ||
-              [
-                "",
-                translateUI("Nejsledovanější"),
-                translateUI("Populární streamy"),
-                translateUI("Tipy z ČSFD"),
-              ][i],
-            slug: slugs[i],
-          },
-          actions,
-          "themed",
-        ),
-      );
-  });
-  return content;
+  return serverHome(signal, actions, carousel);
 }
 // Stale-while-revalidate pro Filmy/Seriály: návrat na stránku vykreslí hned
 // poslední odpověď /main (do 5 min) a na pozadí ji tiše ověří. Osobní řady se
@@ -177,6 +98,7 @@ const CATALOG_TTL_MS = 5 * 60_000;
 const catalogCache = new Map();
 export function resetCatalogCache() {
   catalogCache.clear();
+  resetHomeImpressions();
 }
 function catalogKey(type) {
   return `main?type=${type}&limit=30`;
@@ -1088,17 +1010,21 @@ export async function collection(params, signal, actions) {
   if (!/^[a-z0-9_-]+$/.test(slug || ""))
     throw new Error(translateUI("Neplatný katalog."));
   const page = Math.max(1, Number(params.get("page")) || 1);
-  const data = await api(
-    `${params.get("source") === "themed" ? "themed-lists" : "main/lists"}/${slug}?page=${page}&limit=30`,
-    {
-      signal,
-    },
-  );
-  const list = data.list || data;
-  const items = array(
-    list.items || data.items,
-    translateUI("položky katalogu"),
-  ).map(title);
+  const source = params.get("source");
+  const fromHome = source === "home" || source === "home_collection";
+  const data = await api(fromHome ? homeQuery({ [source === "home" ? "section" : "collection"]: slug, page }) :
+    `${source === "themed" ? "themed-lists" : "main/lists"}/${slug}?page=${page}&limit=30`, { signal });
+  const rows = fromHome ? homeSections(data) : null;
+  if (fromHome && (rows.length !== 1 || rows[0].slug !== slug || rows[0].pagination?.page !== page)) throw new Error(translateUI("Neplatná řada Domů."));
+  const list = fromHome ? rows[0] : data.list || data;
+  if (fromHome && !["ready", "empty"].includes(list.state)) throw new Error(list.warning || translateUI("Řada se neobnovila."));
+  if (fromHome && list.kind === "collections") {
+    const node = serverHomeCollectionList(list, params);
+    return node;
+  }
+  const items = fromHome ? homeItems(list) : array(list.items || data.items, translateUI("položky katalogu")).map(title);
+  const tracker = fromHome ? homeTracking(signal, actions) : null;
+  if (tracker) tracker.setOwner(data.viewer_scope);
   const node = el(
     "div",
     { class: "page" },
@@ -1109,14 +1035,17 @@ export async function collection(params, signal, actions) {
       ? el(
           "div",
           { class: "catalog-grid" },
-          items.map((t) => poster(t, (selected) => openSearchResult(selected, items))),
+          items.map((t) => poster(t, tracker ? tracker.detail : actions.detail)),
         )
       : empty(
           translateUI("Katalog je prázdný"),
           translateUI("Zatím tu nejsou žádné tituly."),
         ),
   );
-  const pages = data.pagination?.total_pages ?? data.total_pages;
+  if (fromHome) {
+    decorateHomeCards(node, items, tracker);
+  }
+  const pages = list.pagination?.total_pages ?? data.pagination?.total_pages ?? data.total_pages;
   if (Number.isInteger(pages)) {
     const p = pagination("collection", params, page, pages);
     if (p) node.append(p);
@@ -1136,5 +1065,15 @@ export async function collection(params, signal, actions) {
     }
     node.append(controls);
   }
+  return node;
+}
+
+function serverHomeCollectionList(list, params) {
+  const node = el("div", { class: "page" }, el("a", { href: "#home", class: "text-link" }, translateUI("Zpět na Home")), el("h1", {}, list.name),
+    el("div", { class: "collection-banners" }, (list.collections || []).map(c => el("a", {
+      class: "collection-banner", href: `#collection?${new URLSearchParams({ source: "home_collection", slug: c.slug })}`,
+    }, el("strong", {}, c.name), el("span", {}, translateUI("{0} titulů", c.total_items))))));
+  const pager = pagination("collection", params, list.pagination.page, list.pagination.total_pages);
+  if (pager) node.append(pager);
   return node;
 }
