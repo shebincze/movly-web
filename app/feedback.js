@@ -69,7 +69,7 @@ function chooseFeedbackDialog(initialPlatform, diagnostics = null) {
       el("p", {}, t("Popiš, co nefunguje tak, jak má.")))));
 }
 
-function createDialog(kind, view, initialPlatform = "web", diagnostics = null) {
+export function createDialog(kind, view, initialPlatform = "web", diagnostics = null) {
   let requestId = crypto.randomUUID(), attempted = null;
   const title = el("input", { required: true, minlength: 3, maxlength: 120, value: diagnostics ? `${diagnostics.provider || "Movly"}: ${diagnostics.stage || "chyba"}` : "" });
   const description = el("textarea", { required: true, minlength: 10, maxlength: 5000, rows: 6 });
@@ -88,7 +88,10 @@ function createDialog(kind, view, initialPlatform = "web", diagnostics = null) {
   } }, formField(t("Název"), title), formField(t(kind === "bug" ? "Co se stalo a co jsi očekával/a?" : "Co bys chtěl/a vylepšit a proč?"), description), formField(t("Platforma"), platform),
   diagnostics ? diagnosticPreview(diagnostics) : null,
   el("p", {}, t(kind === "idea" ? "Návrh bude veřejný. Screenshoty a diagnostika zůstávají soukromé." : "Hlášení a odpovědi uvidíš jen ty a tým Movly. Screenshot můžeš přidat po odeslání.")), submit, message);
-  showDialog(el("div", { class: "dialog-body" }, el("h2", {}, t(kind === "bug" ? "Nahlásit chybu" : "Přidat nápad")), form));
+  const dialog = showDialog(el("div", { class: "dialog-body" }, el("h2", {}, t(kind === "bug" ? "Nahlásit chybu" : "Přidat nápad")), form));
+  const revoke = () => dialog.close();
+  window.addEventListener("movly-offline-revoked", revoke, { once: true });
+  dialog.addEventListener("close", () => window.removeEventListener("movly-offline-revoked", revoke), { once: true });
 }
 
 function adminEditor(item, refresh) {

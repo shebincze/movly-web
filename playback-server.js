@@ -546,12 +546,14 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
       };
       sessions.set(p.id, p);
       const input = `http://127.0.0.1:${port}/${p.id}`;
-      const info = await probe(input);
+      let info;
+      try { info = await probe(input); }
+      catch (error) { error.diagnosticStage = "video_analysis"; throw error; }
       if (!info.streams?.some((t) => t.codec_type === "video"))
-        throw fail(422, "Soubor neobsahuje video.");
+        throw Object.assign(fail(422, "Soubor neobsahuje video."), { diagnosticStage: "video_analysis" });
       const duration = Number(info.format?.duration);
       if (!Number.isFinite(duration) || duration <= 0)
-        throw fail(422, "Zdroj neobsahuje platnou délku videa.");
+        throw Object.assign(fail(422, "Zdroj neobsahuje platnou délku videa."), { diagnosticStage: "video_analysis" });
       const offset = Number(options.offset || 0),
         audio = Number(options.audio || 0),
         tracks = info.streams.filter((t) => t.codec_type === "audio");
