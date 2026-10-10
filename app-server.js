@@ -106,7 +106,7 @@ function createAppHandler({
     "X-Client-App": "movly-web",
     "X-Movly-Profile-Authorization": "explicit-grant-v1",
     ...(s?.profile
-      ? { "X-Profile-ID": String(s.profile.id), "X-Profile-Grant": s.grant }
+      ? { "X-Profile-ID": String(s.profile.id), ...(s.grant ? { "X-Profile-Grant": s.grant } : {}) }
       : {}),
   });
   async function call(s, target, method = "GET", body = null, extra = {}) {
@@ -795,8 +795,7 @@ function createAppHandler({
         if (
           selected?.profile_id !== Number(body.id) ||
           typeof selected.name !== "string" ||
-          typeof selected.grant_token !== "string" ||
-          !selected.grant_token
+          (selected.grant_token != null && (typeof selected.grant_token !== "string" || !selected.grant_token))
         ) {
           throw new HttpError(
             502,
@@ -812,13 +811,13 @@ function createAppHandler({
           name: selected.name,
           avatar_url: selectedProfile?.avatar_url || null,
         };
-        next.grant = selected.grant_token;
-        next.grantExpiresAt = selected.grant_expires_at;
+        next.grant = selected.grant_token || null;
+        next.grantExpiresAt = selected.grant_token ? selected.grant_expires_at : null;
         writeSession(res, next);
         json(res, 200, { profile: next.profile });
         return true;
       }
-      if (!s.profile || !s.grant)
+      if (!s.profile)
         throw new HttpError(409, "Nejdřív vyber profil.", {
           code: "app_profile_required",
         });
@@ -1461,7 +1460,7 @@ function createAppHandler({
           target,
           s.token,
           s.device,
-          { "X-Profile-ID": String(s.profile.id), "X-Profile-Grant": s.grant },
+          { "X-Profile-ID": String(s.profile.id), ...(s.grant ? { "X-Profile-Grant": s.grant } : {}) },
           res,
         );
         return true;

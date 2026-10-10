@@ -244,11 +244,11 @@ test("partial upstream results remain explicitly degraded", async () => {
     payload,
   );
 });
-test("missing profile grant fails closed", async () => {
+test("malformed profile management grant fails closed", async () => {
   const h = harness({
       override: (p) =>
         p.endsWith("/select")
-          ? { payload: { profile_id: 1, name: "Test" } }
+          ? { payload: { profile_id: 1, name: "Test", grant_token: 123 } }
           : undefined,
     }),
     l = await h.login();
@@ -1100,4 +1100,25 @@ test("remembered live source survives a fresh BFF/session without another provid
     assert.equal(denied.status, 403);
   }
   assert.equal(played.length, 1);
+});
+
+test("authorized child selection without a management grant clears the adult grant", async () => {
+  const h = harness({ override: (path, method, body, token, device, headers) => {
+    if (path === "v1/profiles/2/select") {
+      assert.equal(headers["X-Profile-Grant"], "pin-grant");
+      return { payload: { profile_id: 2, name: "Chráněný profil" } };
+    }
+    if (path.startsWith("v1/home?")) return { payload: { version: 1, sections: [] } };
+  } });
+  const adult = await h.selected();
+  const child = await h.request("profile", { method: "POST", cookie: adult.cookie, body: { id: 2, pin: "1234" } });
+  assert.equal(child.status, 200);
+  assert.equal(child.body.profile.id, 2);
+  const home = await h.request("home", { cookie: child.cookie });
+  assert.equal(home.status, 200);
+  assert.equal(home.body.viewer_scope.profile_id, 2);
+  assert.equal(home.body.viewer_scope.is_kids, true);
+  const call = h.calls.findLast(c => c[0].startsWith("v1/home?"));
+  assert.equal(call[5]["X-Profile-ID"], "2");
+  assert.equal(Object.hasOwn(call[5], "X-Profile-Grant"), false);
 });
