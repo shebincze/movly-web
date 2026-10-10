@@ -110,7 +110,7 @@ function createAppHandler({
       : {}),
   });
   async function call(s, target, method = "GET", body = null, extra = {}) {
-    const identityOnly = target.startsWith("auth/") || target === "profiles";
+    const identityOnly = target.startsWith("auth/") || (target === "profiles" && method === "GET");
     return (
       await api(`v1/${target}`, method, body, s?.token, s?.device, {
         ...headersFor(identityOnly ? { ...s, profile: null } : s),
