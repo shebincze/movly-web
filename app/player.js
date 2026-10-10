@@ -295,11 +295,7 @@ export async function sources(
           ...(episode ? { episode_id: episode.id } : {}),
         };
         Object.defineProperty(selection, "playback_owner", { value: sourceOwner });
-      Object.defineProperty(selection, "diagnostic_provider", { value: stream.provider_name || stream.provider_identifier });
-      if (stream.origin >= 2) Object.defineProperty(selection, "resume_selection", { value: stream.resume_ticket
-        ? { title_id: t.id, source: "resume", ticket: stream.resume_ticket, episode_id: episode.id }
-        : { title_id: t.id, source: "lookup", provider: stream.provider_name || stream.provider_identifier,
-            name: stream.file_name, quality: stream.video_height || null, size: stream.file_size || null } });
+        Object.defineProperty(selection, "diagnostic_provider", { value: stream.provider_name || stream.provider_identifier });
         if (stream.origin >= 2) Object.defineProperty(selection, "resume_selection", { value: stream.resume_ticket
           ? { title_id: t.id, source: "resume", ticket: stream.resume_ticket, ...(episode ? { episode_id: episode.id } : {}) }
           : { title_id: t.id, source: "lookup", provider: stream.provider_name || stream.provider_identifier,
