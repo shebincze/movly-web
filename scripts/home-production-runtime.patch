@@ -1,0 +1,385 @@
+--- a/app-server.js
++++ b/app-server.js
+@@ -106,7 +106,7 @@
+     "X-Client-App": "movly-web",
+     "X-Movly-Profile-Authorization": "explicit-grant-v1",
+     ...(s?.profile
+-      ? { "X-Profile-ID": String(s.profile.id), "X-Profile-Grant": s.grant }
++      ? { "X-Profile-ID": String(s.profile.id), ...(s.grant ? { "X-Profile-Grant": s.grant } : {}) }
+       : {}),
+   });
+   async function call(s, target, method = "GET", body = null, extra = {}) {
+@@ -142,6 +142,7 @@
+       throw new HttpError(403, "Účet musí být aktivní a ověřený.");
+     const role = roles.includes(user.role) ? user.role : "user";
+     return {
++      id: Number.isSafeInteger(user.id) && user.id > 0 ? user.id : null,
+       username: user.username,
+       displayName: user.display_name || user.username,
+       role,
+@@ -385,6 +386,10 @@
+         throw new HttpError(400, "Neplatný titul nebo epizoda.");
+       if (k === "offset" && (!/^\d+$/.test(v) || Number(v) > 100000))
+         throw new HttpError(400, "Neplatné stránkování.");
++      if (["section", "collection"].includes(k) && !/^[a-z0-9_-]{1,100}$/.test(v))
++        throw new HttpError(400, "Neplatná řada Domů.");
++      if (k === "include_highlights" && !["true", "false"].includes(v))
++        throw new HttpError(400, "Neplatný filtr katalogu.");
+       if (k === "type" && !["movie", "tv", "both"].includes(v))
+         throw new HttpError(400, "Neplatný typ titulu.");
+       if (
+@@ -412,6 +417,7 @@
+         throw new HttpError(400, "Neplatné hodnocení.");
+       q.set(k, v);
+     }
++    if (q.has("section") && q.has("collection")) throw new HttpError(400, "Neplatná řada Domů.");
+     q.set("lang", "cs");
+     return `?${q}`;
+   }
+@@ -423,6 +429,8 @@
+     ["GET", /^party\/[a-f0-9]{32}$/, []],
+     ["POST", /^party\/[a-f0-9]{32}\/(?:preparation|leave)$/, []],
+     ["PUT", /^party\/[a-f0-9]{32}\/state$/, []],
++    ["GET", /^home$/, ["section", "collection", "page", "include_highlights"]],
++    ["POST", /^recommendations\/action$/, []],
+     ["GET", /^themed-lists$/, []],
+     ["GET", /^themed-lists\/[a-z0-9_-]+$/, ["page", "limit"]],
+     ["GET", /^titles\/[1-9]\d*\/similar$/, ["limit"]],
+@@ -726,8 +734,7 @@
+         if (
+           selected?.profile_id !== Number(body.id) ||
+           typeof selected.name !== "string" ||
+-          typeof selected.grant_token !== "string" ||
+-          !selected.grant_token
++          (selected.grant_token != null && (typeof selected.grant_token !== "string" || !selected.grant_token))
+         ) {
+           throw new HttpError(
+             502,
+@@ -743,13 +750,13 @@
+           name: selected.name,
+           avatar_url: selectedProfile?.avatar_url || null,
+         };
+-        next.grant = selected.grant_token;
+-        next.grantExpiresAt = selected.grant_expires_at;
++        next.grant = selected.grant_token || null;
++        next.grantExpiresAt = selected.grant_token ? selected.grant_expires_at : null;
+         writeSession(res, next);
+         json(res, 200, { profile: next.profile });
+         return true;
+       }
+-      if (!s.profile || !s.grant)
++      if (!s.profile)
+         throw new HttpError(409, "Nejdřív vyber profil.", {
+           code: "app_profile_required",
+         });
+@@ -1137,7 +1144,7 @@
+       if (/^party\/[a-f0-9]{32}\/events$/.test(target) && req.method === "GET") {
+         await call(s, "watchlists?lang=cs");
+         if (!partyStream) throw new HttpError(503, "Spojení party není dostupné.");
+-        await partyStream(target, s.token, s.device, { "X-Profile-ID": String(s.profile.id), "X-Profile-Grant": s.grant }, res);
++        await partyStream(target, s.token, s.device, { "X-Profile-ID": String(s.profile.id), ...(s.grant ? { "X-Profile-Grant": s.grant } : {}) }, res);
+         return true;
+       }
+       const rule = routes.find(
+@@ -1149,6 +1156,34 @@
+           "Tato funkce není ve webové aplikaci dostupná.",
+         );
+       let query = cleanQuery(url, rule[2]);
++      if (target === "home") {
++        if (!Number.isSafeInteger(account.id) || account.id < 1) throw new HttpError(502, "API vrátilo neplatný účet.");
++        const currentScope = async () => {
++          const current = (await call(s, "profiles")).find(p => p.id === s.profile.id);
++          if (!current) throw new HttpError(403, "Profil již není dostupný.");
++          return { account_id: account.id, profile_id: current.id,
++            is_kids: current.is_kids === true, max_certification: current.max_certification ?? 18,
++            allow_unrated: current.allow_unrated === true };
++        };
++        const before = await currentScope();
++        let result;
++        try { result = await call(s, target + query); }
++        catch (error) {
++          const scope = await currentScope();
++          const unavailable = new HttpError(error.status || 502, "Domů se nepodařilo načíst.", { code: error.payload?.code || "home_unavailable" });
++          unavailable.homeViewerScope = scope;
++          throw unavailable;
++        }
++        const scope = await currentScope();
++        if (JSON.stringify(before) !== JSON.stringify(scope)) {
++          const changed = new HttpError(409, "Pravidla profilu se změnila. Zkusit znovu.", { code: "home_policy_changed" });
++          changed.homeViewerScope = scope;
++          throw changed;
++        }
++        json(res, 200, { ...result, viewer_scope: scope });
++        return true;
++      }
++
+       if (/^titles\/[1-9]\d*$/.test(target))
+         query +=
+           "&expand=credits,seasons,collection,videos,ratings,streams,watch_history";
+@@ -1164,7 +1199,18 @@
+       let body = null;
+       if (["POST", "PUT"].includes(req.method)) {
+         body = objectBody(await readBody(req, 8192));
+-        if (/^integrations\/(?:trakt|simkl)\/authorization\/poll$/.test(target)) {
++        if (target === "recommendations/action") {
++          if (typeof body.request_id !== "string" || !body.request_id || body.request_id.length > 200 ||
++              !integer(body.title_id) || !["view", "click"].includes(body.action) ||
++              !Number.isSafeInteger(body.position) || body.position < 1 || body.position > 10000 ||
++              typeof body.section !== "string" || !body.section || body.section.length > 100 ||
++              typeof body.list_slug !== "string" || !body.list_slug || body.list_slug.length > 100 ||
++              (body.seed_title_id != null && !integer(body.seed_title_id)))
++            throw new HttpError(400, "Neplatná událost doporučení.");
++          body = { request_id: body.request_id, title_id: Number(body.title_id), action: body.action,
++            position: body.position, section: body.section, list_slug: body.list_slug,
++            ...(body.seed_title_id ? { seed_title_id: Number(body.seed_title_id) } : {}), device_type: "web", platform: "web" };
++        } else if (/^integrations\/(?:trakt|simkl)\/authorization\/poll$/.test(target)) {
+           if (typeof body.id !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(body.id)) throw new HttpError(400, "Neplatný kód propojení.");
+           body = { id: body.id };
+         } else if (target.startsWith("integrations/")) {
+@@ -1313,6 +1359,7 @@
+       json(res, status, {
+         message: error.message || "Požadavek se nepodařilo dokončit.",
+         code: error.code || error.payload?.code || null,
++        ...(target === "home" && error.homeViewerScope ? { viewer_scope: error.homeViewerScope } : {}),
+         ...(["source_resolve", "video_analysis", "playback"].includes(error.diagnosticStage) ? { diagnostic_stage: error.diagnosticStage } : {}),
+       });
+     }
+--- a/app/catalog.js
++++ b/app/catalog.js
+@@ -1,3 +1,6 @@
++import { serverHome, homeItems, homeTracking, decorateHomeCards, resetHomeImpressions } from "./home.js";
++import { homeQuery, homeSections } from "./home-state.js";
++import { translateUI } from "./i18n.js";
+ import { api, array, title, imageURL } from "./api.js";
+ import {
+   applyUserState,
+@@ -29,6 +32,8 @@
+   function show(next) {
+     index = (next + items.length) % items.length;
+     slide.replaceChildren(hero(items[index], actions.detail, actions.save));
++    if (items[index].homeHighlight?.label || items[index].homeHeading) slide.querySelector(".hero-content").prepend(el("p", { class: "meta" }, items[index].homeHighlight?.label || items[index].homeHeading));
++    actions.onHero?.(slide.firstElementChild, items[index]);
+     dots
+       .querySelectorAll("button")
+       .forEach((b, i) => b.setAttribute("aria-pressed", String(i === index)));
+@@ -78,85 +83,7 @@
+   return node;
+ }
+ export async function home(signal, actions) {
+-  const slugs = ["top-home", "top-watched", "popular-streaming", "csfd-tips"];
+-  const results = await Promise.allSettled([
+-    ...slugs.map((slug) =>
+-      api(
+-        `themed-lists/${slug}?page=1&limit=${slug === "top-watched" ? 10 : 30}`,
+-        { signal },
+-      ),
+-    ),
+-    api("themed-lists", { signal }),
+-  ]);
+-  const content = el("div", { class: "native-home" });
+-  const heroResult = results[0];
+-  if (heroResult.status === "fulfilled") {
+-    const items = array(heroResult.value.items).map(title);
+-    if (items.length) content.append(carousel(items.slice(0, 10), actions));
+-  }
+-  const collections = results[4];
+-  if (collections.status === "fulfilled") {
+-    const values = array(collections.value.lists);
+-    if (values.length)
+-      content.append(
+-        el(
+-          "section",
+-          { class: "rail-section" },
+-          el("h2", {}, "Kolekce"),
+-          el(
+-            "div",
+-            { class: "collection-banners" },
+-            values.map((c) =>
+-              el(
+-                "a",
+-                {
+-                  href: `#collection?source=themed&slug=${encodeURIComponent(c.slug)}`,
+-                  class: "collection-banner",
+-                },
+-                imageURL(c.banner_url)
+-                  ? el("img", {
+-                      src: imageURL(c.banner_url),
+-                      alt: "",
+-                      loading: "lazy",
+-                      onError: (e) => e.target.remove(),
+-                    })
+-                  : null,
+-                el("strong", {}, c.name),
+-                Number.isInteger(c.total_items)
+-                  ? el("span", {}, `${c.total_items} titulů`)
+-                  : null,
+-              ),
+-            ),
+-          ),
+-        ),
+-      );
+-  }
+-  results.forEach((r, i) => {
+-    if (r.status === "rejected")
+-      content.append(
+-        el(
+-          "div",
+-          { class: "rail-section" },
+-          el("p", {}, i === 4 ? "Kolekce" : slugs[i]),
+-          errorBox(r.reason, actions.refresh),
+-        ),
+-      );
+-    else if (i > 0 && i < 4)
+-      content.append(
+-        feedRail(
+-          {
+-            ...r.value,
+-            name:
+-              r.value.name ||
+-              ["", "Nejsledovanější", "Populární streamy", "Tipy z ČSFD"][i],
+-            slug: slugs[i],
+-          },
+-          actions,
+-          "themed",
+-        ),
+-      );
+-  });
+-  return content;
++  return serverHome(signal, actions, carousel);
+ }
+ // Stale-while-revalidate pro Filmy/Seriály: návrat na stránku vykreslí hned
+ // poslední odpověď /main (do 5 min) a na pozadí ji tiše ověří. Osobní řady se
+@@ -165,6 +92,7 @@
+ const catalogCache = new Map();
+ export function resetCatalogCache() {
+   catalogCache.clear();
++  resetHomeImpressions();
+ }
+ function catalogKey(type) {
+   return `main?type=${type}&limit=30`;
+@@ -839,39 +767,53 @@
+ }
+ export async function collection(params, signal, actions) {
+   const slug = params.get("slug");
+-  if (!/^[a-z0-9_-]+$/.test(slug || "")) throw new Error("Neplatný katalog.");
++  if (!/^[a-z0-9_-]+$/.test(slug || ""))
++    throw new Error(translateUI("Neplatný katalog."));
+   const page = Math.max(1, Number(params.get("page")) || 1);
+-  const data = await api(
+-    `${params.get("source") === "themed" ? "themed-lists" : "main/lists"}/${slug}?page=${page}&limit=30`,
+-    {
+-      signal,
+-    },
+-  );
+-  const list = data.list || data;
+-  const items = array(list.items || data.items, "položky katalogu").map(title);
++  const source = params.get("source");
++  const fromHome = source === "home" || source === "home_collection";
++  const data = await api(fromHome ? homeQuery({ [source === "home" ? "section" : "collection"]: slug, page }) :
++    `${source === "themed" ? "themed-lists" : "main/lists"}/${slug}?page=${page}&limit=30`, { signal });
++  const rows = fromHome ? homeSections(data) : null;
++  if (fromHome && (rows.length !== 1 || rows[0].slug !== slug || rows[0].pagination?.page !== page)) throw new Error(translateUI("Neplatná řada Domů."));
++  const list = fromHome ? rows[0] : data.list || data;
++  if (fromHome && !["ready", "empty"].includes(list.state)) throw new Error(list.warning || translateUI("Řada se neobnovila."));
++  if (fromHome && list.kind === "collections") {
++    const node = serverHomeCollectionList(list, params);
++    return node;
++  }
++  const items = fromHome ? homeItems(list) : array(list.items || data.items, translateUI("položky katalogu")).map(title);
++  const tracker = fromHome ? homeTracking(signal, actions) : null;
++  if (tracker) tracker.setOwner(data.viewer_scope);
+   const node = el(
+     "div",
+     { class: "page" },
+-    el("a", { href: "#home", class: "text-link" }, "Zpět na Home"),
+-    el("h1", {}, list.name || "Katalog"),
++    el("a", { href: "#home", class: "text-link" }, translateUI("Zpět na Home")),
++    el("h1", {}, list.name || translateUI("Katalog")),
+     warning(data),
+     items.length
+       ? el(
+           "div",
+           { class: "catalog-grid" },
+-          items.map((t) => poster(t, actions.detail)),
++          items.map((t) => poster(t, tracker ? tracker.detail : actions.detail)),
+         )
+-      : empty("Katalog je prázdný", "Zatím tu nejsou žádné tituly."),
+-  );
+-  const pages = data.pagination?.total_pages ?? data.total_pages;
++      : empty(
++          translateUI("Katalog je prázdný"),
++          translateUI("Zatím tu nejsou žádné tituly."),
++        ),
++  );
++  if (fromHome) {
++    decorateHomeCards(node, items, tracker);
++  }
++  const pages = list.pagination?.total_pages ?? data.pagination?.total_pages ?? data.total_pages;
+   if (Number.isInteger(pages)) {
+     const p = pagination("collection", params, page, pages);
+     if (p) node.append(p);
+   } else if (list.has_more || page > 1) {
+     const controls = el("div", { class: "pagination" });
+     for (const [label, delta] of [
+-      ["Předchozí", -1],
+-      ["Další", 1],
++      [translateUI("Předchozí"), -1],
++      [translateUI("Další"), 1],
+     ]) {
+       const b = button(label, () => {
+         const p = new URLSearchParams(params);
+@@ -885,3 +827,13 @@
+   }
+   return node;
+ }
++
++function serverHomeCollectionList(list, params) {
++  const node = el("div", { class: "page" }, el("a", { href: "#home", class: "text-link" }, translateUI("Zpět na Home")), el("h1", {}, list.name),
++    el("div", { class: "collection-banners" }, (list.collections || []).map(c => el("a", {
++      class: "collection-banner", href: `#collection?${new URLSearchParams({ source: "home_collection", slug: c.slug })}`,
++    }, el("strong", {}, c.name), el("span", {}, translateUI("{0} titulů", c.total_items))))));
++  const pager = pagination("collection", params, list.pagination.page, list.pagination.total_pages);
++  if (pager) node.append(pager);
++  return node;
++}
+--- a/app/api.js
++++ b/app/api.js
+@@ -3,6 +3,7 @@
+     super(body?.message || `Požadavek selhal (${status}).`);
+     this.status = status;
+     this.code = body?.code;
++    this.body = body;
+   }
+ }
+ export async function api(path, { method = "GET", body, signal, expectedOwner } = {}) {
+--- a/app/styles.css
++++ b/app/styles.css
+@@ -1862,3 +1862,17 @@
+ }
+ 
+ .source-section-title { margin: 20px 0 4px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
++
++/* Reserve space for Home carousel controls below the title actions. */
++.home-carousel .hero {
++  padding-bottom: 100px;
++}
++.home-section > .text-link {
++  display: inline-block;
++  margin-inline: var(--gutter);
++}
++.home-section > .error-state {
++  margin-inline: var(--gutter);
++}
++
++.source-section-title { margin: 20px 0 4px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+--- a/app/offline-sw.js
++++ b/app/offline-sw.js
+@@ -1,6 +1,6 @@
+ import { get, mayRead, CHUNK_BYTES } from "./offline-store.js";
+-const CACHE = "movly-offline-shell-v5-recommendations";
+-const FILES = ["/app/", "/app/styles.css", ...["main", "api", "ui", "catalog", "library", "profiles", "personal", "friends", "admin", "auth", "provider-settings", "tracking-settings", "stream-feedback", "stream-recommendations", "player", "party", "party-clock", "user-state", "episode-policy", "offline", "offline-store"].map(s => `/app/${s}.js`), "/app/vendor/hls.mjs"];
++const CACHE = "movly-offline-shell-v6-home-resume";
++const FILES = ["/app/", "/app/styles.css", ...["main", "api", "ui", "catalog", "home", "home-state", "playback-memory", "library", "profiles", "personal", "friends", "admin", "auth", "provider-settings", "tracking-settings", "stream-feedback", "stream-recommendations", "player", "party", "party-clock", "user-state", "episode-policy", "offline", "offline-store"].map(s => `/app/${s}.js`), "/app/vendor/hls.mjs"];
+ self.addEventListener("install", event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting())));
+ self.addEventListener("activate", event => event.waitUntil(Promise.all([self.clients.claim(), caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith("movly-offline-shell-") && k !== CACHE).map(k => caches.delete(k))))])));
+ 
