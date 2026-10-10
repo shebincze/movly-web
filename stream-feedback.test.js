@@ -33,3 +33,17 @@ test("compatible quality actually scales full HD while native mode preserves the
   assert.equal(mediaPlan(info, 0, -1, { maxWidth: 1920 }).copyVideo, true);
   assert.equal(mediaPlan(info, 0, -1, { maxWidth: 1280, videoMode: "native" }).copyVideo, true);
 });
+test("manual audio fills only unknown tracks and never promotes file hints", () => {
+  const input = { title: { id: 5 }, provider: "Webshare", providerID: 1, ident: "fixture", analysis: { streams: [
+    { codec_type: "video", height: 1080 },
+    { codec_type: "audio", index: 1, tags: { language: "eng" } },
+    { codec_type: "audio", index: 2, tags: { language: "und" }, disposition: { default: 1 } },
+    { codec_type: "audio", index: 3 }
+  ] } };
+  assert.throws(() => streamUploadPayload(input), e => e.code === "audio_confirmation_required" && JSON.stringify(e.unknownTracks) === "[2,3]");
+  const body = streamUploadPayload({ ...input, confirmedAudioLanguages: ["cs", "sk"] });
+  assert.deepEqual(body.audio_streams.map(t => t.audio_language), ["eng", "cze", "slk"]);
+  assert.equal(body.audio_language, "cze");
+  for (const confirmedAudioLanguages of [["cs"], ["cs", "sk", "en"], ["und", "sk"]])
+    assert.throws(() => streamUploadPayload({ ...input, confirmedAudioLanguages }), { code: "audio_confirmation_required" });
+});
