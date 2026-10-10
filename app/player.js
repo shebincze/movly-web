@@ -1,3 +1,4 @@
+import { streamPickerSections } from "./stream-recommendations.js";
 import { createDialog as createFeedbackDialog } from "./feedback.js";
 import { playbackDiagnostics } from "./playback-diagnostics.js";
 import { translateUI } from "./i18n.js";
@@ -238,7 +239,19 @@ export async function sources(
       pending ? translateUI(" · hledání pokračuje ({0})", pending) : "",
     );
     list.replaceChildren(
-      ...filtered.map((stream) => {
+      ...streamPickerSections(filtered, autoPlay || autoDownload ? null : {
+        title: t.title, originalTitle: t.original_title,
+        year: t.year || Number(String(t.release_date || "").slice(0, 4)) || null,
+        season: episode?.season_number, episode: episode?.episode_number,
+        runtimeMinutes: episode?.runtime || t.runtime,
+        downlinkMbps: navigator.connection?.downlink,
+        displayMaxRank: (() => {
+          const width = Math.max(screen.width, screen.height) * (window.devicePixelRatio || 1);
+          return width >= 7680 ? 5 : width >= 3840 ? 4 : width >= 2560 ? 3 : width >= 1920 ? 2 : width >= 1280 ? 1 : 0;
+        })(),
+        wideColor: window.matchMedia("(dynamic-range: high)").matches,
+      }, s => supportedProvider.test(s.provider_name || s.provider_identifier || "") && providerReady(s))
+        .flatMap(section => [el("h3", { class: "source-section-title" }, `${translateUI(section.name)} · ${section.streams.length}`), ...section.streams.map((stream) => {
         const supported =
           supportedProvider.test(
             stream.provider_name || stream.provider_identifier || "",
@@ -357,7 +370,7 @@ export async function sources(
               )
             : null,
         );
-      }),
+      })]),
     );
     if (!filtered.length && !pending)
       list.append(
