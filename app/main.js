@@ -1,6 +1,7 @@
 import { translateShell, uiLanguage, setUILanguage } from "./i18n.js";
 import { translateUI } from "./i18n.js";
 import { premium } from "./premium.js";
+import { setPlaybackOwner } from "./playback-memory.js";
 import { setSearchOwner } from "./search-history.js";
 import { leaveParty } from "./party.js";
 import { accountForm } from "./auth.js";
@@ -91,6 +92,7 @@ dialog.addEventListener("close", () => {
 });
 function chrome() {
   setSearchOwner(session?.account, session?.profile);
+  setPlaybackOwner(session?.account, session?.profile);
   const ready = Boolean(session?.profile);
   document.querySelector("#navigation").hidden = !ready;
   document.querySelector("#header-actions").hidden = !session;

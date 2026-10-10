@@ -22,6 +22,7 @@ import {
   formField,
   toast,
 } from "./ui.js";
+import { playbackOwner, recalledPlayback, rememberPlayback, samePlaybackSource } from "./playback-memory.js";
 import Hls from "./vendor/hls.mjs";
 import { nextReleasedEpisode, episodeReleaseState } from "./episode-policy.js";
 import { saveOffline } from "./offline.js";
@@ -84,12 +85,27 @@ let sourceRevision = 0;
 export async function sources(
   t,
   episode,
-  { autoPlay = false, autoDownload = false } = {},
+  { autoPlay = false, autoDownload = false, skipResume = false } = {},
 ) {
   if (episode && episodeReleaseState(episode.air_date) === "upcoming")
     throw new Error(translateUI("Epizoda ještě neměla premiéru."));
   await stop();
   const revision = ++sourceRevision;
+  const sourceOwner = playbackOwner();
+  let savedLookup = null;
+  if (!skipResume && !autoDownload && !partyState()?.title_id) {
+    const saved = recalledPlayback(t.id, episode);
+    if (saved) {
+      try {
+        const position = await api(`watch-history/position/${t.id}${episode ? `?season_number=${episode.season_number}&episode_number=${episode.episode_number}` : ""}`);
+        if (revision !== sourceRevision || sourceOwner?.generation !== playbackOwner()?.generation) return;
+        if (position.watch_status !== "completed" && position.progress_seconds > 5) {
+          if (saved.selection.source === "lookup") savedLookup = { ...saved, offset: position.progress_seconds };
+          else if (await play(t, episode, saved.selection, position.progress_seconds)) return;
+        }
+      } catch (e) { if (e.status !== 404) toast(e.message); }
+    }
+  }
   const content = el(
     "div",
     { class: "dialog-body sources-content" },
@@ -141,7 +157,7 @@ export async function sources(
       "div",
       { class: "actions" },
       button(translateUI("Úložiště a doplňky"), providerSettings, "small"),
-      button(translateUI("Obnovit zdroje"), () => sources(t, episode), "small"),
+      button(translateUI("Obnovit zdroje"), () => sources(t, episode, { skipResume: true }), "small"),
     ),
     el("div", { class: "source-filters" }, search, provider, quality, sort),
     summary,
@@ -278,7 +294,16 @@ export async function sources(
             : { source: stream.origin ? "ai" : "human", stream_id: stream.id }),
           ...(episode ? { episode_id: episode.id } : {}),
         };
-        Object.defineProperty(selection, "diagnostic_provider", { value: stream.provider_name || stream.provider_identifier });
+        Object.defineProperty(selection, "playback_owner", { value: sourceOwner });
+      Object.defineProperty(selection, "diagnostic_provider", { value: stream.provider_name || stream.provider_identifier });
+      if (stream.origin >= 2) Object.defineProperty(selection, "resume_selection", { value: stream.resume_ticket
+        ? { title_id: t.id, source: "resume", ticket: stream.resume_ticket, episode_id: episode.id }
+        : { title_id: t.id, source: "lookup", provider: stream.provider_name || stream.provider_identifier,
+            name: stream.file_name, quality: stream.video_height || null, size: stream.file_size || null } });
+        if (stream.origin >= 2) Object.defineProperty(selection, "resume_selection", { value: stream.resume_ticket
+          ? { title_id: t.id, source: "resume", ticket: stream.resume_ticket, ...(episode ? { episode_id: episode.id } : {}) }
+          : { title_id: t.id, source: "lookup", provider: stream.provider_name || stream.provider_identifier,
+              name: stream.file_name, quality: stream.video_height || null, size: stream.file_size || null } });
         const choice = button(
           translateUI("Přehrát"),
           () => play(t, episode, selection),
@@ -416,6 +441,17 @@ export async function sources(
       }
     }),
   );
+  if (savedLookup && revision === sourceRevision && dialog.open) {
+    const reference = savedLookup.selection;
+    const matching = [...results].flatMap(([origin, streams]) => streams.map(stream => ({ ...stream, origin })))
+      .filter(stream => (stream.provider_name || stream.provider_identifier) === reference.provider && stream.file_name === reference.name
+        && (stream.video_height || null) === reference.quality && (stream.file_size || null) === reference.size && stream.available !== false);
+    if (matching.length === 1) {
+      const stream = matching[0];
+      const selection = { title_id: t.id, source: "live", ticket: stream.ticket, ...(episode ? { episode_id: episode.id } : {}), resume_selection: reference };
+      if (await play(t, episode, selection, savedLookup.offset)) return;
+    }
+  }
   if (
     (autoPlay || autoDownload) &&
     revision === sourceRevision &&
@@ -443,7 +479,12 @@ export async function sources(
           : { source: stream.origin ? "ai" : "human", stream_id: stream.id }),
         episode_id: episode.id,
       };
+      Object.defineProperty(selection, "playback_owner", { value: sourceOwner });
       Object.defineProperty(selection, "diagnostic_provider", { value: stream.provider_name || stream.provider_identifier });
+      if (stream.origin >= 2) Object.defineProperty(selection, "resume_selection", { value: stream.resume_ticket
+        ? { title_id: t.id, source: "resume", ticket: stream.resume_ticket, episode_id: episode.id }
+        : { title_id: t.id, source: "lookup", provider: stream.provider_name || stream.provider_identifier,
+            name: stream.file_name, quality: stream.video_height || null, size: stream.file_size || null } });
       if (autoDownload) {
         await saveOffline(t, episode, selection);
         dialog.close();
@@ -456,10 +497,12 @@ async function play(
   episode,
   selection,
   offset = null,
-  audio = 0,
-  subtitle = -1,
+  audio = null,
+  subtitle = null,
 ) {
+  const scope = selection.playback_owner || playbackOwner();
   await stop();
+  if (scope?.generation !== playbackOwner()?.generation) return false;
   const dialog = showDialog(
     el(
       "div",
@@ -468,6 +511,10 @@ async function play(
       loading(),
     ),
   );
+  const saved = recalledPlayback(t.id, episode, scope);
+  const restoreTracks = audio === null && subtitle === null && samePlaybackSource(selection, saved?.selection);
+  audio = audio ?? (restoreTracks ? saved.audio.index : 0);
+  subtitle = subtitle ?? (restoreTracks ? saved.subtitle.index : -1);
   const handle = { cancelled: false };
   current = handle;
   try {
@@ -488,18 +535,25 @@ async function play(
       }
     }
     const session = await api("playback", {
-      method: "POST",
+      method: "POST", expectedOwner: scope,
       body: {
         ...selection,
         offset,
         audio,
         subtitle,
+        ...(restoreTracks ? { audio_selector: saved.audio.key, subtitle_selector: saved.subtitle.key } : {}),
         ...mediaPreferences,
         ...(inParty ? { playback_rate: 1 } : {}),
         capabilities: await browserMediaCapabilities(),
       },
     });
     handle.session = session;
+    audio = session.selected_audio ?? audio;
+    subtitle = session.selected_subtitle ?? subtitle;
+    const trackKey = t => JSON.stringify([t?.language || null, t?.name || null, t?.codec || null]);
+    const saveSelection = () => rememberPlayback(t.id, episode, selection,
+      { index: audio, key: trackKey(session.audio.find(t => t.index === audio)) },
+      { index: subtitle, key: subtitle < 0 ? "off" : trackKey(session.subtitles.find(t => t.index === subtitle)) }, scope);
     let failureDiagnostics = null;
     const reportFailure = button(translateUI("Nahlásit chybu"), () => createFeedbackDialog("bug", "mine", "web", failureDiagnostics), "small");
     reportFailure.hidden = true;
@@ -672,7 +726,7 @@ async function play(
           video.ended,
         );
       await api("watch-history", {
-        method: "POST",
+        method: "POST", expectedOwner: scope,
         body: {
           title_id: t.id,
           type: t.type,
@@ -725,6 +779,7 @@ async function play(
       clock.textContent = `${time(positionNow())} / ${time(session.duration)}`;
     });
     video.addEventListener("playing", () => {
+      saveSelection();
       status.textContent = "";
     });
     video.addEventListener("waiting", () => {
@@ -945,7 +1000,7 @@ async function play(
           formField(translateUI("Posun titulků (ms)"), subtitleDelay),
           quality,
           sound,
-          button(translateUI("Jiný zdroj"), () => sources(t, episode), "small"),
+          button(translateUI("Jiný zdroj"), () => sources(t, episode, { skipResume: true }), "small"),
           ...(episode
             ? [
                 el(
@@ -1093,6 +1148,7 @@ async function play(
       }
     }
     prepare();
+    return true;
   } catch (e) {
     if (!handle.cancelled && dialog.open)
       showDialog(

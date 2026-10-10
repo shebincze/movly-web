@@ -133,3 +133,15 @@ test("media URLs accept observed Hellspy CDN and reject lookalike hosts", () => 
   ])
     assert.throws(() => allowedURL(url));
 });
+
+test("resume references survive session/grant renewal but remain bound to account and profile", () => {
+  const t = tickets("secret", {resumable: true});
+  const session = {accountId: 7, profile: {id: 2}, token: "old", grant: "old"};
+  const token = t.issue(session, {provider: "webshare", ident: "file", title_id: 10, episode_id: 20});
+  assert.equal(t.read({...session, token: "new", grant: "new"}, token).ident, "file");
+  assert.throws(() => t.read({...session, accountId: 8}, token));
+  assert.throws(() => t.read({...session, profile: {id: 3}}, token));
+  assert.throws(() => t.read(session, token + "a"));
+  assert.throws(() => tickets("secret").read(session, token));
+  assert.equal(Buffer.from(token.split(".")[0], "base64url").toString().includes("old"), false);
+});

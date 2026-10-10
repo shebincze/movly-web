@@ -164,17 +164,17 @@ async function search(provider, title, episode, token, request) {
     .sort((a, b) => (b.video_height || 0) - (a.video_height || 0));
   return { streams, warnings: unique(errors), partial: errors.length > 0 };
 }
-function tickets(secret) {
+function tickets(secret, { resumable = false } = {}) {
   const sign = (s) =>
     crypto
       .createHmac("sha256", secret)
-      .update("movly-source-v1:")
+      .update(resumable ? "movly-resume-source-v1:" : "movly-source-v1:")
       .update(s)
       .digest("base64url");
   const owner = (s) =>
     crypto
       .createHash("sha256")
-      .update(JSON.stringify([s.token, s.device, s.profile?.id, s.grant]))
+      .update(JSON.stringify(resumable ? [s.accountId, s.profile?.id] : [s.token, s.device, s.profile?.id, s.grant]))
       .digest("hex");
   return {
     issue(session, data) {
@@ -182,7 +182,7 @@ function tickets(secret) {
         JSON.stringify({
           ...data,
           owner: owner(session),
-          expires: Date.now() + 12 * 60 * 60 * 1000,
+          expires: Date.now() + (resumable ? 365 * 24 : 12) * 60 * 60 * 1000,
         }),
       ).toString("base64url");
       return `${body}.${sign(body)}`;

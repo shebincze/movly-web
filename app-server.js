@@ -26,6 +26,7 @@ function createAppHandler({
 }) {
   const playback = playbackEngine || createPlayback();
   const sourceTickets = liveSources.tickets(secret);
+  const resumeTickets = liveSources.tickets(secret, { resumable: true });
   const sourceSearches = new Map();
   const downloads = new Map();
   const nativeSelections = new Map();
@@ -1111,6 +1112,13 @@ function createAppHandler({
                   title_id: titleID,
                   episode_id: episode?.id || null,
                 }),
+                ...(stream.source_stream_id && !/[?]/.test(stream.source_stream_id) && !/stremio|cinema/i.test(stream.provider_name || provider) ? {
+                  resume_ticket: resumeTickets.issue({ accountId: accountUser.id, profile: s.profile }, {
+                    provider: provider === "native" ? stream.provider_name : provider,
+                    ident: stream.source_stream_id, origin,
+                    file_name: stream.file_name, title_id: titleID, episode_id: episode?.id || null,
+                  }),
+                } : {}),
                 available: stream.available !== false,
               };
             },
@@ -1176,10 +1184,12 @@ function createAppHandler({
           throw new HttpError(400, "Neplatná epizoda.");
         const title = await call(s, `titles/${body.title_id}?lang=${language}`);
         let provider, ident, fileName, sourceMetadata;
-        if (body.source === "live") {
+        if (body.source === "live" || body.source === "resume") {
           let selected;
           try {
-            selected = sourceTickets.read(s, body.ticket);
+            selected = body.source === "resume"
+              ? resumeTickets.read({ accountId: accountUser.id, profile: s.profile }, body.ticket)
+              : sourceTickets.read(s, body.ticket);
           } catch (e) {
             throw new HttpError(403, e.message);
           }
@@ -1389,6 +1399,8 @@ function createAppHandler({
             offset: body.offset,
             audio: body.audio,
             subtitle: body.subtitle,
+            audioSelector: body.audio_selector,
+            subtitleSelector: body.subtitle_selector,
             offlineExport: body.offline_export === true,
             maxBytes: body.max_bytes,
             playbackRate: [0.5, 0.75, 1, 1.25, 1.5, 2].includes(
