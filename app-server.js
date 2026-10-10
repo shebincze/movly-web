@@ -29,6 +29,7 @@ function createAppHandler({
   const resumeTickets = liveSources.tickets(secret, { resumable: true });
   const sourceSearches = new Map();
   const downloads = new Map();
+  const pendingAudioReviews = new Map();
   const nativeSelections = new Map();
   const offline = offlineSigner(secret, offlineEnvironment);
   const cookieName = production ? "__Host-movly-app" : "movly-app";
@@ -1337,16 +1338,29 @@ function createAppHandler({
               422,
               "Poskytovatel není zaregistrovaný pro ukládání streamů.",
             );
-          const analysis = await playback.analyze(s, link, mediaOptions);
-          const payload = streamUploadPayload({
-            title: fullTitle,
-            episode,
-            provider,
-            providerID,
-            ident,
-            fileName,
-            analysis,
-          });
+          const owner = JSON.stringify([s.token, s.profile.id, s.grant, body.title_id, body.episode_id || null, body.ticket]);
+          for (const [id, review] of pendingAudioReviews) if (review.expires < Date.now()) pendingAudioReviews.delete(id);
+          let analysis;
+          if (body.audio_review_id !== undefined) {
+            const review = pendingAudioReviews.get(body.audio_review_id);
+            if (!review || review.owner !== owner) throw new HttpError(403, "Potvrzení audia patří k jinému zdroji nebo už vypršelo.");
+            analysis = review.analysis;
+          } else {
+            if (body.confirmed_audio_languages !== undefined) throw new HttpError(400, "Nejdřív ověř zvukové stopy tohoto zdroje.");
+            analysis = await playback.analyze(s, link, mediaOptions);
+          }
+          let payload;
+          try {
+            payload = streamUploadPayload({ title: fullTitle, episode, provider, providerID, ident, fileName, analysis,
+              confirmedAudioLanguages: body.confirmed_audio_languages || [] });
+          } catch (error) {
+            if (error.code !== "audio_confirmation_required") throw error;
+            if (!body.audio_review_id && pendingAudioReviews.size >= 1000) throw new HttpError(503, "Označení audia je vytížené.");
+            const id = body.audio_review_id || crypto.randomBytes(24).toString("hex");
+            pendingAudioReviews.set(id, { owner, analysis, expires: Date.now() + 5 * 60 * 1000 });
+            json(res, 409, { message: error.message, code: error.code, audio_review_id: id, unknown_audio_tracks: error.unknownTracks });
+            return true;
+          }
           let saved;
           try {
             saved = await call(s, "streaming/streams", "POST", payload);
@@ -1355,6 +1369,7 @@ function createAppHandler({
               error.payload?.existing_stream_id ??
               error.payload?.detail?.existing_stream_id;
             if (error.status !== 409 || !integer(existingID)) throw error;
+            if (body.audio_review_id) pendingAudioReviews.delete(body.audio_review_id);
             json(res, 200, {
               id: Number(existingID),
               message: "Stream již existuje v databázi.",
@@ -1363,6 +1378,7 @@ function createAppHandler({
           }
           if (!integer(saved?.id))
             throw new HttpError(502, "Server nepotvrdil ID uloženého streamu.");
+          if (body.audio_review_id) pendingAudioReviews.delete(body.audio_review_id);
           json(res, 200, {
             id: saved.id,
             message: saved.message || "Stream byl přidán do databáze.",

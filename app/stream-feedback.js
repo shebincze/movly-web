@@ -42,6 +42,9 @@ export function reportStream(selection) {
   );
 }
 export function uploadStream(selection, onSaved) {
+  let reviewID;
+  let selections = [];
+  const languages = el("div", { class: "dialog-form" });
   const status = el(
     "p",
     { role: "status" },
@@ -57,14 +60,26 @@ export function uploadStream(selection, onSaved) {
       try {
         const result = await api("streams/upload", {
           method: "POST",
-          body: selection,
+          body: { ...selection, ...(reviewID ? { audio_review_id: reviewID, confirmed_audio_languages: selections.map(s => s.value) } : {}) },
         });
         dialog.close();
         toast(result.message);
         await onSaved();
       } catch (error) {
         status.textContent = error.message;
-        submit.disabled = false;
+        if (error.code === "audio_confirmation_required" && Array.isArray(error.body?.unknown_audio_tracks)) {
+          reviewID = error.body.audio_review_id;
+          languages.replaceChildren();
+          selections = error.body.unknown_audio_tracks.map(index => {
+            const select = el("select", { required: true });
+            for (const [code, label] of [["", "Vyber jazyk"], ["cze", "Čeština"], ["slk", "Slovenština"], ["eng", "Angličtina"], ["deu", "Němčina"], ["pol", "Polština"], ["fr", "Francouzština"], ["es", "Španělština"], ["it", "Italština"], ["ja", "Japonština"], ["ko", "Korejština"]])
+              select.append(el("option", { value: code }, translateUI(label)));
+            select.addEventListener("change", () => { submit.disabled = selections.some(s => !s.value); });
+            languages.append(formField(`Zvuková stopa ${index + 1}`, select));
+            return select;
+          });
+        }
+        submit.disabled = selections.some(s => !s.value);
       }
     },
     "primary",
@@ -75,6 +90,7 @@ export function uploadStream(selection, onSaved) {
       { class: "dialog-body" },
       el("h2", { id: "dialog-title" }, translateUI("Přidat zdroj do databáze")),
       status,
+      languages,
       submit,
     ),
   );

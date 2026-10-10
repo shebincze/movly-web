@@ -675,6 +675,7 @@ test("stream upload uses analyzed metadata and accepts only identified duplicate
             width: 1920,
             height: 1080,
           },
+          { codec_type: "audio", tags: { language: "eng" } },
         ],
       }),
     },
@@ -1100,6 +1101,31 @@ test("remembered live source survives a fresh BFF/session without another provid
     assert.equal(denied.status, 403);
   }
   assert.equal(played.length, 1);
+});
+test("manual audio review is bound to profile/source and reuses the measured tracks", async () => {
+  let probes = 0;
+  let stored;
+  const h = harness({
+    nativeResolver: async request => request.action === "search" ? { streams: [{ id: "pt|123", provider_name: "Přehraj.to", source_stream_id: "123", file_name: "fixture", origin: "PrehrajTo" }], warnings: [] } : { url: "https://provider.test/video.mp4" },
+    playbackEngine: { analyze: async () => { probes++; return { streams: [{ codec_type: "video", width: 1920, height: 1080 }, { codec_type: "audio", index: 1, tags: { language: "eng" } }, { codec_type: "audio", index: 2, tags: { language: "und" } }] }; } },
+    override: (path, method, body) => {
+      if (path === "v1/streaming/providers") return { payload: [{ id: 12, name: "Přehraj.to" }] };
+      if (path === "v1/streaming/streams") { stored = body; return { payload: { id: 50 } }; }
+    }
+  });
+  const session = await h.selected();
+  const found = await h.request("sources/1/native", { cookie: session.cookie });
+  const selection = { title_id: 1, source: "live", ticket: found.body.streams[0].ticket };
+  const first = await h.request("streams/upload", { method: "POST", cookie: session.cookie, body: selection });
+  assert.equal(first.status, 409); assert.equal(first.body.code, "audio_confirmation_required"); assert.deepEqual(first.body.unknown_audio_tracks, [2]); assert.equal(stored, undefined);
+  const confirmation = { ...selection, audio_review_id: first.body.audio_review_id, confirmed_audio_languages: ["cs"] };
+  const forged = await h.request("streams/upload", { method: "POST", cookie: session.cookie, body: { ...confirmation, audio_review_id: "forged" } });
+  assert.equal(forged.status, 403); assert.equal(stored, undefined);
+  const result = await h.request("streams/upload", { method: "POST", cookie: session.cookie, body: confirmation });
+  assert.equal(result.status, 200); assert.equal(probes, 1);
+  assert.deepEqual(stored.audio_streams.map(t => t.audio_language), ["eng", "cze"]);
+  const reused = await h.request("streams/upload", { method: "POST", cookie: session.cookie, body: confirmation });
+  assert.equal(reused.status, 403);
 });
 
 test("authorized child selection without a management grant clears the adult grant", async () => {
