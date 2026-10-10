@@ -1,0 +1,288 @@
+--- a/app-server.js
++++ b/app-server.js
+@@ -113,6 +113,7 @@
+     return (
+       await api(`v1/${target}`, method, body, s?.token, s?.device, {
+         ...headersFor(identityOnly ? { ...s, profile: null } : s),
++        ...(/^(?:admin\/)?feedback(?:\/|$)/.test(target) ? { "X-Movly-Feedback-Diagnostics": "1" } : {}),
+         ...extra,
+       })
+     ).payload;
+@@ -1009,7 +1010,7 @@
+               409,
+               "Nejdřív připoj účet Webshare v nastavení.",
+             );
+-          link = await providerClient.resolve(s.webshare.token, ident);
++          try { link = await providerClient.resolve(s.webshare.token, ident); } catch (error) { error.diagnosticStage = "source_resolve"; throw error; }
+         } else if (
+           provider === "hellspy" &&
+           /^[1-9]\d*\/[a-zA-Z0-9_-]{1,128}$/.test(ident || "")
+@@ -1017,7 +1018,7 @@
+           link = `https://api.hellspy.to/gw/video/${ident}/download`;
+         } else {
+           if (!nativeProviders.supported.test(provider)) throw new HttpError(422, "Neznámý poskytovatel zdroje.");
+-          const resolved = await nativeResolver({ action: "resolve", source: { provider, ident, origin: sourceMetadata?.origin, direct_url: sourceMetadata?.direct_url, headers: sourceMetadata?.headers }, fastshare: s.fastshare, sosac: s.sosac, addons: s.addons });
++          const resolved = await nativeResolver({ action: "resolve", source: { provider, ident, origin: sourceMetadata?.origin, direct_url: sourceMetadata?.direct_url, headers: sourceMetadata?.headers }, fastshare: s.fastshare, sosac: s.sosac, addons: s.addons }).catch(error => { error.diagnosticStage = "source_resolve"; throw error; });
+           link = resolved.url; resolvedHeaders = resolved.headers; trustedProvider = true;
+         }
+         const mediaOptions = { headers: resolvedHeaders, trustedProvider, credentialHost: new URL(link).hostname };
+@@ -1269,6 +1270,7 @@
+       json(res, status, {
+         message: error.message || "Požadavek se nepodařilo dokončit.",
+         code: error.code || error.payload?.code || null,
++        ...(["source_resolve", "video_analysis", "playback"].includes(error.diagnosticStage) ? { diagnostic_stage: error.diagnosticStage } : {}),
+       });
+     }
+     return true;
+--- a/playback-server.js
++++ b/playback-server.js
+@@ -316,12 +316,12 @@
+       };
+       sessions.set(p.id, p);
+       const input = `http://127.0.0.1:${port}/${p.id}`;
+-      const info = await probe(input);
++      let info; try { info = await probe(input); } catch (error) { error.diagnosticStage = "video_analysis"; throw error; }
+       if (!info.streams?.some((t) => t.codec_type === "video"))
+-        throw fail(422, "Soubor neobsahuje video.");
++        throw Object.assign(fail(422, "Soubor neobsahuje video."), { diagnosticStage: "video_analysis" });
+       const duration = Number(info.format?.duration);
+       if (!Number.isFinite(duration) || duration <= 0)
+-        throw fail(422, "Zdroj neobsahuje platnou délku videa.");
++        throw Object.assign(fail(422, "Zdroj neobsahuje platnou délku videa."), { diagnosticStage: "video_analysis" });
+       const offset = Number(options.offset || 0),
+         audio = Number(options.audio || 0),
+         tracks = info.streams.filter((t) => t.codec_type === "audio");
+--- a/app/player.js
++++ b/app/player.js
+@@ -1,3 +1,5 @@
++import { createDialog as createFeedbackDialog } from "./feedback.js";
++import { playbackDiagnostics } from "./playback-diagnostics.js";
+ import { openProviderSettings } from "./provider-settings.js";
+ import { reportStream, uploadStream } from "./stream-feedback.js";
+ import { partyState, partyWaiting, partyPosition, reportPartyReady, partyTransport } from "./party.js";
+@@ -186,6 +188,7 @@
+             : { source: stream.origin ? "ai" : "human", stream_id: stream.id }),
+           ...(episode ? { episode_id: episode.id } : {}),
+         };
++        Object.defineProperty(selection, "diagnostic_provider", { value: stream.provider_name || stream.provider_identifier });
+         const choice = button(
+           "Přehrát",
+           () => play(t, episode, selection),
+@@ -329,6 +332,15 @@
+       body: { ...selection, offset, audio, subtitle, ...mediaPreferences, capabilities: await browserMediaCapabilities() },
+     });
+     handle.session = session;
++    let failureDiagnostics = null;
++    const reportFailure = button("Nahlásit chybu", () => createFeedbackDialog("bug", "mine", "web", failureDiagnostics), "small");
++    reportFailure.hidden = true;
++    function captureFailure(stage, error, code) {
++      if (handle.cancelled) return;
++      failureDiagnostics = playbackDiagnostics(stage, selection.diagnostic_provider, error, code);
++      reportFailure.hidden = false;
++    }
++
+     if (handle.cancelled || !dialog.open) {
+       await api(`playback/${session.id}`, { method: "DELETE" });
+       return;
+@@ -480,6 +492,7 @@
+       status.textContent = "Načítám video…";
+     });
+     video.addEventListener("error", () => {
++      captureFailure("playback", { mediaCode: video.error?.code });
+       status.textContent = "Prohlížeč nemůže video přehrát. Zkus jiný zdroj.";
+     });
+     const quality = el("select", { "aria-label": "Kvalita videa" },
+@@ -518,6 +531,7 @@
+         el("h2", { id: "dialog-title" }, t.title),
+         video,
+         status,
++        reportFailure,
+         el("div", { class: "player-seek" }, position, clock),
+         el(
+           "div",
+@@ -546,12 +560,14 @@
+       if (handle.cancelled) return;
+       try {
+         const state = await api(`playback/${session.id}/status`);
+-        if (state.error) throw new Error(state.error);
++        if (state.error) { captureFailure("playback", {}, "playback_prepare_failed"); throw new Error(state.error); }
+         if (!state.ready) {
+-          if (++attempts > 40)
++          if (++attempts > 40) {
++            captureFailure("playback", {}, "playback_prepare_timeout");
+             throw new Error(
+               "Příprava videa trvá příliš dlouho. Vyber jiný zdroj.",
+             );
++          }
+           handle.prepare = setTimeout(prepare, 1000);
+           return;
+         }
+@@ -568,9 +584,10 @@
+           });
+           handle.hls = hls;
+           hls.on(Hls.Events.ERROR, (_event, data) => {
+-            if (data.fatal)
+-              status.textContent =
+-                "Přehrávání se přerušilo. Vyber zdroj znovu.";
++            if (data.fatal) {
++              captureFailure("playback", { status: data.response?.code }, data.type === Hls.ErrorTypes.NETWORK_ERROR ? "hls_network_failed" : data.type === Hls.ErrorTypes.MEDIA_ERROR ? "hls_media_failed" : "hls_other_failed");
++              status.textContent = "Přehrávání se přerušilo. Vyber zdroj znovu.";
++            }
+           });
+           hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => {
+             if (subtitle >= 0) {
+@@ -598,7 +615,7 @@
+           if (!inParty) video.play().catch(() => {
+             status.textContent = "Stiskni přehrát.";
+           });
+-        } else throw new Error("Tento prohlížeč nepodporuje HLS video.");
++        } else { captureFailure("playback", {}, "browser_hls_unsupported"); throw new Error("Tento prohlížeč nepodporuje HLS video."); }
+         handle.timer = setInterval(
+           () =>
+             history().catch((e) => {
+@@ -607,6 +624,7 @@
+           20000,
+         );
+       } catch (e) {
++        if (!failureDiagnostics) captureFailure("playback", e, "playback_prepare_failed");
+         status.textContent = e.message;
+       }
+     }
+@@ -622,6 +640,7 @@
+             play(t, episode, selection, offset, audio, subtitle),
+           ),
+           button("Připojit Webshare", providerSettings),
++          button("Nahlásit chybu", () => createFeedbackDialog("bug", "mine", "web", playbackDiagnostics(e.body?.diagnostic_stage || "source_resolve", selection.diagnostic_provider, e)), "small"),
+         ),
+       );
+   }
+--- a/app/feedback.js
++++ b/app/feedback.js
+@@ -9,6 +9,16 @@
+   declined: "Nebudeme realizovat", cannot_reproduce: "Nepodařilo se reprodukovat",
+ };
+ const platforms = { ios: "iOS", android: "Android", macos: "macOS", windows: "Windows", tvos: "Apple TV", android_tv: "Android TV", web: "Web", api: "API" };
++let diagnosticDraft = null;
++let diagnosticOwner = null;
++window.addEventListener("movly-offline-revoked", () => { diagnosticDraft = null; diagnosticOwner = null; });
++const diagnosticLabels = {app_version:"Verze aplikace", os_version:"Systém", device:"Zařízení", provider:"Provider", occurred_at:"Čas chyby", stage:"Fáze", error_code:"Technická chyba", http_status:"HTTP"};
++function diagnosticPreview(d) {
++  return el("details", { open: true }, el("summary", {}, t("Přiložená diagnostika")),
++    ...Object.entries(diagnosticLabels).filter(([key]) => d[key]).map(([key,label]) => el("p", {}, `${t(label)}: ${d[key]}`)),
++    ...(d.log || []).map(event => el("p", {}, `${event.at} · ${event.stage} · ${event.code}${event.http_status ? ` · HTTP ${event.http_status}` : ""}`)),
++    el("p", {}, t("Přiložíme pouze technické kódy. Bez hesel, tokenů a odkazů na video.")));
++}
+ const terminal = new Set(["released", "duplicate", "declined", "cannot_reproduce"]);
+ const stamp = (s) => new Date(s).toLocaleString(document.documentElement.lang || "cs");
+ const state = (s) => el("span", { class: `feedback-state feedback-state-${s}` }, t(feedbackStatuses[s] || s));
+@@ -49,19 +59,19 @@
+     } }, file, submit, message)));
+ }
+ 
+-function chooseFeedbackDialog(initialPlatform) {
++function chooseFeedbackDialog(initialPlatform, diagnostics = null) {
+   showDialog(el("div", { class: "dialog-body" }, el("h2", {}, t("Nápad nebo chyba")),
+     el("p", {}, t("Co chceš týmu Movly poslat?")),
+     el("div", { class: "dialog-form" },
+       button(t("Přidat nápad"), () => createDialog("idea", "ideas", initialPlatform), "primary", "plus"),
+       el("p", {}, t("Navrhni, co by mohlo být v Movly lepší.")),
+-      button(t("Nahlásit chybu"), () => createDialog("bug", "mine", initialPlatform), "secondary", "plus"),
++      button(t("Nahlásit chybu"), () => createDialog("bug", "mine", initialPlatform, diagnostics), "secondary", "plus"),
+       el("p", {}, t("Popiš, co nefunguje tak, jak má.")))));
+ }
+ 
+-function createDialog(kind, view, initialPlatform = "web") {
++export function createDialog(kind, view, initialPlatform = "web", diagnostics = null) {
+   let requestId = crypto.randomUUID(), attempted = null;
+-  const title = el("input", { required: true, minlength: 3, maxlength: 120 });
++  const title = el("input", { required: true, minlength: 3, maxlength: 120, value: diagnostics ? `${diagnostics.provider || "Movly"}: ${diagnostics.stage || "chyba"}` : "" });
+   const description = el("textarea", { required: true, minlength: 10, maxlength: 5000, rows: 6 });
+   const platform = el("select", {}, ...Object.entries(platforms).map(([value, label]) => el("option", { value, selected: value === initialPlatform }, label)));
+   const message = el("p", { role: "alert" });
+@@ -69,14 +79,19 @@
+   const form = el("form", { class: "dialog-form", onSubmit: async (e) => {
+     e.preventDefault(); submit.disabled = true;
+     try {
+-      const input = { kind, title: title.value, description: description.value, platforms: [platform.value], diagnostics: { app_version: "web-v1", os_version: "", screen: "feedback" } };
++      const input = { kind, title: title.value, description: description.value, platforms: [platform.value], diagnostics: diagnostics || { app_version: "web-v1", os_version: "", screen: "feedback" } };
+       const encoded = JSON.stringify(input); if (attempted !== null && attempted !== encoded) requestId = crypto.randomUUID(); attempted = encoded;
+       const result = await api("feedback/items", { method: "POST", body: { request_id: requestId, ...input } });
+-      document.querySelector("#dialog").close(); location.hash = route(kind === "bug" ? "mine" : view, result.item.id);
++      diagnosticDraft = null;
++      document.querySelector("#dialog").close(); toast(`${t("Hlášení přijato")} #${result.item.id}`); location.hash = route(kind === "bug" ? "mine" : view, result.item.id);
+     } catch (err) { message.textContent = err.message; submit.disabled = false; }
+   } }, formField(t("Název"), title), formField(t(kind === "bug" ? "Co se stalo a co jsi očekával/a?" : "Co bys chtěl/a vylepšit a proč?"), description), formField(t("Platforma"), platform),
++  diagnostics ? diagnosticPreview(diagnostics) : null,
+   el("p", {}, t(kind === "idea" ? "Návrh bude veřejný. Screenshoty a diagnostika zůstávají soukromé." : "Hlášení a odpovědi uvidíš jen ty a tým Movly. Screenshot můžeš přidat po odeslání.")), submit, message);
+-  showDialog(el("div", { class: "dialog-body" }, el("h2", {}, t(kind === "bug" ? "Nahlásit chybu" : "Přidat nápad")), form));
++  const dialog = showDialog(el("div", { class: "dialog-body" }, el("h2", {}, t(kind === "bug" ? "Nahlásit chybu" : "Přidat nápad")), form));
++  const revoke = () => dialog.close();
++  window.addEventListener("movly-offline-revoked", revoke, { once: true });
++  dialog.addEventListener("close", () => window.removeEventListener("movly-offline-revoked", revoke), { once: true });
+ }
+ 
+ function adminEditor(item, refresh) {
+@@ -143,7 +158,7 @@
+   const reply = data.events.findLast((event) => event.team && event.message);
+   if (reply) node.append(el("div", { class: "feedback-team-reply" }, el("h3", {}, t("Odpověď týmu Movly")), el("p", { class: "feedback-description" }, reply.message)));
+   const eventHistory = el("details", { class: "feedback-history" }, el("summary", {}, t("Celá historie požadavku")), el("ol", { class: "feedback-timeline" }, ...data.events.map((event) => el("li", {}, el("small", {}, `${stamp(event.created_at)} · ${t(event.team ? "Tým Movly" : "Autor")}`), el("div", {}, state(event.status)), event.message ? el("p", { class: "feedback-description" }, event.message) : null))));
+-  if (item.diagnostics) node.append(el("details", {}, el("summary", {}, t("Přiložená diagnostika")), el("p", {}, Object.values(item.diagnostics).filter(Boolean).join(" · "))));
++  if (item.diagnostics) node.append(diagnosticPreview(item.diagnostics));
+   if (item.mine || admin) {
+     for (const attachment of data.attachments) {
+       node.append(button(t("Zobrazit screenshot"), async () => {
+@@ -166,17 +181,24 @@
+   if (admin) node.append(adminEditor(item, refresh)); node.append(error); node.feedbackItem = item; return node;
+ }
+ 
+-export async function feedback(params, signal) {
++export async function feedback(params, signal, account = null) {
++  const currentOwner = account?.username || null;
++  if (diagnosticOwner !== currentOwner) diagnosticDraft = null;
++  diagnosticOwner = currentOwner;
+   let view = ["ideas", "mine", "admin"].includes(params.get("view")) ? params.get("view") : "ideas";
+   let id = params.get("id"), newIntent = ["bug", "choose"].includes(params.get("new")) ? params.get("new") : null; const q = params.get("q") || "";
+-  const reportPlatform = Object.hasOwn(platforms, params.get("platform")) ? params.get("platform") : "web";
++  let reportPlatform = Object.hasOwn(platforms, params.get("platform")) ? params.get("platform") : "web";
+   if (params.has("handoff")) {
+     const handoff = await api("feedback/handoffs/consume", { method: "POST", body: { token: params.get("handoff") }, signal });
++    if (handoff.diagnostics) diagnosticDraft = { diagnostics: handoff.diagnostics, platform: handoff.platform || reportPlatform, expiresAt: Date.now() + 10 * 60 * 1000 };
++    reportPlatform = handoff.platform || reportPlatform;
+     view = "mine"; id = handoff.item_id ? String(handoff.item_id) : null; newIntent = id ? null : (newIntent || "bug");
+     params.delete("handoff"); params.set("view", view); if (id) params.set("id", id); else params.delete("id");
+     if (newIntent) params.set("new", newIntent);
+     history.replaceState(null, "", `#feedback?${params}`);
+   }
++  if (diagnosticDraft?.expiresAt < Date.now()) diagnosticDraft = null;
++  if (diagnosticDraft && !id && !newIntent) { newIntent = "bug"; reportPlatform = diagnosticDraft.platform; }
+   const admin = view === "admin";
+   const query = new URLSearchParams({ limit: "25", offset: params.get("offset") || "0", sort: params.get("sort") || (view === "ideas" ? "votes" : "updated"), q });
+   if (view === "ideas") query.set("kind", "idea"); if (view === "mine") query.set("mine", "true");
+@@ -236,8 +258,8 @@
+     // once it is mounted, so navigation/abort cannot leave a detached dialog.
+     requestAnimationFrame(() => {
+       if (signal.aborted || !wrapper.isConnected) return;
+-      if (newIntent === "choose") chooseFeedbackDialog(reportPlatform);
+-      else createDialog("bug", "mine", reportPlatform);
++      if (newIntent === "choose") chooseFeedbackDialog(reportPlatform, diagnosticDraft?.diagnostics);
++      else createDialog("bug", "mine", reportPlatform, diagnosticDraft?.diagnostics);
+       params.delete("new"); params.delete("platform");
+       history.replaceState(null, "", `#feedback?${params}`);
+     });
+--- /dev/null
++++ b/app/playback-diagnostics.js
+@@ -0,0 +1,14 @@
++// Closed diagnostic vocabulary. Never copy raw messages, URLs or HLS payloads.
++const stages = new Set(["source_resolve", "video_analysis", "playback"]);
++const providers = new Set(["webshare", "hellspy", "fastshare", "sosac", "stremio", "prehrajto"]);
++export function playbackDiagnostics(stage, provider, error = {}, code = null) {
++  stage = stages.has(stage) ? stage : "playback";
++  provider = providers.has(String(provider).toLowerCase()) ? String(provider).toLowerCase() : "other";
++  const at = new Date().toISOString();
++  const status = Number.isInteger(error.status) && error.status >= 100 && error.status <= 599 ? error.status : undefined;
++  const codes = new Set(["source_resolve_failed", "video_analysis_failed", "playback_failed", "playback_prepare_failed", "playback_prepare_timeout", "hls_network_failed", "hls_media_failed", "hls_other_failed", "browser_hls_unsupported"]);
++  const mediaCode = Number.isInteger(error.mediaCode) && error.mediaCode >= 1 && error.mediaCode <= 4 ? `browser_media_${error.mediaCode}` : null;
++  code = mediaCode || (codes.has(code) ? code : `${stage}_failed`);
++  return { app_version: "web-v1", os_version: "", screen: "player", device: "Web browser", provider, occurred_at: at, stage, error_code: code,
++    ...(status ? { http_status: status } : {}), log: [{ at, stage, code, ...(status ? { http_status: status } : {}) }] };
++}
