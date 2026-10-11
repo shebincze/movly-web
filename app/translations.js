@@ -1215,6 +1215,7 @@ export const translations = {
   "Přejít k obsahu": ["Prejsť k obsahu", "Skip to content"],
   "Movly — domů": ["Movly — domov", "Movly — home"],
   "Hlavní navigace": ["Hlavná navigácia", "Main navigation"],
+  "Nastavení": ["Nastavenia", "Settings"],
   "Účet a nastavení": ["Účet a nastavenia", "Account and settings"],
   "Změnit profil": ["Zmeniť profil", "Switch profile"],
   "Úložiště a přehrávání": ["Úložiská a prehrávanie", "Storage and playback"],

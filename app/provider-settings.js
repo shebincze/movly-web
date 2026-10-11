@@ -1,5 +1,3 @@
-import { openNotifications } from "./notifications.js";
-import { notificationLabel } from "./notification-labels.js";
 import { translateUI } from "./i18n.js";
 import { appendTrackingSettings } from "./tracking-settings.js";
 import { api } from "./api.js";
@@ -126,6 +124,5 @@ export async function openProviderSettings() {
       );
     content.append(section);
   }
-  content.append(button(notificationLabel("NotificationsAccount"),()=>openNotifications()));
   await appendTrackingSettings(content, dialog);
 }

@@ -1,5 +1,5 @@
-import { notificationLabel } from "./notification-labels.js";
-import { startSystemNotifications, openNotifications } from "./notifications.js";
+import { openSettingsMenu } from "./settings-menu.js";
+import { startSystemNotifications } from "./notifications.js";
 import { translateShell, uiLanguage, setUILanguage } from "./i18n.js";
 import { translateUI } from "./i18n.js";
 import { premium } from "./premium.js";
@@ -95,7 +95,7 @@ dialog.addEventListener("close", () => {
   }
 });
 function chrome() {
-  document.querySelector("#notification-settings").textContent=notificationLabel("NotificationsAccount");
+  document.querySelector("#app-settings").textContent=translateUI("Nastavení");
   setSearchOwner(session?.account, session?.profile);
   setPlaybackOwner(session?.account, session?.profile);
   const ready = Boolean(session?.profile);
@@ -479,10 +479,11 @@ async function render() {
 }
 document.querySelector("#profile-button").addEventListener("click", profiles);
 document.querySelector("#switch-profile").addEventListener("click", profiles);
-document
-  .querySelector("#provider-settings")
-  .addEventListener("click", providerSettings);
-document.querySelector("#notification-settings").addEventListener("click",()=>openNotifications());
+document.querySelector("#app-settings").addEventListener("click", () => {
+  document.querySelector("#account-menu").hidden = true;
+  document.querySelector("#account-button").setAttribute("aria-expanded", "false");
+  openSettingsMenu({ openProviders: providerSettings });
+});
 document.querySelector("#account-button").addEventListener("click", () => {
   const menu = document.querySelector("#account-menu");
   menu.hidden = !menu.hidden;
