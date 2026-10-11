@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Publish the current web working tree to movly.sheri.cz (LXC 214 on Proxmox).
+# Publish the current web working tree to movly.top (LXC 214 on Proxmox).
 #
 # Release convention on the LXC: /srv/movly/web is a symlink to
 # /srv/movly/.movly-web-releases/web-<UTC stamp>-<sha12 of server.js>; the
@@ -81,7 +81,7 @@ switched=1
 systemctl restart movly-web
 sleep 2
 smoke() {
-  node -e 'const http=require("http");const p=process.argv[1];http.get({host:"127.0.0.1",port:8080,path:p,headers:{host:"movly.sheri.cz"}},r=>{console.log(p,r.statusCode);process.exit(r.statusCode===200?0:1)}).on("error",e=>{console.log(p,e.message);process.exit(1)})' "\$1"
+  node -e 'const http=require("http");const p=process.argv[1];http.get({host:"127.0.0.1",port:8080,path:p,headers:{host:"movly.top"}},r=>{console.log(p,r.statusCode);process.exit(r.statusCode===200?0:1)}).on("error",e=>{console.log(p,e.message);process.exit(1)})' "\$1"
 }
 if smoke /devices && smoke /app/ && systemctl is-active --quiet movly-web; then
   switched=0

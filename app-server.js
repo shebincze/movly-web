@@ -1799,7 +1799,7 @@ function createAppHandler({
       ) {
         result.url = new URL(
           `v1/shared/${result.token}`,
-          (process.env.MOVLY_API_BASE || "https://api-go.shebin.eu").replace(
+          (process.env.MOVLY_API_BASE || "https://api.movly.top").replace(
             /\/?$/,
             "/",
           ),
