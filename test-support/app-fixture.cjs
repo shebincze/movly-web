@@ -103,7 +103,7 @@ function createFixture() {
       if(scope.endsWith("/read")||scope.endsWith("/delivered"))return {payload:{}};
       if(method==="PUT") {if(scope==="defaults")notificationDefaults=structuredClone(body);else notificationSeries.set(scope,structuredClone(body));}
       const preferences=scope==="defaults"?notificationDefaults:notificationSeries.get(scope)??{events:[],channels:[],use_defaults:true};
-      return {payload:{preferences,defaults:notificationDefaults,effective:preferences.use_defaults?notificationDefaults:preferences,subscribed:notificationSeries.has(scope),capabilities:{in_app:true,desktop:true,email:true,mobile_push:false}}};
+      return {payload:{preferences,defaults:notificationDefaults,effective:{events:preferences.use_defaults?notificationDefaults.events:preferences.events,channels:notificationDefaults.channels,use_defaults:false},subscribed:notificationSeries.has(scope),capabilities:{in_app:true,desktop:true,email:true,mobile_push:false}}};
     }
     if (p === "v1/auth/me") return { payload: user };
     if (p === "v1/auth/logout") {
