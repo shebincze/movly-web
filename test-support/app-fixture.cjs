@@ -68,7 +68,7 @@ function createFixture() {
     items = new Map([[1, []]]);
   let next = 2,
     revoked = false;
-  let notificationDefaults={events:[],channels:[],use_defaults:false};
+  const notificationProfiles=new Map();
   const notificationSeries=new Map();
   return async function fixture(path, method, body, token, device, headers) {
     const u = new URL(path, "http://fixture/"),
@@ -99,11 +99,16 @@ function createFixture() {
     if (p.startsWith("v1/feedback/") || p.startsWith("v1/admin/feedback/")) return feedbackFixture(path, method, body);
     if(p.startsWith("v1/notifications/")) {
       const scope=p.slice("v1/notifications/".length);
+      const profile=String(headers?.["X-Profile-ID"]??"");
+      if(!profile)fail(409,"Vyber profil.");
+      if(!notificationProfiles.has(profile))notificationProfiles.set(profile,{defaults:{events:[],channels:[],use_defaults:false}});
+      let notificationDefaults=notificationProfiles.get(profile).defaults;
+      const seriesScope=profile+":"+scope;
       if(scope==="inbox"||scope==="system-inbox")return {payload:{items:[]}};
       if(scope.endsWith("/read")||scope.endsWith("/delivered"))return {payload:{}};
-      if(method==="PUT") {if(scope==="defaults")notificationDefaults=structuredClone(body);else notificationSeries.set(scope,structuredClone(body));}
-      const preferences=scope==="defaults"?notificationDefaults:notificationSeries.get(scope)??{events:[],channels:[],use_defaults:true};
-      return {payload:{preferences,defaults:notificationDefaults,effective:{events:preferences.use_defaults?notificationDefaults.events:preferences.events,channels:notificationDefaults.channels,use_defaults:false},subscribed:notificationSeries.has(scope),capabilities:{in_app:true,desktop:true,email:true,mobile_push:false}}};
+      if(method==="PUT") {if(scope==="defaults"){notificationDefaults=structuredClone(body);notificationProfiles.get(profile).defaults=notificationDefaults;}else notificationSeries.set(seriesScope,structuredClone(body));}
+      const preferences=scope==="defaults"?notificationDefaults:notificationSeries.get(seriesScope)??{events:[],channels:[],use_defaults:true};
+      return {payload:{preferences,defaults:notificationDefaults,effective:{events:preferences.use_defaults?notificationDefaults.events:preferences.events,channels:notificationDefaults.channels,use_defaults:false},subscribed:notificationSeries.has(seriesScope),capabilities:{in_app:true,desktop:true,email:true,mobile_push:false}}};
     }
     if (p === "v1/auth/me") return { payload: user };
     if (p === "v1/auth/logout") {

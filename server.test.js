@@ -46,7 +46,7 @@ const {
 function request(server, method, pathname, token = null, body = null, extraHeaders = {}) {
   const address = server.address();
   return new Promise((resolve, reject) => {
-    const headers = { ...extraHeaders };
+    const headers = { ...(/^\/api\/(devices|sessions)(?:[/?]|$)/.test(pathname)?{"X-Profile-ID":"1"}:{}), ...extraHeaders };
     if (token) headers.Authorization = `Bearer ${token}`;
     if (body !== null) headers['Content-Length'] = Buffer.byteLength(body);
     const req = http.request({
@@ -1033,6 +1033,7 @@ test('Správa zařízení proxyuje přesné kontrakty, stránkování a mutace',
     assert.equal(duplicatePagination.status, 400);
     assert.equal(calls.length, 0);
 
+    assert.equal((await request(server,'GET','/api/devices',token,null,{'X-Profile-ID':''})).status,409);
     const devices = await request(server, 'GET', '/api/devices?limit=2&offset=0', token);
     assert.equal(devices.status, 200);
     assert.equal(devices.headers['cache-control'], 'no-store');

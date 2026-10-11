@@ -1241,6 +1241,38 @@ function requireBodylessRequest(req, label) {
   }
 }
 
+function managedProfileHeaders(req) {
+  const profile = req.headers['x-profile-id'];
+  if(typeof profile!=='string'||!/^[1-9]\d*$/.test(profile)||!Number.isSafeInteger(Number(profile)))
+    throw new HttpError(409,'Nejdřív vyber profil.');
+  const grant=req.headers['x-profile-grant'];
+  if(grant!==undefined && (typeof grant!=='string'||grant.length>4096||!/^[!-~]+$/.test(grant)))throw new HttpError(400,'Neplatné oprávnění profilu.');
+  return {'X-Profile-ID':profile,'X-Movly-Profile-Authorization':'explicit-grant-v1',...(grant?{'X-Profile-Grant':grant}:{})};
+}
+
+async function handleManagedProfiles(req,res) {
+ const token=extractStrictBearerToken(req);
+ if(!token)throw new HttpError(401,'Přihlas se Movly účtem.');
+ if(req.method==='GET') {
+  const response=await movlyApiResponse('v1/profiles','GET',null,token);
+  assertManagedJSONResponse(response,200,'profily');
+  if(!Array.isArray(response.payload))throw new HttpError(502,'API nevrátilo seznam profilů.');
+  json(res,200,response.payload.map(p=>({id:p.id,name:p.name,has_pin:p.has_pin===true})));return;
+ }
+ const body=await readBody(req,4096);
+ if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['id','pin'].includes(k))||!Number.isSafeInteger(body.id)||body.id<=0)throw new HttpError(400,'Neplatný profil.');
+ let grant;
+ if(body.pin!==undefined) {
+  if(typeof body.pin!=='string'||!/^\d{4,8}$/.test(body.pin))throw new HttpError(400,'PIN musí obsahovat 4 až 8 číslic.');
+  const verified=await movlyApiResponse(`v1/profiles/${body.id}/pin/verify`,'POST',{pin:body.pin},token);
+  if(verified.payload?.valid!==true||!verified.payload.grant_token)throw new HttpError(403,'PIN není platný.');
+  grant=verified.payload.grant_token;
+ }
+ const response=await movlyApiResponse(`v1/profiles/${body.id}/select`,'POST',null,token,undefined,API_TIMEOUT_MS,grant?{'X-Profile-Grant':grant}:{});
+ if(response.payload?.profile_id!==body.id)throw new HttpError(502,'API nepotvrdilo vybraný profil.');
+ json(res,200,{profile_id:body.id,grant_token:response.payload.grant_token??grant??null});
+}
+
 async function handleManagedList(req, res, url, collectionKey, itemNormalizer) {
   requireBodylessRequest(req, `Načtení ${collectionKey}`);
   const token = extractStrictBearerToken(req);
@@ -1252,7 +1284,7 @@ async function handleManagedList(req, res, url, collectionKey, itemNormalizer) {
       `v1/auth/${collectionKey}?limit=${pagination.limit}&offset=${pagination.offset}`,
       'GET',
       null,
-      token,
+      token, undefined, API_TIMEOUT_MS, managedProfileHeaders(req),
     );
   } catch (error) {
     throwDeviceManagementAPIError(error);
@@ -1282,7 +1314,7 @@ async function handleManagedDeviceRename(req, res, deviceID) {
       `v1/auth/devices/${canonicalID}`,
       'PATCH',
       { display_name: displayName },
-      token,
+      token, undefined, API_TIMEOUT_MS, managedProfileHeaders(req),
     );
   } catch (error) {
     throwDeviceManagementAPIError(error);
@@ -1320,7 +1352,7 @@ async function handleManagedRevoke(req, res, collectionKey, rawID, url) {
       `v1/auth/${collectionKey}/${canonicalID}${purge ? '?purge=true' : ''}`,
       'DELETE',
       null,
-      token,
+      token, undefined, API_TIMEOUT_MS, managedProfileHeaders(req),
     );
   } catch (error) {
     throwDeviceManagementAPIError(error);
@@ -2163,6 +2195,7 @@ async function route(req, res) {
   if (req.method === 'POST' && pathname === '/api/device-authorization/deny') {
     return handleDeviceAuthorizationDecision(req, res, false);
   }
+  if (['GET','POST'].includes(req.method) && pathname === '/api/device-profiles') return handleManagedProfiles(req,res);
   if (req.method === 'GET' && pathname === '/api/devices') {
     return handleManagedList(req, res, url, 'devices', normalizeManagedDevice);
   }

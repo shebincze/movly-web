@@ -48,12 +48,6 @@ export async function openNotifications(titleId = null, draft = null, afterClose
     if(!account) {
       content.append(el("p",{class:"muted"},label("NotificationsFutureOnly")),el("p",{class:"muted"},label("NotificationsAccountDeliveryHelp")));
       if(!snapshot.defaults.channels.length) content.append(el("p",{class:"notification-warning"},label("NotificationsChooseDelivery")));
-      content.append(button(label("NotificationsAccount"), () => {
-        if(busy)return;
-        const retained = [...selected];
-        transitioning = true;
-        void openNotifications(null,null,()=>void openNotifications(titleId,retained,afterClose));
-      }, "secondary"));
     } else {
       content.append(el("p",{class:"muted"},label("NotificationsDesktopHelp")));
       if("Notification" in window) {
@@ -127,13 +121,13 @@ export function startSystemNotifications(actions) {
     try {
       const session=await api("session");
       const owner={accountId:session.account.id,profileId:session.profile?.id};
-      const key=`movly.notifications.web.${session.account.id}`;
+      const key=`movly.notifications.web.${session.account.id}.${owner.profileId}`;
       const seen=new Set(JSON.parse(localStorage.getItem(key)||"[]"));
       const inbox=await api("notifications/system-inbox",{expectedOwner:owner});
       if(revision!==expectedRevision)return;
       for(const item of [...inbox.items].reverse()) {
         if(seen.has(item.id)||revision!==expectedRevision)continue;
-        const alert=new Notification("Movly",{body:item.message,tag:`movly-${session.account.id}-${item.id}`});
+        const alert=new Notification("Movly",{body:item.message,tag:`movly-${session.account.id}-${owner.profileId}-${item.id}`});
         alert.onclick=async()=>{alert.close();if(revision!==expectedRevision)return;window.focus();const data=await api(`titles/${item.title_id}`,{expectedOwner:owner});const {detail}=await import("./library.js");await detail(data,actions);};
         seen.add(item.id);localStorage.setItem(key,JSON.stringify([...seen].slice(-500)));
         await api(`notifications/system-inbox/${item.id}/delivered`,{method:"PUT",body:{},expectedOwner:owner});
