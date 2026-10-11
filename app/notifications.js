@@ -30,12 +30,13 @@ export async function openNotifications(titleId = null, draft = null, afterClose
     const snapshot = await api(`notifications/${scope}`, {signal:cancel.signal,expectedOwner:owner});
     if (!current()) return;
     const fields = account ? notificationChannels : notificationEvents;
+    const subscribed = snapshot.subscribed && snapshot.effective.events.length > 0;
     let selected = [...(draft ?? (account ? snapshot.preferences.channels : snapshot.effective.events.length ? snapshot.effective.events : snapshot.defaults.events.length ? snapshot.defaults.events : ["stream_available"]))];
     const heading = el("h2", {id:"dialog-title"}, label(account ? "NotificationsAccount" : "NotificationsSeries"));
     const group = el("fieldset", {class:"notification-group"}, el("legend", {},label(account ? "NotificationsChannels" : "NotificationsEvents")));
     content.replaceChildren(heading,status,group);
     const inputs = [];
-    const save = button(label(account ? "NotificationsSave" : snapshot.subscribed ? "NotificationsSave" : "NotificationsEnable"), () => persist(false), "primary");
+    const save = button(label(account ? "NotificationsSave" : subscribed ? "NotificationsSave" : "NotificationsEnable"), () => persist(false), "primary");
     const update = () => { save.disabled = busy || (!account && (!selected.length || !snapshot.defaults.channels.length)); };
     for (const key of fields) {
       const input = el("input", {type:"checkbox",role:"switch",checked:selected.includes(key)});
@@ -63,7 +64,7 @@ export async function openNotifications(titleId = null, draft = null, afterClose
         content.append(button(label("NotificationsPermission"),async()=>{ await Notification.requestPermission(); if(current()) refresh(); },"secondary"),permission);
       }
     }
-    const disable = !account && snapshot.subscribed ? button(label("NotificationsDisable"),()=>persist(true),"secondary") : null;
+    const disable = !account && subscribed ? button(label("NotificationsDisable"),()=>persist(true),"secondary") : null;
     const actions = el("div",{class:"notification-actions"},save,disable,button(label("NotificationsCancel"),()=>dialog.close(),"secondary"));
     content.append(actions); update();
     async function persist(off) {
