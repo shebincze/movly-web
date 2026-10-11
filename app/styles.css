@@ -1968,3 +1968,5 @@ body:has(.feedback-page) #navigation [data-page=feedback] { display: flex; }
 .notification-editor input[role="switch"]:checked::before { transform: translateX(18px); }
 .notification-editor input[role="switch"]:focus-visible { outline: 2px solid white; outline-offset: 3px; }
 .notification-editor input[role="switch"]:disabled { opacity: .5; }
+
+.settings-menu { display: flex; flex-direction: column; gap: 12px; }
