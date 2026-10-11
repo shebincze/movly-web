@@ -448,6 +448,8 @@ function createAppHandler({
     ["POST", /^sync\/v2\/mutations$/, []],
     ["POST", /^sync\/v2\/conflicts\/[1-9]\d*\/resolve$/, []],
     ["GET", /^integrations$/, []],
+    ["GET", /^integrations\/(?:trakt|simkl)\/lists$/, []],
+    ["GET", /^tmdb\/[1-9]\d*$/, ["type"]],
     [
       "POST",
       /^integrations\/(?:trakt|simkl)\/(?:authorization(?:\/poll)?|sync|import)$/,
@@ -1529,6 +1531,8 @@ function createAppHandler({
         json(res, 200, { ...result, viewer_scope: scope });
         return true;
       }
+      if (/^tmdb\/[1-9]\d*$/.test(target) && !["movie", "tv"].includes(url.searchParams.get("type")))
+        throw new HttpError(400, "Neplatný typ titulu.");
       if (/^titles\/[1-9]\d*$/.test(target))
         query +=
           "&expand=credits,seasons,collection,videos,ratings,streams,watch_history";

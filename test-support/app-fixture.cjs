@@ -367,6 +367,16 @@ function createFixture() {
         },
       };
     }
+    if (p === "v1/integrations/trakt/lists") return { payload: {provider:"trakt", status:"ready", notice:"", retry_at:null, lists:[
+      {id:"watchlist",name:"Watchlist",description:"",items:[{id:"a",name:"Dune: Part Two",kind:"movie",year:2024,tmdb_id:693134,imdb_id:""},{id:"b",name:"The Big Bang Theory",kind:"tv",year:2007,tmdb_id:1418,imdb_id:""}]},
+      {id:"fixture-large",name:"Testovací seznam",description:"Izolovaná testovací data",items:Array.from({length:25},(_,i)=>({id:String(i),name:"English title "+i,kind:"movie",year:2024,tmdb_id:693134+i,imdb_id:""}))}
+    ]}};
+    if (p === "v1/integrations/simkl/lists") return { payload:{provider:"simkl",status:"rate_limited",notice:"",retry_at:"2026-10-12T04:00:00Z",lists:[]} };
+    if (/^v1\/tmdb\/\d+$/.test(p)) {
+      const id=Number(p.split("/").at(-1)); const tv=u.searchParams.get("type")==="tv";
+      const name=tv?"Teorie velkého třesku":id===693134?"Duna: Část druhá":"Český titul "+id;
+      return {payload:{...films[0],id:10000+id+(tv?1000:0),tmdb_id:id,type:tv?"tv":"movie",title:name,all_titles:{cs:name,en:tv?"The Big Bang Theory":"Dune: Part Two"}}};
+    }
     if (p === "v1/watchlists/overview")
       return {
         payload: {

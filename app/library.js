@@ -1,3 +1,4 @@
+import { externalListSections, externalListDetail } from "./external-lists.js";
 import { seriesNotificationButton } from "./notifications.js";
 import { translateUI } from "./i18n.js";
 import { hostParty } from "./party.js";
@@ -620,6 +621,7 @@ function confirmDelete(list, done) {
   );
 }
 export async function library(params, signal, actions) {
+  if (params.has("provider")) return externalListDetail(params, signal, actions);
   const [own, shared] = await Promise.all([
     api("watchlists/overview?preview_limit=12", { signal }),
     api("watchlists/shared", { signal }),
@@ -710,7 +712,7 @@ export async function library(params, signal, actions) {
           ),
     );
   }
-  return el(
+  const page = el(
     "div",
     { class: "page" },
     el(
@@ -830,6 +832,8 @@ export async function library(params, signal, actions) {
           ),
         ),
   );
+  page.append(await externalListSections(signal, actions));
+  return page;
 }
 
 async function shareList(list) {
