@@ -1,4 +1,8 @@
 export const translations = {
+  "Hodnotit": ["Hodnotiť", "Rate"],
+  "Označit": ["Označiť", "Mark watched"],
+  "Skrýt": ["Skryť", "Hide"],
+  "Žádná vydaná epizoda zatím není dostupná.": ["Žiadna vydaná epizóda zatiaľ nie je dostupná.", "No released episode is available yet."],
   "Nezhlédnuto": ["Nevidené", "Unwatched"],
   "Titul nemá rozpoznané katalogové ID.": ["Titul nemá rozpoznané katalógové ID.", "This title has no recognized catalog ID."],
   "Pouze ke čtení": ["Iba na čítanie", "Read only"],

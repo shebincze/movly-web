@@ -12,7 +12,7 @@ import {
   poster,
   empty,
 } from "./ui.js";
-export async function titleActivity(t) {
+export async function titleActivity(t, section = "all") {
   const dialog = showDialog(
     el(
       "div",
@@ -56,7 +56,7 @@ export async function titleActivity(t) {
               body: { rating: Number(value.value), is_public: publish.checked },
             });
             toast(translateUI("Hodnocení uloženo."));
-            await titleActivity(t);
+            await titleActivity(t, section);
           } catch (e) {
             status.textContent = e.message;
             submit.disabled = false;
@@ -91,8 +91,7 @@ export async function titleActivity(t) {
         status.textContent = e.message;
       }
     };
-    showDialog(
-      el(
+    const activity = el(
         "div",
         { class: "dialog-body" },
         el("h2", { id: "dialog-title" }, t.title),
@@ -124,7 +123,7 @@ export async function titleActivity(t) {
                       },
                 );
                 window.dispatchEvent(new Event("movly:personal-changed"));
-                await titleActivity(t);
+                await titleActivity(t, section);
               } catch (error) {
                 status.textContent = error.message;
               }
@@ -139,7 +138,7 @@ export async function titleActivity(t) {
               async () => {
                 try {
                   await api(`ratings/${mine.rating.id}`, { method: "DELETE" });
-                  await titleActivity(t);
+                  await titleActivity(t, section);
                 } catch (e) {
                   status.textContent = e.message;
                 }
@@ -148,8 +147,22 @@ export async function titleActivity(t) {
             )
           : null,
         status,
-      ),
-    );
+      );
+    // Each detail shortcut opens the corresponding existing controls.
+    const groups = activity.querySelectorAll(":scope > h3");
+    const watchActions = activity.querySelector(":scope > .actions");
+    if (section === "rating") {
+      groups[0].remove();
+      watchActions.remove();
+    } else if (section === "watched" || section === "hidden") {
+      groups[1].remove();
+      form.remove();
+      activity.querySelector(":scope > .small")?.remove();
+      for (const [index, action] of [...watchActions.children].entries()) {
+        if (section === "hidden" ? index !== 4 : index === 4) action.remove();
+      }
+    }
+    showDialog(activity);
   } catch (e) {
     if (dialog.open)
       showDialog(
@@ -157,7 +170,7 @@ export async function titleActivity(t) {
           "div",
           { class: "dialog-body" },
           el("h2", { id: "dialog-title" }, t.title),
-          errorBox(e, () => titleActivity(t)),
+          errorBox(e, () => titleActivity(t, section)),
         ),
       );
   }
