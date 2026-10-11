@@ -43,6 +43,11 @@ export async function detail(t, actions) {
     // Karta v seznamu mohla přijít bez plakátu; po zavření detailu ho dostane.
     noteArtwork(data.id, data.poster_path, data.backdrop_path);
     const art = imageURL(data.backdrop_path, "w1280");
+    const firstEpisode = (data.seasons || []).filter(s => s.season_number > 0)
+      .sort((a, b) => a.season_number - b.season_number)
+      .flatMap(s => (s.episodes || []).filter(e => e.episode_number > 0 && !episodeState(e).upcoming)
+        .sort((a, b) => a.episode_number - b.episode_number)
+        .map(e => ({ ...e, season_number: s.season_number })))[0];
     const body = el(
       "div",
       { class: `detail-content${art ? "" : " no-art"}` },
@@ -68,28 +73,19 @@ export async function detail(t, actions) {
       el(
         "div",
         { class: "actions" },
-        data.type === "tv" ? seriesNotificationButton(data.id,()=>void detail(data,actions)) : null,
-        data.type !== "tv"
-          ? button(translateUI("Přehrát"), () => sources(data), "primary")
+        button(translateUI("Přehrát"), () => {
+          if (data.type !== "tv") return sources(data);
+          if (firstEpisode) return sources(data, firstEpisode);
+          toast(translateUI("Žádná vydaná epizoda zatím není dostupná."));
+        }, "primary"),
+        button(translateUI("Do seznamu"), () => actions.save(data), "secondary", "plus"),
+        data.type === "tv" ? seriesNotificationButton(data.id, () => void detail(data, actions)) : null,
+        button(translateUI("Hodnotit"), () => titleActivity(data, "rating"), "secondary"),
+        data.type !== "tv" || firstEpisode
+          ? button(translateUI("Sledovat společně"), () => hostParty(data, firstEpisode), "secondary")
           : null,
-        data.type !== "tv"
-          ? button(
-              translateUI("Sledovat společně"),
-              () => hostParty(data),
-              "secondary",
-            )
-          : null,
-        button(
-          translateUI("Do seznamu"),
-          () => actions.save(data),
-          "secondary",
-          "plus",
-        ),
-        button(
-          translateUI("Sledování a hodnocení"),
-          () => titleActivity(data),
-          "secondary",
-        ),
+        button(translateUI("Označit"), () => titleActivity(data, "watched"), "secondary", "check"),
+        button(translateUI("Skrýt"), () => titleActivity(data, "hidden"), "secondary"),
       ),
     );
     if (data.tagline)
@@ -152,7 +148,7 @@ export async function detail(t, actions) {
           Number(b.official) - Number(a.official),
       )[0];
     if (trailer)
-      body.querySelector(".actions").append(
+      body.querySelector(".actions").children[0].after(
         el(
           "a",
           {
