@@ -67,6 +67,7 @@ let session = null,
   controller = null,
   renderRevision = 0;
 const actions = {
+  get owner() { return session?.account?.id && session?.profile?.id ? { accountId: Number(session.account.id), profileId: Number(session.profile.id) } : null; },
   detail: (t) => detail(t, actions),
   save: (t) =>
     save(t, () => {

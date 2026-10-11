@@ -1188,3 +1188,18 @@ test("account notification defaults work before profile selection and preserve m
   assert.equal((await h.request("notifications/defaults")).status,401);
   assert.equal((await h.request("notifications/series/20",{cookie:login.cookie,method:"PUT",body:custom,headers:{"x-movly-expected-account":"999","x-movly-expected-profile":"undefined"}})).status,409);
 });
+
+test('external list reads and exact TMDB metadata retain selected scope and block mutations', async () => {
+  const h=harness({override:path=>path.startsWith('v1/integrations/')?{payload:{provider:'trakt',status:'ready',lists:[]}}:path.startsWith('v1/tmdb/')?{payload:{id:42,title:'Český titul'}}:undefined});
+  const session=await h.selected();
+  for(const path of ['integrations/trakt/lists','integrations/simkl/lists','tmdb/550?type=movie']) {
+    const r=await h.request(path,{cookie:session.cookie,headers:{'X-Profile-ID':'80'}});
+    assert.equal(r.status,200); assert.equal(h.calls.at(-1)[5]['X-Profile-ID'],'1');
+  }
+  const relevant=()=>h.calls.filter(call=>/^v1\/(integrations|tmdb)\//.test(call[0])).length;
+  const before=relevant();
+  for(const path of ['integrations/unknown/lists','integrations/trakt/lists?profile_id=80','tmdb/550?type=both'])
+    assert.notEqual((await h.request(path,{cookie:session.cookie})).status,200);
+  assert.notEqual((await h.request('integrations/trakt/lists',{method:'POST',cookie:session.cookie,body:{}})).status,200);
+  assert.equal(relevant(),before);
+});

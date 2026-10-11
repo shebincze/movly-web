@@ -85,7 +85,7 @@ export async function titleActivity(t) {
         });
         // Karty pod dialogem i detail se překreslí hned, bez reloadu.
         if (state === "completed") setWatched(t.id, true);
-        else if (state === "dropped") setWatched(t.id, false);
+        else if (state === "dropped" || state === "plan_to_watch") setWatched(t.id, false);
         toast(translateUI("Stav sledování uložen."));
       } catch (e) {
         status.textContent = e.message;
@@ -102,6 +102,7 @@ export async function titleActivity(t) {
           { class: "actions" },
           button(translateUI("Zhlédnuto"), () => change("completed")),
           button(translateUI("Právě sleduji"), () => change("watching")),
+          button(translateUI("Nezhlédnuto"), () => change("plan_to_watch")),
           button(translateUI("Přestal/a jsem sledovat"), () =>
             change("dropped"),
           ),
