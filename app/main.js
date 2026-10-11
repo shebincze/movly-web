@@ -94,7 +94,7 @@ dialog.addEventListener("close", () => {
   }
 });
 function chrome() {
-  document.querySelector("#notification-settings").textContent=notificationLabel("NotificationsEntry");
+  document.querySelector("#notification-settings").textContent=notificationLabel("NotificationsAccount");
   setSearchOwner(session?.account, session?.profile);
   setPlaybackOwner(session?.account, session?.profile);
   const ready = Boolean(session?.profile);

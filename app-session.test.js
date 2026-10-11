@@ -1176,8 +1176,15 @@ test("account notification defaults work before profile selection and preserve m
   const series=await h.request("notifications/series/20",{cookie:login.cookie,method:"PUT",body:{events:[],channels:[],use_defaults:true}});
   assert.equal(series.status,200);assert.deepEqual(series.body.effective,preferences);
   const custom={events:["episode_released"],channels:["desktop"],use_defaults:false};
-  const override=await h.request("notifications/series/20",{cookie:login.cookie,method:"PUT",body:custom});assert.deepEqual(override.body.effective,custom);
+  const override=await h.request("notifications/series/20",{cookie:login.cookie,method:"PUT",body:custom});assert.deepEqual(override.body.effective,{...custom,channels:preferences.channels});
   const defaults=await h.request("notifications/defaults",{cookie:login.cookie});assert.deepEqual(defaults.body.effective,preferences);
+  const updated={...preferences,channels:["mobile_push","in_app"]};
+  assert.equal((await h.request("notifications/defaults",{cookie:login.cookie,method:"PUT",body:updated})).status,200);
+  const retained=await h.request("notifications/series/20",{cookie:login.cookie});
+  assert.deepEqual(retained.body.preferences.events,custom.events);
+  assert.deepEqual(retained.body.effective.channels,updated.channels);
+  await h.request("notifications/series/20",{cookie:login.cookie,method:"PUT",body:{events:[],channels:[],use_defaults:false}});
+  assert.deepEqual((await h.request("notifications/series/20",{cookie:login.cookie})).body.effective.events,[]);
   assert.equal((await h.request("notifications/defaults")).status,401);
   assert.equal((await h.request("notifications/series/20",{cookie:login.cookie,method:"PUT",body:custom,headers:{"x-movly-expected-account":"999","x-movly-expected-profile":"undefined"}})).status,409);
 });
