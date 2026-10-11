@@ -1167,12 +1167,16 @@ test("profile listing is identity-only while creation retains the adult manageme
   assert.equal(created.body.id, 3);
 });
 
-test("account notification defaults work before profile selection and preserve multiple selections",async()=>{
-  const h=harness(),login=await h.login();
+test("profile notification defaults require selection and preserve multiple selections",async()=>{
+  const h=harness(),unselected=await h.login();
+  assert.equal((await h.request("notifications/defaults",{cookie:unselected.cookie})).status,409);
+  const login=await h.request("profile",{cookie:unselected.cookie,method:"POST",body:{id:1}});
   const preferences={events:["stream_available","czsk_available"],channels:["in_app","email"],use_defaults:false};
   const save=await h.request("notifications/defaults",{cookie:login.cookie,method:"PUT",body:preferences});
   assert.equal(save.status,200);assert.deepEqual(save.body.preferences,preferences);
   const read=await h.request("notifications/defaults",{cookie:login.cookie});assert.deepEqual(read.body.effective,preferences);
+  assert.equal(h.calls.findLast(c=>c[0].startsWith("v1/notifications/defaults"))[5]["X-Profile-ID"],"1");
+  assert.equal((await h.request("notifications/defaults",{cookie:login.cookie,headers:{"x-movly-expected-account":"1","x-movly-expected-profile":"2"}})).status,409);
   const series=await h.request("notifications/series/20",{cookie:login.cookie,method:"PUT",body:{events:[],channels:[],use_defaults:true}});
   assert.equal(series.status,200);assert.deepEqual(series.body.effective,preferences);
   const custom={events:["episode_released"],channels:["desktop"],use_defaults:false};
@@ -1187,6 +1191,13 @@ test("account notification defaults work before profile selection and preserve m
   assert.deepEqual((await h.request("notifications/series/20",{cookie:login.cookie})).body.effective.events,[]);
   assert.equal((await h.request("notifications/defaults")).status,401);
   assert.equal((await h.request("notifications/series/20",{cookie:login.cookie,method:"PUT",body:custom,headers:{"x-movly-expected-account":"999","x-movly-expected-profile":"undefined"}})).status,409);
+  const second=await h.request("profile",{cookie:login.cookie,method:"POST",body:{id:2,pin:"1234"}});
+  assert.equal(second.status,200);
+  const separate=await h.request("notifications/defaults",{cookie:second.cookie});
+  assert.deepEqual(separate.body.preferences.channels,[]);
+  assert.equal(h.calls.findLast(c=>c[0].startsWith("v1/notifications/defaults"))[5]["X-Profile-ID"],"2");
+  assert.equal((await h.request("notifications/defaults",{cookie:second.cookie,headers:{"x-movly-expected-account":"1","x-movly-expected-profile":"1"}})).status,409);
+
 });
 
 test('external list reads and exact TMDB metadata retain selected scope and block mutations', async () => {

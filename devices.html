@@ -9,8 +9,8 @@
   <title>Zařízení a přihlášení — Movly</title>
   <link rel="icon" type="image/svg+xml" href="/assets/movly-icon.svg">
   <link rel="stylesheet" href="/activate.css">
-  <link rel="stylesheet" href="/devices.css?v=20260715">
-  <script src="/devices.js?v=20260715" defer></script>
+  <link rel="stylesheet" href="/devices.css?v=20261011profiles">
+  <script src="/devices.js?v=20261011profiles" defer></script>
 </head>
 <body>
   <header class="site-header">
@@ -58,11 +58,19 @@
         <button id="refreshButton" class="button button-secondary compact-button" type="button">Obnovit vše</button>
       </div>
 
+      <section class="management-card" aria-label="Vybraný profil">
+        <label for="deviceProfile">Zařízení pro profil</label>
+        <select id="deviceProfile"><option value="">Vyber profil</option></select>
+        <label for="deviceProfilePin">PIN profilu (pokud je chráněný)</label>
+        <input id="deviceProfilePin" type="password" inputmode="numeric" minlength="4" maxlength="8" autocomplete="off">
+        <button id="selectDeviceProfile" class="button button-secondary" type="button">Vybrat profil</button>
+        <p id="deviceProfileStatus" role="status"></p>
+      </section>
       <section class="management-card" aria-labelledby="devicesTitle">
         <header class="section-heading">
           <div>
             <h2 id="devicesTitle">Zařízení</h2>
-            <p>Televize, počítače a telefony propojené s účtem.</p>
+            <p>Televize, počítače a telefony propojené s vybraným profilem.</p>
           </div>
           <span id="deviceCount" class="count-badge">0</span>
         </header>

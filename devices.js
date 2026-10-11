@@ -49,6 +49,7 @@
   } catch (error) {
     storageReadError = error;
   }
+  let activeProfile = null, profileGrant = null, ownerRevision = 0;
   let account = null;
   let pendingDecision = null;
   const state = {
@@ -87,6 +88,7 @@
     const {
       method = 'GET', body, authenticated = true, expectedStatus = 200,
     } = options;
+    const revision = ownerRevision;
     const headers = { Accept: 'application/json' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     if (authenticated) {
@@ -94,6 +96,11 @@
         throw new RequestError(401, 'Přihlas se Movly účtem.');
       }
       headers.Authorization = `Bearer ${activeToken}`;
+      if(/^\/api\/(devices|sessions)(?:[/?]|$)/.test(path)) {
+        if(!activeProfile)throw new RequestError(409,'Nejdřív vyber profil.');
+        headers['X-Profile-ID']=String(activeProfile);
+        if(profileGrant)headers['X-Profile-Grant']=profileGrant;
+      }
     }
 
     let response;
@@ -103,6 +110,7 @@
       throw new RequestError(0, `Web Movly teď není dostupný (${error.message}).`);
     }
     const raw = await response.text();
+    if(revision!==ownerRevision)throw new RequestError(409,'Aktivní profil se změnil.');
     const contentType = response.headers.get('content-type');
 
     if (response.status === 204) {
@@ -564,7 +572,7 @@
         );
         return;
       }
-      await refreshAll();
+      await loadProfiles();
       const refreshedStatus = kind === 'devices' ? elements.deviceStatus : elements.sessionStatus;
       showStatus(
         refreshedStatus,
@@ -611,12 +619,39 @@
       account = { name: session.name };
       elements.password.value = '';
       showManagement();
-      await refreshAll();
+      await loadProfiles();
     } catch (error) {
       showLogin(error.message, 'error');
     } finally {
       setButtonBusy(button, false);
     }
+  });
+
+  function clearProfileLists() {
+    pendingDecision=null;if(elements.confirmDialog.open)elements.confirmDialog.close();
+    for(const key of ['devices','sessions'])state[key]={items:new Map(),total:null,nextOffset:0,hasMore:false,loading:false};
+    renderDevices();renderSessions();
+  }
+  async function loadProfiles() {
+    ownerRevision++;activeProfile=null;profileGrant=null;clearProfileLists();
+    const profiles=await api('/api/device-profiles');
+    const select=document.getElementById('deviceProfile');select.replaceChildren(new Option('Vyber profil',''));
+    for(const profile of profiles)select.add(new Option(profile.name,String(profile.id)));
+    document.getElementById('deviceProfileStatus').textContent='Vyber profil, jehož zařízení chceš spravovat.';
+  }
+  document.getElementById('selectDeviceProfile').addEventListener('click',async()=>{
+    const id=Number(document.getElementById('deviceProfile').value);
+    if(!Number.isSafeInteger(id)||id<=0)return;
+    const control=document.getElementById('selectDeviceProfile');control.disabled=true;
+    ownerRevision++;activeProfile=null;profileGrant=null;clearProfileLists();
+    try {
+      const pin=document.getElementById('deviceProfilePin').value;
+      const result=await api('/api/device-profiles',{method:'POST',body:JSON.stringify({id,...(pin?{pin}:{})})});
+      document.getElementById('deviceProfilePin').value='';activeProfile=result.profile_id;profileGrant=result.grant_token;
+      document.getElementById('deviceProfileStatus').textContent='Zařízení vybraného profilu.';
+      await refreshAll();
+    }catch(error){document.getElementById('deviceProfileStatus').textContent=error.message;}
+    finally{control.disabled=false;}
   });
 
   elements.refreshButton.addEventListener('click', () => refreshAll());
@@ -648,7 +683,7 @@
       const session = validateSession(await api('/api/auth/me'), false);
       account = { name: session.name };
       showManagement();
-      await refreshAll();
+      await loadProfiles();
     } catch (error) {
       if (error.status === 401) activeToken = null;
       showLogin(error.status === 401 ? 'Přihlášení vypršelo. Přihlas se znovu.' : error.message, 'error');

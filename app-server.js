@@ -111,7 +111,7 @@ function createAppHandler({
       : {}),
   });
   async function call(s, target, method = "GET", body = null, extra = {}) {
-    const identityOnly = target.startsWith("auth/") || (target === "profiles" && method === "GET");
+    const identityOnly = (target.startsWith("auth/") && !/^auth\/(?:devices|sessions|device\/push-id)(?:[/?]|$)/.test(target)) || (target === "profiles" && method === "GET");
     return (
       await api(`v1/${target}`, method, body, s?.token, s?.device, {
         ...headersFor(identityOnly ? { ...s, profile: null } : s),
@@ -678,7 +678,7 @@ function createAppHandler({
         (expectedAccount !== undefined || expectedProfile !== undefined) &&
         (!integer(expectedAccount) ||
           Number(expectedAccount) !== accountUser.id ||
-          (!/^notifications\//.test(target) && (!integer(expectedProfile) || Number(expectedProfile) !== s.profile?.id)))
+          (!integer(expectedProfile) || Number(expectedProfile) !== s.profile?.id))
       )
         throw new HttpError(409, "Aktivní profil se změnil.", {
           code: "offline_owner_changed",
@@ -826,6 +826,7 @@ function createAppHandler({
         return true;
       }
       if (/^notifications\//.test(target)) {
+        if(!s.profile)throw new HttpError(409,"Nejdřív vyber profil.",{code:"app_profile_required"});
         const rule=routes.find(([method,pattern])=>method===req.method&&pattern.test(target));
         if(!rule)throw new HttpError(404,"Položka nebyla nalezena.");
         const body=req.method==="PUT"?objectBody(await readBody(req,4096)):null;
