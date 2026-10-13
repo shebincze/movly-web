@@ -41,6 +41,8 @@ import { friends } from "./friends.js";
 import { history, stats } from "./personal.js";
 import { admin } from "./admin.js";
 import { feedback } from "./feedback.js";
+// Aplikace se spustila; legacy.js pak nezobrazí hlášku o zastaralém prohlížeči.
+window.__movlyStarted = true;
 translateShell(document.body);
 const languagePicker = document.createElement("select");
 languagePicker.className = "language-picker";

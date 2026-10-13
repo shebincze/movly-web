@@ -2024,3 +2024,49 @@ footer a:hover {
 
 .source-section-title { margin: 20px 0 4px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 
+
+/* Hláška pro zastaralý prohlížeč (legacy.js): bez CSS proměnných a moderních vlastností. */
+.legacy-browser,
+.legacy-browser body {
+  background: #0a0a12;
+  color: #ffffff;
+}
+.legacy-browser .header-actions,
+.legacy-browser nav {
+  display: none;
+}
+.legacy-notice {
+  max-width: 720px;
+  margin: 48px auto;
+  padding: 32px;
+  background: #14141f;
+  border: 1px solid #2a2a3c;
+  border-radius: 24px;
+  font-family: sans-serif;
+}
+.legacy-notice h1 {
+  font-size: 32px;
+  margin: 0 0 16px;
+  color: #ffffff;
+}
+.legacy-notice p {
+  color: #d4d4e0;
+  font-size: 18px;
+  line-height: 1.5;
+}
+.legacy-link {
+  display: inline-block;
+  margin: 8px 0 16px;
+  padding: 12px 22px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0a0a12;
+  font-weight: bold;
+}
+.legacy-ua {
+  font-size: 14px;
+}
+.legacy-ua code {
+  word-break: break-all;
+  color: #c4b5fd;
+}
