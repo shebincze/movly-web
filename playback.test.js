@@ -347,6 +347,10 @@ test(
         const args = ffmpegArgs(input, output, info, 0, 0, -1, {
           audioDelay: delay,
         });
+        // Celý EVENT playlist; staré segmenty maže server podle pozice přehrávače.
+        assert.equal(args[args.indexOf("-hls_list_size") + 1], "0");
+        assert.equal(args[args.indexOf("-hls_playlist_type") + 1], "event");
+        assert.ok(!args.join(" ").includes("delete_segments"));
         // This timing test reads its own generated local fixture. Production
         // continues to permit only the loopback HTTP media proxy.
         args[args.indexOf("-protocol_whitelist") + 1] += ",file";

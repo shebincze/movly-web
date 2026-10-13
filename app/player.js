@@ -927,6 +927,12 @@ async function play(
       const key = `${t.id}:${episode?.season_number ?? ""}:${episode?.episode_number ?? ""}`;
       if (lastRecovery.key === key && Date.now() - lastRecovery.at < 60_000) return false;
       lastRecovery = { key, at: Date.now() };
+      // Během pauzy server relaci po čase ukončí (disk); obnovíme ji až při spuštění.
+      if (video.paused && !video.ended && video.currentTime > 0) {
+        const at = positionNow();
+        video.addEventListener("play", () => { if (!handle.cancelled) play(t, episode, selection, at, audio, subtitle); }, { once: true });
+        return true;
+      }
       status.textContent = translateUI("Obnovuji přehrávání…");
       play(t, episode, selection, positionNow(), audio, subtitle);
       return true;
