@@ -1155,3 +1155,39 @@ test('Webová aplikace zveřejní jen shell a chrání serverové zdroje', async
     assert.equal((await request(server, 'GET', '/app/main.js')).headers['cache-control'], 'no-cache');
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+test('TV lite: vstupní stránka a soubory mají správné typy a nezměněné CSP', async () => {
+  const server = createServer();
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  try {
+    for (const route of ['/app/tv', '/app/tv/']) {
+      const response = await request(server, 'GET', route);
+      assert.equal(response.status, 200, route);
+      assert.match(response.headers['content-type'], /^text\/html/);
+      assert.match(response.body, /data-movly-tv="1"/);
+      assert.match(response.body, /src="\/app\/legacy.js"/);
+      assert.doesNotMatch(response.body, /app\/main.js/);
+    }
+    const files = {
+      '/app/tv/tv.js': /^text\/javascript/,
+      '/app/tv/tv.css': /^text\/css/,
+      '/app/vendor/hls-0.14.17.light.min.js': /^text\/javascript/,
+      '/app/legacy.js': /^text\/javascript/,
+    };
+    for (const [route, type] of Object.entries(files)) {
+      const response = await request(server, 'GET', route);
+      assert.equal(response.status, 200, route);
+      assert.match(response.headers['content-type'], type, route);
+      assert.equal(response.headers['x-content-type-options'], 'nosniff');
+      assert.equal(response.headers['cache-control'], 'no-cache');
+    }
+    for (const route of ['/app/', '/app/tv/', '/app/tv/tv.js']) {
+      const csp = (await request(server, 'GET', route)).headers['content-security-policy'];
+      assert.match(csp, /script-src 'self';/, route);
+      assert.match(csp, /style-src 'self';/, route);
+      assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval/, route);
+    }
+    assert.equal((await request(server, 'GET', '/app/tv/missing.js')).status, 404);
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});
