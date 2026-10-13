@@ -560,7 +560,6 @@ function createAppHandler({
       if (
         req.method === "POST" &&
         [
-          "register",
           "password-reset/request",
           "password-reset/verify",
           "password-reset/confirm",
@@ -571,27 +570,15 @@ function createAppHandler({
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254)
           throw new HttpError(400, "Zadej platný e-mail.");
         const body = { email };
-        if (target === "register") {
-          if (
-            typeof input.username !== "string" ||
-            !/^[a-zA-Z0-9_.-]{3,50}$/.test(input.username.trim())
-          )
-            throw new HttpError(
-              400,
-              "Uživatelské jméno musí mít 3 až 50 písmen, číslic nebo znaků . _ -.",
-            );
-          body.username = input.username.trim();
-        }
-        if (["register", "password-reset/confirm"].includes(target)) {
-          const password =
-            target === "register" ? input.password : input.new_password;
+        if (target === "password-reset/confirm") {
+          const password = input.new_password;
           if (
             typeof password !== "string" ||
             password.length < 6 ||
             password.length > 1024
           )
             throw new HttpError(400, "Heslo musí mít 6 až 1024 znaků.");
-          body[target === "register" ? "password" : "new_password"] =
+          body.new_password =
             `sha256:${crypto.createHash("sha256").update(password).digest("base64")}`;
         }
         if (
@@ -605,11 +592,7 @@ function createAppHandler({
           body.code = input.code.trim();
         }
         const result = await call(null, `auth/${target}`, "POST", body);
-        json(
-          res,
-          target === "register" ? 201 : 200,
-          target === "register" ? { ok: true } : result,
-        );
+        json(res, 200, result);
         return true;
       }
       if (target === "login" && req.method === "POST") {

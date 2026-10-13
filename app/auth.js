@@ -2,19 +2,13 @@ import { translateUI } from "./i18n.js";
 import { api } from "./api.js";
 import { el, button, formField, showDialog } from "./ui.js";
 
-export function accountForm(mode, onComplete) {
-  const register = mode === "register";
+// Webová aplikace účty nevytváří; nabízí jen obnovu hesla.
+export function passwordResetForm(onComplete) {
   const email = el("input", {
     type: "email",
     required: true,
     autocomplete: "email",
     maxlength: 254,
-  });
-  const username = el("input", {
-    required: true,
-    minlength: 3,
-    maxlength: 50,
-    autocomplete: "username",
   });
   const password = el("input", {
     type: "password",
@@ -39,34 +33,13 @@ export function accountForm(mode, onComplete) {
   const submit = el(
     "button",
     { type: "submit", class: "button primary" },
-    register ? translateUI("Vytvořit účet") : translateUI("Poslat kód"),
+    translateUI("Poslat kód"),
   );
   const fields = el(
     "div",
     { class: "dialog-form" },
-    ...(register
-      ? [formField(translateUI("Uživatelské jméno"), username)]
-      : []),
     formField(translateUI("E-mail"), email),
   );
-  if (register) {
-    // Orientační síla hesla jako v návrhu; server pravidla nemění.
-    const bars = el("span", { class: "strength-bars", "aria-hidden": "true" }, el("span"), el("span"), el("span"), el("span"));
-    const strengthLabel = el("small", {});
-    const strength = el("div", { class: "password-strength", hidden: true }, bars, strengthLabel);
-    password.addEventListener("input", () => {
-      const v = password.value;
-      const score = !v ? 0 : Math.min(4, (v.length >= 6) + (v.length >= 10) + (/[0-9]/.test(v) && /[a-zA-Z]/.test(v)) + (/[^a-zA-Z0-9]/.test(v) || /[A-Z]/.test(v) && /[a-z]/.test(v)));
-      strength.hidden = !v;
-      strength.dataset.score = String(score);
-      strengthLabel.textContent = score <= 1 ? translateUI("Slabé heslo") : score <= 2 ? translateUI("Střední heslo") : translateUI("Silné heslo");
-    });
-    fields.append(
-      formField(translateUI("Heslo"), password),
-      strength,
-      formField(translateUI("Heslo znovu"), confirmation),
-    );
-  }
   const form = el(
     "form",
     {
@@ -79,24 +52,7 @@ export function accountForm(mode, onComplete) {
         status.textContent = "";
         status.classList.remove("ok");
         try {
-          if (register) {
-            if (password.value !== confirmation.value)
-              throw new Error(translateUI("Hesla se neshodují."));
-            await api("register", {
-              method: "POST",
-              body: {
-                username: username.value,
-                email: email.value,
-                password: password.value,
-              },
-            });
-            dialog.close();
-            onComplete(
-              translateUI(
-                "Účet byl vytvořen. Můžeš se přihlásit; případné ověření dokonči podle e-mailu.",
-              ),
-            );
-          } else if (stage === "request") {
+          if (stage === "request") {
             await api("password-reset/request", {
               method: "POST",
               body: { email: email.value },
@@ -149,9 +105,7 @@ export function accountForm(mode, onComplete) {
     fields,
     status,
     submit,
-    ...(!register
-      ? [
-          button(
+    button(
             translateUI("Poslat nový kód"),
             async () => {
               if (busy) return;
@@ -174,8 +128,6 @@ export function accountForm(mode, onComplete) {
             },
             "small",
           ),
-        ]
-      : []),
   );
   const dialog = showDialog(
     el(
@@ -184,9 +136,9 @@ export function accountForm(mode, onComplete) {
       el(
         "h2",
         { id: "dialog-title" },
-        register ? translateUI("Vytvořit účet") : translateUI("Obnovit heslo"),
+        translateUI("Obnovit heslo"),
       ),
-      register ? null : el("p", {}, translateUI("Pošleme ti kód pro nastavení nového hesla.")),
+      el("p", {}, translateUI("Pošleme ti kód pro nastavení nového hesla.")),
       form,
     ),
   );

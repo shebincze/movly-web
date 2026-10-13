@@ -6,7 +6,7 @@ import { premium } from "./premium.js";
 import { setPlaybackOwner } from "./playback-memory.js";
 import { setSearchOwner } from "./search-history.js";
 import { leaveParty } from "./party.js";
-import { accountForm } from "./auth.js";
+import { passwordResetForm } from "./auth.js";
 import {
   registerOffline,
   synchronizeOfflineContext,
@@ -187,7 +187,7 @@ function login(message = "") {
       { class: "login-row" },
       button(
         translateUI("Zapomenuté heslo?"),
-        () => accountForm("reset", login),
+        () => passwordResetForm(login),
         "link",
       ),
     ),
@@ -227,16 +227,6 @@ function login(message = "") {
             translateUI("Vítej zpět. Tvoje profily a rozkoukané tituly na tebe čekají."),
           ),
           form,
-          el(
-            "p",
-            { class: "login-note" },
-            translateUI("Nemáš účet? "),
-            button(
-              translateUI("Zaregistruj se"),
-              () => accountForm("register", login),
-              "link",
-            ),
-          ),
         ),
         el(
           "a",
