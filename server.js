@@ -8,6 +8,7 @@ const net = require('node:net');
 const path = require('node:path');
 
 const { createAppHandler } = require('./app-server');
+const { HttpError, hasExactObjectKeys, readRequestBody, readCanonicalDeviceUserCode, readCanonicalJSONObject } = require('./http-request');
 const ROOT_DIR = __dirname;
 const PORT_RAW = process.env.MOVLY_WEB_PORT ?? process.env.PORT ?? '8080';
 const API_BASE_RAW = process.env.MOVLY_API_BASE ?? 'https://api.movly.top';
@@ -153,14 +154,6 @@ const windowsIntegrityCache = new Map();
 const windowsLinkRateBuckets = new Map();
 let windowsIntegrityHashComputations = 0;
 
-class HttpError extends Error {
-  constructor(status, message, payload) {
-    super(message);
-    this.status = status;
-    this.payload = payload;
-  }
-}
-
 class ReleaseIntegrityError extends HttpError {}
 
 class ApiError extends Error {
@@ -271,149 +264,6 @@ function json(res, status, payload) {
 
 function notFound(res) {
   json(res, 404, { message: 'Nenalezeno.' });
-}
-
-function readRequestBody(req, limitBytes = 64 * 1024) {
-  return new Promise((resolve, reject) => {
-    let size = 0;
-    const chunks = [];
-    let settled = false;
-    const rejectAndDrain = (error) => {
-      if (settled) return;
-      settled = true;
-      chunks.length = 0;
-      req.resume();
-      reject(error);
-    };
-    req.on('data', (chunk) => {
-      if (settled) return;
-      size += chunk.length;
-      if (size > limitBytes) {
-        rejectAndDrain(new HttpError(413, 'Požadavek je příliš velký.'));
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => {
-      if (settled) return;
-      settled = true;
-      const raw = Buffer.concat(chunks).toString('utf8').trim();
-      if (!raw) {
-        resolve({});
-        return;
-      }
-      try {
-        resolve(JSON.parse(raw));
-      } catch {
-        reject(new HttpError(400, 'Požadavek nemá platný JSON.'));
-      }
-    });
-    req.on('aborted', () => rejectAndDrain(new HttpError(400, 'Přenos požadavku byl přerušen.')));
-    req.on('error', (error) => rejectAndDrain(new HttpError(400, `Přenos požadavku selhal: ${error.message}`)));
-  });
-}
-
-function readCanonicalDeviceUserCode(req) {
-  const contentType = req.headers['content-type'];
-  if (contentType !== 'application/json' && contentType !== 'application/json; charset=utf-8') {
-    req.resume();
-    throw new HttpError(415, 'Aktivace zařízení vyžaduje Content-Type application/json.');
-  }
-
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let size = 0;
-    let settled = false;
-    const rejectAndDrain = (error) => {
-      if (settled) return;
-      settled = true;
-      chunks.length = 0;
-      req.resume();
-      reject(error);
-    };
-    req.on('data', (chunk) => {
-      if (settled) return;
-      size += chunk.length;
-      if (size > 256) {
-        rejectAndDrain(new HttpError(413, 'Aktivační požadavek je příliš velký.'));
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => {
-      if (settled) return;
-      settled = true;
-      const raw = Buffer.concat(chunks).toString('utf8');
-      const match = /^\{"user_code":"([0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5})"\}$/.exec(raw);
-      if (!match) {
-        reject(new HttpError(
-          400,
-          'Aktivační požadavek musí být přesně {"user_code":"XXXXX-XXXXX"} s platným kódem.',
-        ));
-        return;
-      }
-      resolve(match[1]);
-    });
-    req.on('aborted', () => rejectAndDrain(new HttpError(400, 'Přenos aktivačního požadavku byl přerušen.')));
-    req.on('error', (error) => rejectAndDrain(new HttpError(400, `Přenos aktivačního požadavku selhal: ${error.message}`)));
-  });
-}
-
-function readCanonicalJSONObject(req, expectedKeys, limitBytes, label) {
-  const contentType = req.headers['content-type'];
-  if (contentType !== 'application/json' && contentType !== 'application/json; charset=utf-8') {
-    req.resume();
-    throw new HttpError(415, `${label} vyžaduje Content-Type application/json.`);
-  }
-  if (!Array.isArray(expectedKeys) || expectedKeys.length === 0
-      || !Number.isSafeInteger(limitBytes) || limitBytes < 1) {
-    req.resume();
-    throw new HttpError(500, 'Server nemá platný kontrakt JSON požadavku.');
-  }
-
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let size = 0;
-    let settled = false;
-    const rejectAndDrain = (error) => {
-      if (settled) return;
-      settled = true;
-      chunks.length = 0;
-      req.resume();
-      reject(error);
-    };
-    req.on('data', (chunk) => {
-      if (settled) return;
-      size += chunk.length;
-      if (size > limitBytes) {
-        rejectAndDrain(new HttpError(413, `${label} je příliš velký.`));
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => {
-      if (settled) return;
-      settled = true;
-      const raw = Buffer.concat(chunks).toString('utf8');
-      let payload;
-      try {
-        payload = JSON.parse(raw);
-      } catch {
-        reject(new HttpError(400, `${label} nemá platný JSON.`));
-        return;
-      }
-      if (!hasExactObjectKeys(payload, expectedKeys) || JSON.stringify(payload) !== raw) {
-        reject(new HttpError(
-          400,
-          `${label} musí být kanonický JSON přesně s poli ${expectedKeys.join(', ')}.`,
-        ));
-        return;
-      }
-      resolve(payload);
-    });
-    req.on('aborted', () => rejectAndDrain(new HttpError(400, `${label} byl během přenosu přerušen.`)));
-    req.on('error', (error) => rejectAndDrain(new HttpError(400, `${label} během přenosu selhal: ${error.message}`)));
-  });
 }
 
 function extractBearerToken(req) {
@@ -1919,12 +1769,6 @@ function readWindowsUpdateManifest(releaseRoot) {
   return manifest;
 }
 
-function hasExactObjectKeys(value, expectedKeys) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const keys = Object.keys(value);
-  return keys.length === expectedKeys.length
-    && expectedKeys.every((key) => Object.hasOwn(value, key));
-}
 
 function isActualISODate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
