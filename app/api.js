@@ -16,25 +16,34 @@ export async function api(
   path,
   { method = "GET", body, signal, expectedOwner } = {},
 ) {
-  const response = await fetch(`/api/app/${path}`, {
-    method,
-    credentials: "same-origin",
-    cache: "no-store",
-    signal,
-    headers: {
-      Accept: "application/json",
-      "X-Movly-App": "1",
-      "X-Movly-Language": uiLanguage(),
-      ...(expectedOwner
-        ? {
-            "X-Movly-Expected-Account": String(expectedOwner.accountId),
-            "X-Movly-Expected-Profile": String(expectedOwner.profileId),
-          }
-        : {}),
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
+  let response;
+  try {
+    response = await fetch(`/api/app/${path}`, {
+      method,
+      credentials: "same-origin",
+      cache: "no-store",
+      signal,
+      headers: {
+        Accept: "application/json",
+        "X-Movly-App": "1",
+        "X-Movly-Language": uiLanguage(),
+        ...(expectedOwner
+          ? {
+              "X-Movly-Expected-Account": String(expectedOwner.accountId),
+              "X-Movly-Expected-Profile": String(expectedOwner.profileId),
+            }
+          : {}),
+        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+  } catch (error) {
+    // Síťová chyba: srozumitelná hláška, ale stále TypeError kvůli offline režimu.
+    if (error?.name === "AbortError" || signal?.aborted) throw error;
+    throw new TypeError(
+      translateUI("Nepodařilo se spojit se serverem Movly. Zkontroluj připojení a zkus to znovu."),
+    );
+  }
   let data;
   try {
     data = await response.json();
