@@ -65,6 +65,8 @@ async function browserMediaCapabilities() {
 }
 let current = null;
 let playRevision = 0;
+// Poslední automatická obnova relace (viz recoverSession), proti smyčce obnov.
+let lastRecovery = { key: "", at: 0 };
 const time = (n) =>
   `${Math.floor(n / 3600) ? `${Math.floor(n / 3600)}:` : ""}${String(Math.floor(n / 60) % 60).padStart(2, "0")}:${String(Math.floor(n) % 60).padStart(2, "0")}`;
 export async function providerSettings() {
@@ -918,6 +920,17 @@ async function play(
     );
     const positionNow = () =>
       Math.min(session.duration, offset + (video.currentTime || 0));
+    // Relace přehrávání žije jen v paměti webového serveru; po jeho restartu
+    // (např. nasazení) vrací playlist 404. Jednou ji otevřeme znovu na stejném místě.
+    const recoverSession = () => {
+      if (handle.cancelled || inParty) return false;
+      const key = `${t.id}:${episode?.season_number ?? ""}:${episode?.episode_number ?? ""}`;
+      if (lastRecovery.key === key && Date.now() - lastRecovery.at < 60_000) return false;
+      lastRecovery = { key, at: Date.now() };
+      status.textContent = translateUI("Obnovuji přehrávání…");
+      play(t, episode, selection, positionNow(), audio, subtitle);
+      return true;
+    };
     const history = async () => {
       if (!video.currentTime) return;
       // Film: pozice / dokoukáno rovnou do překryvu karet. Stav seriálu je
@@ -975,6 +988,7 @@ async function play(
       status.textContent = translateUI("Načítám video…");
     });
     video.addEventListener("error", () => {
+      if (video.error?.code === 2 && video.src && recoverSession()) return;
       captureFailure("playback", { mediaCode: video.error?.code });
       status.textContent = translateUI(
         "Prohlížeč nemůže video přehrát. Zkus jiný zdroj.",
@@ -1393,6 +1407,7 @@ async function play(
           handle.hls = hls;
           hls.on(Hls.Events.ERROR, (_event, data) => {
             if (data.fatal) {
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR && [404, 410].includes(data.response?.code) && recoverSession()) return;
               captureFailure("playback", { status: data.response?.code }, data.type === Hls.ErrorTypes.NETWORK_ERROR ? "hls_network_failed" : data.type === Hls.ErrorTypes.MEDIA_ERROR ? "hls_media_failed" : "hls_other_failed");
               status.textContent = translateUI(
                 "Přehrávání se přerušilo. Vyber zdroj znovu.",
