@@ -9,6 +9,9 @@
     sk: ["Tento prehliadač Movly nepodporuje", "Vstavaný prehliadač tohto zariadenia je zastaraný a webovú aplikáciu Movly nedokáže spustiť.", "Použi aktuálny Chrome, Edge, Firefox alebo Safari, alebo aplikáciu Movly pre iOS, Android, Android TV, Apple TV či Windows.", "Stiahnuť aplikácie", "Identifikácia prehliadača:"],
     en: ["This browser can't run Movly", "This device's built-in browser is too old to run the Movly web app.", "Use a current Chrome, Edge, Firefox or Safari, or the Movly app for iOS, Android, Android TV, Apple TV or Windows.", "Download the apps", "Browser identification:"]
   };
+  // TV lite je zatím vypnutá: na LG NetCast se nepodařilo zprovoznit přehrávání
+  // (#64). Nepodporované prohlížeče dostanou jen hlášku.
+  var TV_ENABLED = false;
   var t = text[lang] || (lang === "sk" ? text.sk : lang === "cs" ? text.cs : text.en);
   var root = document.documentElement;
   // Samostatná stránka /app/tv/ (data-movly-tv) spouští lite verzi vždy.
@@ -42,6 +45,7 @@
   }
   // Načte omezenou TV verzi. tv.js po spuštění nastaví window.__movlyTvStarted.
   function startTv() {
+    if (!TV_ENABLED) { show(); return; }
     if (window.__movlyStarted || window.__movlyTvLoading) return;
     window.__movlyTvLoading = true;
     var head = document.getElementsByTagName("head")[0] || root;
@@ -69,7 +73,7 @@
     return;
   }
   // Přímý vstup z plné aplikace: /app/?tv=1 nebo /app/#tv vede na /app/tv/.
-  if (/(?:^|[?&])tv=1(?:&|$)/.test(location.search) || location.hash === "#tv") {
+  if (TV_ENABLED && (/(?:^|[?&])tv=1(?:&|$)/.test(location.search) || location.hash === "#tv")) {
     location.replace("/app/tv/");
     return;
   }

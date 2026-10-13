@@ -41,7 +41,7 @@ test("TV vstupní stránka nemá inline skripty ani styly (CSP)", () => {
     assert.match(tag, /><\/script>$/);
   }
   assert.doesNotMatch(html, /<style|\sstyle=|\son[a-z]+=/i);
-  assert.match(html, /<script src="\/app\/legacy.js\?v=2" defer><\/script>/);
+  assert.match(html, /<script src="\/app\/legacy.js\?v=3" defer><\/script>/);
 });
 
 test("vendorovaný hls.js 0.14.17 (ES5 UMD) má licenci a bez eval", () => {
@@ -90,27 +90,14 @@ function runLegacy({ modern = false, search = "", hash = "", tvPage = false, boo
   return { context, head, content, html, timers, replaced: () => replaced, text: () => text(content) };
 }
 
-test("legacy.js načte TV lite v nepodporovaném prohlížeči a hlášku nechá jako zálohu", () => {
+test("TV lite je vypnutá: nepodporovaný prohlížeč dostane jen hlášku", () => {
   const run = runLegacy();
-  const [css, script] = run.head.children;
-  assert.equal(css.href, "/app/tv/tv.css");
-  assert.equal(css.rel, "stylesheet");
-  assert.equal(script.src, "/app/tv/tv.js");
-  // Lite verze se spustila: žádná hláška.
-  run.context.__movlyTvStarted = true;
-  script.onload();
-  assert.equal(run.content.children.length, 0);
-
-  // Lite verzi se nepodařilo načíst: zobrazí se původní hláška.
-  const failed = runLegacy();
-  failed.head.children[1].onerror();
-  assert.match(failed.text(), /Tento prohlížeč Movly nepodporuje/);
-  assert.match(failed.html.className, /legacy-browser/);
-
-  // Skript se načetl, ale nespustil (např. chyba syntaxe).
-  const broken = runLegacy();
-  broken.head.children[1].onload();
-  assert.match(broken.text(), /Tento prohlížeč Movly nepodporuje/);
+  assert.equal(run.head.children.length, 0);
+  assert.match(run.text(), /Tento prohlížeč Movly nepodporuje/);
+  assert.match(run.html.className, /legacy-browser/);
+  const page = runLegacy({ modern: true, tvPage: true });
+  assert.equal(page.head.children.length, 0);
+  assert.match(page.text(), /Tento prohlížeč Movly nepodporuje/);
 });
 
 test("legacy.js v moderním prohlížeči nic nenačítá, dokud se aplikace spustí", () => {
@@ -120,25 +107,21 @@ test("legacy.js v moderním prohlížeči nic nenačítá, dokud se aplikace spu
   assert.equal(run.timers[0].ms, 20000);
   run.context.__movlyStarted = true;
   run.timers[0].fn();
-  assert.equal(run.head.children.length, 0);
   assert.equal(run.content.children.length, 0);
 
+  // Aplikace se nevykreslila: hláška, ne TV lite.
   const stuck = runLegacy({ modern: true });
   stuck.timers[0].fn();
-  assert.equal(stuck.head.children[1].src, "/app/tv/tv.js");
+  assert.equal(stuck.head.children.length, 0);
+  assert.match(stuck.text(), /Tento prohlížeč Movly nepodporuje/);
 
-  // Starší main.js z cache příznak nenastaví, ale aplikaci vykreslí: TV lite se nespustí.
+  // Starší main.js z cache příznak nenastaví, ale aplikaci vykreslí: nic se nezmění.
   const stale = runLegacy({ modern: true, booting: false });
   stale.timers[0].fn();
-  assert.equal(stale.head.children.length, 0);
   assert.equal(stale.content.children.length, 0);
 });
 
-test("přímý vstup do TV lite: /app/?tv=1, /app/#tv a stránka /app/tv/", () => {
-  assert.equal(runLegacy({ modern: true, search: "?tv=1" }).replaced(), "/app/tv/");
-  assert.equal(runLegacy({ modern: true, hash: "#tv" }).replaced(), "/app/tv/");
-  assert.equal(runLegacy({ modern: true, search: "?tvx=1" }).replaced(), null);
-  const page = runLegacy({ modern: true, tvPage: true });
-  assert.equal(page.replaced(), null);
-  assert.equal(page.head.children[1].src, "/app/tv/tv.js");
+test("přímý vstup do TV lite je vypnutý", () => {
+  assert.equal(runLegacy({ modern: true, search: "?tv=1" }).replaced(), null);
+  assert.equal(runLegacy({ modern: true, hash: "#tv" }).replaced(), null);
 });
