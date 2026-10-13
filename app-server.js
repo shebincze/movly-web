@@ -550,6 +550,7 @@ function createAppHandler({
     ],
   ];
   let tvDiagnostics = { windowStart: 0, count: 0 };
+  const tvMediaSeen = new Set();
   return async function handle(req, res, url) {
     if (!url.pathname.startsWith("/api/app/")) return false;
     res.setHeader("Cache-Control", "no-store");
@@ -665,6 +666,18 @@ function createAppHandler({
         }
         res.statusCode = 204;
         res.end();
+        return true;
+      }
+      // HLS pro přehrávače TV bez cookie: přístup jen s tajným klíčem relace.
+      const tvMedia =
+        /^tv-media\/([a-f0-9]{48})\/([a-f0-9]{48})\/(index\.m3u8|index\d+\.ts)$/.exec(target);
+      if (tvMedia && ["GET", "HEAD"].includes(req.method)) {
+        if (tvMedia[3] === "index.m3u8" && !tvMediaSeen.has(tvMedia[1])) {
+          if (tvMediaSeen.size > 200) tvMediaSeen.clear();
+          tvMediaSeen.add(tvMedia[1]);
+          console.log(`[Movly TV] media-playlist cookie=${s ? "yes" : "no"} ua=${String(req.headers["user-agent"] || "").replace(/[^\x20-\x7e]/g, "").slice(0, 160)}`);
+        }
+        await playback.handle(null, { ...req, method: "GET", headers: req.headers }, res, tvMedia[1], tvMedia[3], tvMedia[2]);
         return true;
       }
       if (!s)
@@ -1449,6 +1462,7 @@ function createAppHandler({
             audioSelector: body.audio_selector,
             subtitleSelector: body.subtitle_selector,
             offlineExport: body.offline_export === true,
+            cookieless: body.cookieless_media === true,
             maxBytes: body.max_bytes,
             playbackRate: [0.5, 0.75, 1, 1.25, 1.5, 2].includes(
               body.playback_rate,
