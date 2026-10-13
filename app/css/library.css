@@ -1,0 +1,835 @@
+/* Movly Web redesign — library area. Loaded after /app/styles.css; uses its :root tokens. */
+/* Moje knihovna (#lists, #history, #hidden, #offline), Přátelé (#friends), Statistiky (#stats). */
+
+.library-page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+}
+.library-page h1 {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.library-page h2 {
+  margin: 0;
+}
+.library-page p {
+  margin: 0;
+}
+.lib-muted {
+  color: var(--muted);
+  font-size: 14px;
+}
+.lib-warning {
+  color: var(--warning);
+  font-size: 14px;
+}
+.lib-intro {
+  color: var(--text-2);
+  max-width: 680px;
+}
+.lib-spacer {
+  flex: 1;
+}
+.lib-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.lib-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lib-back {
+  align-self: flex-start;
+  margin-bottom: -12px;
+}
+.lib-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Záložky částí knihovny */
+.lib-tabs {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--line);
+  margin-top: -8px;
+}
+.lib-tabs::-webkit-scrollbar {
+  display: none;
+}
+.lib-tabs a {
+  padding: 12px 4px;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.lib-tabs a:hover {
+  color: var(--text);
+}
+.lib-tabs a[aria-current] {
+  color: var(--text);
+  font-weight: 600;
+  border-bottom-color: var(--accent-soft);
+}
+
+/* Segmentový přepínač (historie, období statistik) */
+.lib-segmented {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.lib-segmented::-webkit-scrollbar {
+  display: none;
+}
+.lib-segmented a {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.lib-segmented a:hover {
+  color: var(--text);
+}
+.lib-segmented a[aria-current] {
+  background: var(--surface-3);
+  color: var(--text);
+  font-weight: 600;
+}
+.lib-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.lib-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.lib-pager:empty {
+  display: none;
+}
+
+/* Karty seznamů */
+.lib-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: 16px;
+}
+.lib-list-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.lib-list-card:hover {
+  color: var(--text);
+  border-color: var(--line-bold);
+  background: var(--surface-2);
+}
+.lib-list-card.featured {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--accent-soft) 45%, transparent);
+}
+.lib-stack {
+  display: flex;
+  height: 92px;
+}
+.lib-stack-art {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background:
+    radial-gradient(110% 80% at 75% 15%, var(--accent-tint) 0, transparent 60%),
+    linear-gradient(160deg, var(--surface-3), var(--bg-raised));
+}
+.lib-stack-art + .lib-stack-art {
+  margin-left: -18px;
+  box-shadow: -6px 0 12px rgba(0, 0, 0, 0.45);
+}
+.lib-stack-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.lib-list-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.lib-list-text strong {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lib-list-text .lib-muted {
+  font-size: 13px;
+}
+.lib-tag {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lib-tag.shared {
+  background: var(--accent-tint);
+  color: var(--accent-light);
+}
+.lib-tag.external {
+  background: color-mix(in srgb, var(--pink) 16%, transparent);
+  color: color-mix(in srgb, var(--pink) 55%, var(--text));
+}
+.lib-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--warning-tint);
+  color: var(--text-2);
+  font-size: 14px;
+}
+.lib-notice .error-copy,
+.lib-notice .list-meta {
+  margin: 0;
+  color: inherit;
+}
+
+/* Obsah seznamu a postranní panel */
+.lib-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  align-items: flex-start;
+}
+.lib-featured {
+  flex: 999 1 560px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.lib-aside {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.lib-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.lib-section-head h2 {
+  font-size: 22px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.lib-poster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 24px 16px;
+}
+.lib-poster-grid .poster-card {
+  width: auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.lib-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.lib-mini-button,
+.lib-icon-button {
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.lib-mini-button {
+  flex: 1;
+  min-width: 0;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lib-icon-button {
+  flex: none;
+  width: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.lib-icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+.lib-mini-button:hover,
+.lib-icon-button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.lib-icon-button.accept {
+  border-color: transparent;
+  background: var(--accent-strong);
+  color: var(--text);
+}
+.lib-icon-button.accept:hover {
+  background: var(--accent);
+}
+.lib-mini-button:disabled,
+.lib-icon-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Panely */
+.lib-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.lib-card h1 {
+  font-size: 24px;
+  font-weight: 700;
+}
+.lib-card h2 {
+  font-size: 18px;
+  font-weight: 700;
+}
+.lib-card .lib-eyebrow,
+.lib-eyebrow {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.lib-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: 14px;
+}
+
+/* Řádky titulů (historie, skryté) */
+.lib-day-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lib-day {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.lib-rows,
+.lib-people,
+.lib-members,
+.lib-activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lib-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.lib-row-main {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px;
+  margin: -6px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lib-row-main:hover {
+  background: var(--surface-2);
+}
+.lib-thumb {
+  flex: none;
+  width: 40px;
+  height: 56px;
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+  background: linear-gradient(160deg, var(--surface-3), var(--bg-raised));
+}
+.lib-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.lib-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.3;
+}
+.lib-row-text strong {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lib-row-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.lib-row-text progress {
+  position: static;
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  height: 4px;
+  margin-top: 4px;
+}
+
+/* Statistiky */
+.lib-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 16px;
+}
+.lib-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.lib-kpi strong {
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.lib-split > .lib-card {
+  flex: 1 1 320px;
+}
+.lib-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lib-bar-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+.lib-bar-label span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lib-bar-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-3);
+}
+.lib-bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+}
+.lib-wrapped {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background:
+    radial-gradient(60% 120% at 90% 10%, color-mix(in srgb, var(--pink) 55%, transparent) 0, transparent 60%),
+    radial-gradient(60% 120% at 10% 100%, color-mix(in srgb, var(--accent-strong) 60%, transparent) 0, transparent 60%),
+    var(--surface);
+}
+.lib-wrapped > div {
+  flex: 1 1 min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lib-wrapped h2 {
+  font-size: clamp(30px, 4vw, 48px);
+  font-weight: 800;
+  line-height: 1.05;
+}
+.lib-wrapped p {
+  color: var(--text-2);
+}
+.lib-wrapped .lib-eyebrow {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: color-mix(in srgb, var(--pink) 35%, var(--text));
+}
+
+/* Přátelé */
+.lib-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  align-items: flex-start;
+}
+.lib-column-side {
+  flex: 1 1 320px;
+  max-width: 420px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.lib-column-main {
+  flex: 999 1 480px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.lib-person {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.lib-person > .lib-row-text {
+  flex: 1 1 120px;
+}
+.lib-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--accent-strong);
+}
+.lib-avatar[data-tone="1"] {
+  background: var(--info);
+}
+.lib-avatar[data-tone="2"] {
+  background: color-mix(in srgb, var(--pink) 80%, var(--bg));
+}
+.lib-avatar[data-tone="3"] {
+  background: var(--surface-3);
+}
+.lib-activity {
+  gap: 14px;
+}
+.lib-activity li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.lib-activity .lib-avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 13px;
+}
+.lib-activity strong {
+  color: var(--text);
+}
+.lib-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lib-inline-form input {
+  flex: 1 1 160px;
+  min-width: 0;
+  min-height: 44px;
+  height: 44px;
+}
+.lib-inline-form .button {
+  flex: none;
+  min-height: 44px;
+  height: 44px;
+}
+.lib-privacy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lib-privacy .button {
+  align-self: flex-start;
+}
+.lib-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+.library-page input[role="switch"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  position: relative;
+  width: 44px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.library-page input[role="switch"]::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 0.15s ease;
+}
+.library-page input[role="switch"]:checked {
+  background: var(--accent);
+}
+.library-page input[role="switch"]:checked::before {
+  transform: translateX(20px);
+}
+.lib-person > .lib-actions {
+  margin-left: 52px;
+}
+/* Dialogy seznamů */
+.lib-dialog .lib-muted {
+  margin: 0 0 4px;
+}
+.lib-choices button {
+  justify-content: flex-start;
+  text-align: left;
+}
+.lib-share {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lib-share h2,
+.lib-share p {
+  margin: 0;
+}
+.lib-member {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.lib-member .lib-avatar {
+  width: 36px;
+  height: 36px;
+}
+.lib-member-name {
+  flex: 1 1 120px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lib-public-link {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.lib-public-link h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.lib-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lib-link-row input {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+/* Offline knihovna */
+.lib-offline-list {
+  display: flex;
+  flex-direction: column;
+}
+.lib-offline-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.lib-offline-row:first-child {
+  padding-top: 0;
+}
+.lib-offline-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.lib-offline-row > .lib-row-text {
+  flex: 1 1 240px;
+}
+.lib-offline-row > .lib-warning {
+  flex-basis: 100%;
+  order: 1;
+}
+.lib-offline-row.sync > p {
+  flex: 1 1 240px;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14px;
+}
+.library-page .offline-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  align-items: end;
+  gap: 20px;
+  margin: 0;
+}
+.library-page .offline-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  cursor: pointer;
+}
+.library-page .offline-toggle input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 700px) {
+  .library-page {
+    gap: 24px;
+  }
+  .library-page h1 {
+    font-size: 30px;
+  }
+  .lib-column-side {
+    max-width: none;
+  }
+  .lib-card {
+    padding: 18px;
+    border-radius: var(--radius-md);
+  }
+  .lib-wrapped {
+    padding: 24px;
+  }
+  .lib-list-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .lib-list-card {
+    padding: 12px;
+  }
+  .lib-stack {
+    height: 72px;
+  }
+  .lib-poster-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 20px 12px;
+  }
+  .lib-kpi strong {
+    font-size: 28px;
+  }
+}

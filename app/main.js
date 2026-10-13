@@ -60,12 +60,15 @@ languagePicker.addEventListener("change", () => {
   setUILanguage(languagePicker.value);
   location.reload();
 });
-document.querySelector("header").append(languagePicker);
+document.querySelector(".header").append(languagePicker);
 const content = document.querySelector("#content"),
   dialog = document.querySelector("#dialog");
 let session = null,
   controller = null,
-  renderRevision = 0;
+  renderRevision = 0,
+  profileShortcuts = null,
+  inboxItems = null,
+  inboxRequested = false;
 const actions = {
   get owner() { return session?.account?.id && session?.profile?.id ? { accountId: Number(session.account.id), profileId: Number(session.profile.id) } : null; },
   detail: (t) => detail(t, actions),
@@ -81,8 +84,10 @@ document.querySelector(".skip-link").addEventListener("click", (e) => {
   content.focus();
   content.scrollIntoView();
 });
-document.querySelector("#search-link").append(icon("search"));
+document.querySelector("#search-link").prepend(icon("search"));
 document.querySelector("#account-button").append(icon("down"));
+document.querySelector("#inbox-button").append(icon("bell"));
+document.querySelector("#coin-pill").append(icon("coin"), el("span", { id: "coin-count" }));
 dialog.querySelector(".dialog-close").append(icon("close"));
 dialog
   .querySelector(".dialog-close")
@@ -102,22 +107,33 @@ function chrome() {
   document.querySelector("#navigation").hidden = !ready;
   document.querySelector("#header-actions").hidden = !session;
   document.querySelector("#search-link").hidden = !ready;
+  document.querySelector("#inbox-button").parentElement.hidden = !ready;
   document.querySelector("#profile-name").textContent =
     session?.profile?.name || translateUI("Vybrat profil");
-  document
-    .querySelector("#avatar")
-    .replaceChildren(
-      ...avatar(session?.profile || { name: session?.account?.displayName })
-        .childNodes,
-    );
-  document.querySelector("#account-name").textContent =
-    session?.account?.displayName || "";
+  const who = session?.profile || { name: session?.account?.displayName };
+  for (const id of ["#avatar", "#menu-avatar"])
+    document.querySelector(id).replaceChildren(...avatar(who).childNodes);
+  document.querySelector("#account-button").setAttribute("aria-label", translateUI("Účet a profily, {0}", who.name || ""));
+  const premiumUntil = session?.account?.premiumUntil ? new Date(session.account.premiumUntil) : null,
+    premiumActive = premiumUntil && premiumUntil > new Date();
+  document.querySelector("#account-name").textContent = [session?.account?.displayName, premiumActive ? "Premium" : null].filter(Boolean).join(" · ");
+  document.querySelector("#premium-meta").textContent = premiumActive ? translateUI("do {0}", premiumUntil.toLocaleDateString(uiLanguage() === "en" ? "en-GB" : uiLanguage() === "sk" ? "sk-SK" : "cs-CZ", { day: "numeric", month: "numeric" })) : "";
+  const coins = session?.account?.coins, pill = document.querySelector("#coin-pill");
+  pill.hidden = !ready || !Number.isSafeInteger(coins);
+  if (!pill.hidden) {
+    document.querySelector("#coin-count").textContent = coins.toLocaleString("cs-CZ");
+    pill.setAttribute("aria-label", translateUI("{0} coinů, Premium", coins));
+  }
+  (session ? document.querySelector("#account-language") : document.querySelector(".header")).append(languagePicker);
+  if (!ready) { profileShortcuts = null; inboxItems = null; inboxRequested = false; }
+  else if (!inboxRequested) { inboxRequested = true; loadInbox(); }
   document.querySelector("#admin-link").hidden = !(
     ready && session?.account?.canModerate
   );
 }
 function login(message = "") {
   session = null;
+  document.body.dataset.route = "login";
   chrome();
   controller?.abort();
   dialog.close();
@@ -166,22 +182,17 @@ function login(message = "") {
     },
     formField(translateUI("Uživatelské jméno nebo e-mail"), username),
     formField(translateUI("Heslo"), password),
-    status,
-    submit,
     el(
       "div",
-      { class: "actions" },
+      { class: "login-row" },
       button(
-        translateUI("Vytvořit účet"),
-        () => accountForm("register", login),
-        "small",
-      ),
-      button(
-        translateUI("Zapomenuté heslo"),
+        translateUI("Zapomenuté heslo?"),
         () => accountForm("reset", login),
-        "small",
+        "link",
       ),
     ),
+    status,
+    submit,
   );
   content.replaceChildren(
     el(
@@ -200,26 +211,43 @@ function login(message = "") {
         el(
           "p",
           {},
-          translateUI(
-            "Objevuj filmy a seriály. Vracej se ke svým oblíbeným. Vytvářej seznamy na každý večer.",
-          ),
+          translateUI("Jeden účet pro web, mobil, počítač i televizi"),
         ),
       ),
       el(
         "div",
-        { class: "login-panel" },
-        el("h2", {}, translateUI("Vítej v Movly")),
+        { class: "login-cards" },
         el(
-          "p",
-          {},
-          translateUI("Přihlas se stejným účtem, který používáš v aplikaci."),
+          "div",
+          { class: "login-panel" },
+          el("h2", {}, translateUI("Přihlášení")),
+          el(
+            "p",
+            {},
+            translateUI("Vítej zpět. Tvoje profily a rozkoukané tituly na tebe čekají."),
+          ),
+          form,
+          el(
+            "p",
+            { class: "login-note" },
+            translateUI("Nemáš účet? "),
+            button(
+              translateUI("Zaregistruj se"),
+              () => accountForm("register", login),
+              "link",
+            ),
+          ),
         ),
-        form,
         el(
-          "p",
-          { class: "login-note" },
-          translateUI("Potřebuješ pomoc s účtem? "),
-          el("a", { href: "/" }, translateUI("Přejít na hlavní web")),
+          "a",
+          { class: "login-panel login-tv", href: "/activate" },
+          el("h2", {}, icon("tv"), translateUI("Přihlásit televizi")),
+          el(
+            "p",
+            {},
+            translateUI("Zadej kód zobrazený na televizi a potvrď přihlášení tímto účtem."),
+          ),
+          el("span", { class: "button accent" }, translateUI("Zadat kód z televize")),
         ),
       ),
     ),
@@ -236,6 +264,7 @@ async function reloadProfiles() {
   }
 }
 async function profiles() {
+  document.body.dataset.route = "profiles";
   controller?.abort();
   renderRevision++;
   invalidateDetail();
@@ -255,17 +284,18 @@ async function profiles() {
           el(
             "button",
             { class: "profile-choice", onClick: () => chooseProfile(p) },
-            avatar(p),
+            (() => {
+              const face = avatar(p);
+              if (p.has_pin)
+                face.append(
+                  el("span", { class: "profile-lock", role: "img", "aria-label": translateUI("Chráněno PINem") }, icon("lock")),
+                );
+              return face;
+            })(),
             el("strong", {}, p.name),
-            el(
-              "small",
-              {},
-              p.has_pin
-                ? translateUI("Chráněno PINem")
-                : p.is_kids
-                  ? translateUI("Dětský profil")
-                  : "",
-            ),
+            p.is_kids
+              ? el("small", { class: "kids" }, translateUI("Dětský profil"))
+              : null,
           ),
           button(
             translateUI("Upravit"),
@@ -279,14 +309,9 @@ async function profiles() {
       el(
         "section",
         { class: "profile-page" },
-        el("h1", {}, translateUI("Kdo dnes objevuje?")),
-        el(
-          "p",
-          {},
-          translateUI("Vyber si svůj profil a pokračuj ve svých příbězích."),
-        ),
+        el("h1", {}, translateUI("Kdo se dívá?")),
         values.length
-          ? choices
+          ? null
           : el(
               "p",
               {},
@@ -294,12 +319,19 @@ async function profiles() {
                 "Účet zatím nemá profil. Vytvoř ho v mobilní nebo desktopové aplikaci.",
               ),
             ),
-        button(
-          translateUI("Přidat profil"),
-          () => editProfile(null, reloadProfiles),
-          "primary",
-          "plus",
+        (choices.append(
+          el(
+            "div",
+            { class: "profile-tile" },
+            el(
+              "button",
+              { class: "profile-choice profile-add", onClick: () => editProfile(null, reloadProfiles) },
+              el("span", { class: "avatar" }, icon("plus")),
+              el("strong", {}, translateUI("Přidat profil")),
+            ),
+          ),
         ),
+        choices),
         session.profile
           ? button(translateUI("Zpět do katalogu"), () => render())
           : null,
@@ -346,6 +378,9 @@ function chooseProfile(profile) {
             },
           });
           session.profile = result.profile;
+          profileShortcuts = null;
+          inboxItems = null;
+          inboxRequested = false;
           await synchronizeOfflineContext();
           dialog.close();
           chrome();
@@ -362,17 +397,27 @@ function chooseProfile(profile) {
       : el("p", {}, translateUI("Pokračovat jako {0}?", profile.name)),
     status,
     submit,
+    button(translateUI("Zpět na profily"), () => dialog.close(), "link"),
   );
+  if (profile.has_pin) form.classList.add("pin-form");
   showDialog(
     el(
       "div",
-      { class: "dialog-body" },
+      { class: "dialog-body pin-dialog" },
       el(
-        "h2",
-        { id: "dialog-title" },
+        "div",
+        { class: "pin-head" },
+        avatar(profile),
+        el(
+          "h2",
+          { id: "dialog-title" },
+          profile.has_pin
+            ? translateUI("Zadej PIN profilu {0}", profile.name)
+            : profile.name,
+        ),
         profile.has_pin
-          ? translateUI("Odemknout {0}", profile.name)
-          : profile.name,
+          ? el("p", {}, translateUI("Profil je chráněný PINem."))
+          : null,
       ),
       form,
     ),
@@ -381,6 +426,7 @@ function chooseProfile(profile) {
 }
 async function render() {
   if (location.hash === "#offline") {
+    document.body.dataset.route = "offline";
     document.title = "Movly — " + translateUI("Offline knihovna");
     document.querySelector("#account-menu").hidden = true;
     document
@@ -427,8 +473,10 @@ async function render() {
       ? routeRaw
       : "home",
     params = new URLSearchParams(query);
+  document.body.dataset.route = route;
+  const navPage = route === "movies" && params.get("view") === "grid" ? "genres" : route;
   document.querySelectorAll("[data-page]").forEach((link) => {
-    if (link.dataset.page === route) link.setAttribute("aria-current", "page");
+    if (link.dataset.page === navPage) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
   document.title = `Movly — ${translateUI({ home: translateUI("Home"), movies: translateUI("Filmy"), series: translateUI("Seriály"), lists: translateUI("Moje seznamy"), search: translateUI("Hledání"), collection: translateUI("Katalog"), history: translateUI("Historie"), friends: translateUI("Přátelé"), stats: translateUI("Statistiky"), admin: translateUI("Nahlášené streamy") }[route] || { premium: "Premium", hidden: "Skryté tituly", feedback: "Vylepšujeme Movly" }[route])}`;
@@ -477,27 +525,158 @@ async function render() {
     content.replaceChildren(el("div", { class: "page" }, errorBox(e, render)));
   }
 }
-document.querySelector("#profile-button").addEventListener("click", profiles);
+const panels = [
+  ["#account-button", "#account-menu"],
+  ["#inbox-button", "#inbox-menu"],
+];
+function closePanels(except) {
+  for (const [trigger, panel] of panels)
+    if (panel !== except) {
+      document.querySelector(panel).hidden = true;
+      document.querySelector(trigger).setAttribute("aria-expanded", "false");
+    }
+}
+function togglePanel(trigger, panel) {
+  const node = document.querySelector(panel), open = node.hidden;
+  closePanels(panel);
+  node.hidden = !open;
+  document.querySelector(trigger).setAttribute("aria-expanded", String(open));
+  return open;
+}
+// Rychlé přepnutí na jiný profil přímo z menu účtu; PIN řeší chooseProfile.
+async function fillProfileShortcuts() {
+  const box = document.querySelector("#account-profiles"),
+    owner = session?.account?.id;
+  if (!session?.profile || profileShortcuts === owner) return;
+  profileShortcuts = owner;
+  try {
+    const others = array(await api("profiles"), "profily").filter(
+      (p) => Number.isSafeInteger(p.id) && typeof p.name === "string" && p.id !== session?.profile?.id,
+    );
+    if (profileShortcuts !== owner) return;
+    box.querySelectorAll(".account-profile").forEach((n) => n.remove());
+    box.prepend(
+      ...others.slice(0, 4).map((p) =>
+        el(
+          "button",
+          {
+            class: "account-profile",
+            "aria-label": translateUI("Přepnout na profil {0}", p.name),
+            title: p.name,
+            onClick: () => {
+              closePanels();
+              chooseProfile(p);
+            },
+          },
+          avatar(p),
+        ),
+      ),
+    );
+  } catch {
+    profileShortcuts = null;
+  }
+}
+function renderInbox() {
+  const menu = document.querySelector("#inbox-menu"),
+    unread = (inboxItems || []).filter((item) => !item.read).length,
+    bell = document.querySelector("#inbox-button");
+  bell.classList.toggle("has-unread", unread > 0);
+  bell.setAttribute("aria-label", unread ? translateUI("Upozornění, {0} nová", unread) : translateUI("Upozornění"));
+  menu.replaceChildren(
+    el("strong", { class: "header-panel-title" }, translateUI("Upozornění")),
+    inboxItems === null
+      ? loading()
+      : inboxItems.length
+        ? el(
+            "div",
+            { class: "inbox-list" },
+            inboxItems.map((item) =>
+              el(
+                "button",
+                {
+                  class: `inbox-item${item.read ? "" : " unread"}`,
+                  onClick: async () => {
+                    closePanels();
+                    try {
+                      if (!item.read) {
+                        await api(`notifications/inbox/${item.id}/read`, { method: "PUT", body: {}, expectedOwner: actions.owner });
+                        item.read = true;
+                        renderInbox();
+                      }
+                      actions.detail(await api(`titles/${item.title_id}`, { expectedOwner: actions.owner }));
+                    } catch (err) {
+                      toast(err.message);
+                    }
+                  },
+                },
+                el("span", {}, item.message),
+                item.season_number > 0 && item.episode_number > 0
+                  ? el("small", {}, `S${item.season_number} E${item.episode_number}`)
+                  : null,
+              ),
+            ),
+          )
+        : el("p", {}, translateUI("Zatím žádná upozornění.")),
+    el(
+      "button",
+      {
+        class: "header-panel-link",
+        onClick: () => {
+          closePanels();
+          openSettingsMenu({ openProviders: providerSettings });
+        },
+      },
+      translateUI("Nastavení upozornění"),
+    ),
+  );
+}
+async function loadInbox() {
+  if (!session?.profile) return;
+  const owner = actions.owner;
+  try {
+    const inbox = await api("notifications/inbox", { expectedOwner: owner });
+    if (JSON.stringify(owner) !== JSON.stringify(actions.owner)) return;
+    inboxItems = array(inbox.items, "upozornění").filter(
+      (item) => Number.isSafeInteger(item.id) && Number.isSafeInteger(item.title_id) && typeof item.message === "string",
+    );
+  } catch {
+    inboxItems = inboxItems || [];
+  }
+  renderInbox();
+}
 document.querySelector("#switch-profile").addEventListener("click", profiles);
 document.querySelector("#app-settings").addEventListener("click", () => {
-  document.querySelector("#account-menu").hidden = true;
-  document.querySelector("#account-button").setAttribute("aria-expanded", "false");
+  closePanels();
   openSettingsMenu({ openProviders: providerSettings });
 });
 document.querySelector("#account-button").addEventListener("click", () => {
-  const menu = document.querySelector("#account-menu");
-  menu.hidden = !menu.hidden;
-  document
-    .querySelector("#account-button")
-    .setAttribute("aria-expanded", String(!menu.hidden));
+  if (togglePanel("#account-button", "#account-menu")) fillProfileShortcuts();
+});
+document.querySelector("#inbox-button").addEventListener("click", () => {
+  if (togglePanel("#inbox-button", "#inbox-menu")) {
+    renderInbox();
+    loadInbox();
+  }
+});
+document.querySelector("#account-menu").addEventListener("click", (e) => {
+  if (e.target.closest("a")) closePanels();
 });
 document.addEventListener("click", (e) => {
-  if (!e.target.closest(".header-actions")) {
-    document.querySelector("#account-menu").hidden = true;
-    document
-      .querySelector("#account-button")
-      .setAttribute("aria-expanded", "false");
+  if (!e.target.closest(".header-popover")) closePanels();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.querySelector(".header-panel:not([hidden])")) {
+    const open = panels.find(([, panel]) => !document.querySelector(panel).hidden);
+    closePanels();
+    document.querySelector(open[0]).focus();
+    return;
   }
+  // „/“ otevře hledání, pokud uživatel zrovna nepíše do pole.
+  if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || !session?.profile || dialog.open) return;
+  if (e.target.closest?.("input, textarea, select, [contenteditable='true']")) return;
+  e.preventDefault();
+  if (location.hash.split("?")[0] !== "#search") location.hash = "#search";
+  else document.querySelector("#content input[type='search'], #content input")?.focus();
 });
 document.querySelector("#logout").addEventListener("click", async (e) => {
   e.target.disabled = true;
@@ -518,6 +697,16 @@ document.querySelector("#logout").addEventListener("click", async (e) => {
 });
 window.addEventListener("hashchange", () => {
   if (session || location.hash === "#offline") render();
+});
+// Po nákupu Premium obnoví mince a datum v hlavičce.
+window.addEventListener("movly-premium-changed", async () => {
+  try {
+    const fresh = await api("session");
+    if (session && fresh.account?.id === session.account?.id) {
+      session.account = fresh.account;
+      chrome();
+    }
+  } catch {}
 });
 window.addEventListener("offline", () =>
   toast(translateUI("Jsi offline. Zkontroluj připojení k internetu.")),

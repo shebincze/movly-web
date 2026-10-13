@@ -405,7 +405,7 @@ export async function admin(params, signal, actions) {
   if (view === "trusted") {
     return el(
       "div",
-      { class: "page" },
+      { class: "page admin-page" },
       el(
         "div",
         { class: "page-heading" },
@@ -450,7 +450,7 @@ export async function admin(params, signal, actions) {
         "a",
         {
           href: `#admin?status=${value}`,
-          class: `button ${value === status ? "primary" : "secondary"} small`,
+          class: "admin-pill",
           "aria-current": value === status ? "page" : null,
         },
         label,
@@ -460,7 +460,7 @@ export async function admin(params, signal, actions) {
   tabs.append(
     el(
       "a",
-      { href: "#admin?view=trusted", class: "button secondary small" },
+      { href: "#admin?view=trusted", class: "admin-pill admin-pill-link" },
       translateUI("Důvěryhodní uživatelé"),
     ),
   );
@@ -506,7 +506,7 @@ export async function admin(params, signal, actions) {
   const totals = data.totals || {};
   return el(
     "div",
-    { class: "page" },
+    { class: "page admin-page" },
     el(
       "div",
       { class: "page-heading" },

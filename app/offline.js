@@ -103,7 +103,7 @@ export async function offlineLibrary(
   container.replaceChildren(loading());
   const active = await get("settings", "active"),
     grant = active && (await verifiedGrant(active));
-  const list = el("div", { class: "dialog-form" });
+  const list = el("div", { class: "lib-offline-list" });
   const limit = el(
     "select",
     {
@@ -142,36 +142,55 @@ export async function offlineLibrary(
   container.replaceChildren(
     el(
       "div",
-      { class: "page offline-library" },
-      el("h1", {}, translateUI("Offline knihovna")),
-      el(
-        "p",
-        {},
-        grant
-          ? grant.name
-          : translateUI(
-              "Offline oprávnění vypršelo. Připoj se a znovu vyber původní profil.",
-            ),
-      ),
+      { class: "page library-page offline-library" },
       el(
         "div",
-        { class: "offline-settings" },
-        formLabel(translateUI("Limit úložiště"), limit),
-        formLabel(translateUI("Limit souboru"), fileLimit),
-        formLabel(translateUI("Po dokoukání stáhnout další vydaný díl"), smart),
+        { class: "lib-head" },
+        el(
+          "div",
+          { class: "lib-title-block" },
+          el("h1", {}, translateUI("Offline knihovna")),
+          el(
+            "p",
+            { class: grant ? "lib-muted" : "lib-warning" },
+            grant
+              ? grant.name
+              : translateUI(
+                  "Offline oprávnění vypršelo. Připoj se a znovu vyber původní profil.",
+                ),
+          ),
+        ),
+        el("span", { class: "lib-spacer" }),
+        button(translateUI("Zpět do aplikace"), onLogin, "secondary"),
       ),
-      list,
       el(
-        "div",
-        { class: "actions" },
-        button(translateUI("Zpět do aplikace"), onLogin),
-        button(
-          translateUI("Vymazat offline knihovnu"),
-          async () => {
-            await (await import("./offline-store.js")).clearLibrary();
-            await offlineLibrary(container, onLogin);
-          },
-          "small",
+        "section",
+        { class: "lib-card", "aria-labelledby": "lib-offline-files" },
+        el("h2", { id: "lib-offline-files" }, translateUI("Stažená videa")),
+        list,
+      ),
+      el(
+        "section",
+        { class: "lib-card", "aria-labelledby": "lib-offline-settings" },
+        el("h2", { id: "lib-offline-settings" }, translateUI("Úložiště a stahování")),
+        el(
+          "div",
+          { class: "offline-settings" },
+          formLabel(translateUI("Limit úložiště"), limit),
+          formLabel(translateUI("Limit souboru"), fileLimit),
+          formLabel(translateUI("Po dokoukání stáhnout další vydaný díl"), smart),
+        ),
+        el(
+          "div",
+          { class: "lib-actions" },
+          button(
+            translateUI("Vymazat offline knihovnu"),
+            async () => {
+              await (await import("./offline-store.js")).clearLibrary();
+              await offlineLibrary(container, onLogin);
+            },
+            "small danger",
+          ),
         ),
       ),
     ),
@@ -193,12 +212,12 @@ export async function offlineLibrary(
     const file = await get("files", job.id);
     const status = el(
       "p",
-      { role: "status" },
+      { role: "status", class: "lib-row-sub" },
       job.error || jobLabels[job.state],
     );
     const progress = el(
       "p",
-      {},
+      { class: "lib-row-sub" },
       ((file?.size || 0) / 1024 ** 2).toFixed(1) + " MB",
     );
     const toggle = button(
@@ -219,8 +238,8 @@ export async function offlineLibrary(
     );
     const row = el(
       "div",
-      { class: "source-row" },
-      el("div", {}, el("strong", {}, job.title.title), status, progress),
+      { class: "lib-offline-row" },
+      el("div", { class: "lib-row-text" }, el("strong", {}, job.title.title), status, progress),
       toggle,
       button(
         translateUI("Změnit zdroj"),
@@ -371,21 +390,21 @@ export async function offlineLibrary(
     list.append(
       el(
         "div",
-        { class: "source-row" },
+        { class: "lib-offline-row" },
         el(
           "div",
-          {},
+          { class: "lib-row-text" },
           el("strong", {}, file.title),
           el(
             "p",
-            {},
+            { class: "lib-row-sub" },
             `${file.episode || translateUI("Film")} · ${(file.size / 1024 ** 2).toFixed(1)} MB${allowed ? "" : translateUI(" · oprávnění nedostupné")}`,
           ),
         ),
         !file.identity || !file.syncBase
           ? el(
               "p",
-              {},
+              { class: "lib-warning" },
               translateUI(
                 "Starší stažení nesynchronizuje historii. Stáhni titul znovu.",
               ),
@@ -407,7 +426,7 @@ export async function offlineLibrary(
     list.append(
       el(
         "p",
-        {},
+        { class: "lib-muted" },
         translateUI(
           "Zatím nemáš žádné video uložené. V nabídce zdrojů zvol Uložit offline.",
         ),
@@ -425,7 +444,7 @@ export async function offlineLibrary(
           )
         : entry.error || translateUI("Offline historie čeká na synchronizaci."),
     );
-    const row = el("div", { class: "source-row" }, message);
+    const row = el("div", { class: "lib-offline-row sync" }, message);
     if (entry.conflict)
       for (const [choice, label] of [
         ["local", translateUI("Ponechat offline sledování")],

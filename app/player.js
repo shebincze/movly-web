@@ -17,7 +17,6 @@ import {
   el,
   button,
   showDialog,
-  loading,
   errorBox,
   formField,
   toast,
@@ -83,6 +82,27 @@ const supportedProvider = {
   },
 };
 let sourceRevision = 0;
+const svgGlyph = (paths, attrs = {}) => {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  for (const [k, v] of Object.entries({ viewBox: "0 0 24 24", "aria-hidden": "true", fill: "none", stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", ...attrs }))
+    svg.setAttribute(k, v);
+  for (const d of paths) {
+    const path = document.createElementNS(svg.namespaceURI, "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
+  return svg;
+};
+const playGlyph = () => svgGlyph(["M7 4.5v15l13-7.5z"], { fill: "currentColor", stroke: "none" });
+const providerKey = (name) =>
+  String(name || "").normalize("NFD").replace(/[\u0300-\u036f ._-]/g, "").toLowerCase();
+// Barevný štítek poskytovatele (zkratka); barvy podle návrhu v player.css.
+function providerBadge(name) {
+  const words = String(name || "?").replace(/[·].*$/, "").trim().split(/[\s.]+/).filter(Boolean);
+  const short = { webshare: "WS", fastshare: "FS", hellspy: "HS", ulozto: "UL", prehrajto: "PT", sosac: "SO", stremio: "ST", sktorrent: "SK" }[providerKey(name)]
+    || (words.length > 1 ? words[0][0] + words[1][0] : (words[0] || "?").slice(0, 2)).toUpperCase();
+  return el("span", { class: "pk-provider", "data-provider": providerKey(name), "aria-hidden": "true" }, short);
+}
 export async function sources(
   t,
   episode,
@@ -107,42 +127,78 @@ export async function sources(
       } catch (e) { if (e.status !== 404) toast(e.message); }
     }
   }
+  const runtime = episode?.runtime || t.runtime;
   const content = el(
     "div",
-    { class: "dialog-body sources-content" },
-    el("h2", { id: "dialog-title" }, translateUI("Přehrát · {0}", t.title)),
-    episode
-      ? el(
-          "p",
-          {},
-          `S${episode.season_number} E${episode.episode_number} · ${episode.name || ""}`,
-        )
-      : null,
+    { class: "dialog-body sources-content pk-picker" },
+    el(
+      "header",
+      { class: "pk-picker-head" },
+      el("h2", { id: "dialog-title" }, translateUI("Vyber zdroj")),
+      el(
+        "p",
+        { class: "pk-picker-sub" },
+        [
+          t.title,
+          episode
+            ? `S${episode.season_number} E${episode.episode_number}${episode.name ? ` „${episode.name}“` : ""}`
+            : null,
+          runtime > 0 ? translateUI("{0} min", runtime) : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      ),
+    ),
   );
-  const summary = el(
-    "p",
-    { role: "status" },
-    translateUI("Hledám ve zdrojích…"),
+  const summary = el("span", {}, translateUI("Hledám ve zdrojích…"));
+  const progressBar = el("span", { class: "pk-progress-bar" });
+  const progress = el(
+    "div",
+    { class: "pk-progress is-pending", role: "status" },
+    el("span", { class: "pk-spinner", "aria-hidden": "true" }),
+    summary,
+    el("span", { class: "pk-progress-track", "aria-hidden": "true" }, progressBar),
   );
   const search = el("input", {
     type: "search",
     placeholder: translateUI("Název souboru, jazyk, kodek…"),
     "aria-label": translateUI("Filtrovat zdroje"),
   });
+  // Filtr poskytovatele jako přepínací čipy; stav drží `providerFilter`.
+  let providerFilter = "",
+    qualityFilter = "";
+  const providerChips = new Map();
+  const allChip = el(
+    "button",
+    { type: "button", class: "pk-chip", "aria-pressed": "true", onClick: () => { providerFilter = ""; render(); } },
+    translateUI("Vše"),
+  );
   const provider = el(
-    "select",
-    { "aria-label": translateUI("Poskytovatel") },
-    el("option", { value: "" }, translateUI("Všichni poskytovatelé")),
+    "div",
+    { class: "pk-chips", role: "group", "aria-label": translateUI("Poskytovatel") },
+    allChip,
+  );
+  const qualityButtons = [
+    ["", translateUI("Vše")],
+    ["2160", translateUI("4K")],
+    ["1080", translateUI("Full HD")],
+    ["720", translateUI("HD")],
+  ].map(([value, name]) =>
+    el(
+      "button",
+      { type: "button", "aria-pressed": String(value === qualityFilter), "data-value": value, onClick: () => { qualityFilter = value; render(); } },
+      name,
+    ),
   );
   const quality = el(
+    "div",
+    { class: "pk-segmented", role: "group", "aria-label": translateUI("Kvalita") },
+    ...qualityButtons,
+  );
+  const audioFilter = el(
     "select",
-    { "aria-label": translateUI("Kvalita") },
-    ...[
-      ["", translateUI("Všechny kvality")],
-      ["2160", translateUI("4K")],
-      ["1080", translateUI("Full HD")],
-      ["720", translateUI("HD")],
-    ].map(([value, name]) => el("option", { value }, name)),
+    { "aria-label": translateUI("Zvuk") },
+    el("option", { value: "" }, translateUI("Jakýkoli")),
   );
   const sort = el(
     "select",
@@ -151,18 +207,28 @@ export async function sources(
     el("option", { value: "small" }, translateUI("Nejmenší soubor")),
     el("option", { value: "large" }, translateUI("Největší soubor")),
   );
-  const statuses = el("div", { class: "source-statuses" }),
-    list = el("div", { class: "source-list" });
+  const statuses = el("div", { class: "source-statuses pk-statuses" }),
+    hero = el("div", { class: "pk-hero-slot" }),
+    list = el("div", { class: "source-list pk-source-list" });
   content.append(
     el(
       "div",
-      { class: "actions" },
+      { class: "pk-picker-tools" },
       button(translateUI("Úložiště a doplňky"), providerSettings, "small"),
       button(translateUI("Obnovit zdroje"), () => sources(t, episode, { skipResume: true }), "small"),
     ),
-    el("div", { class: "source-filters" }, search, provider, quality, sort),
-    summary,
+    hero,
+    progress,
+    provider,
     statuses,
+    el(
+      "div",
+      { class: "source-filters pk-filters" },
+      quality,
+      el("label", { class: "pk-inline-field" }, el("span", {}, translateUI("Zvuk")), audioFilter),
+      search,
+      el("label", { class: "pk-inline-field pk-sort" }, el("span", {}, translateUI("Řadit")), sort),
+    ),
     list,
   );
   const dialog = showDialog(content),
@@ -204,144 +270,116 @@ export async function sources(
   const rows = origins.map((name) => {
     const n = el(
       "p",
-      { class: "source-status", role: "status" },
+      { class: "source-status is-pending", role: "status" },
       translateUI("{0}: hledám…", name),
     );
     statuses.append(n);
     return n;
   });
-  function render() {
-    const seen = new Set(),
-      all = [];
-    for (let i = 0; i < origins.length; i++)
-      for (const s of results.get(i) || []) {
-        const key = s.source_stream_id
-          ? `${(s.provider_name || "").toLowerCase()}:${s.source_stream_id}`
-          : `${i}:${s.id}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        all.push({ ...s, origin: i });
-      }
-    const names = [...new Set(all.map((s) => s.provider_name).filter(Boolean))];
-    for (const name of names)
-      if (![...provider.options].some((o) => o.value === name))
-        provider.append(el("option", { value: name }, name));
-    const filtered = all
-      .filter(
-        (s) =>
-          (!provider.value || s.provider_name === provider.value) &&
-          (!quality.value || s.video_height === Number(quality.value)) &&
-          (!search.value ||
-            JSON.stringify([
-              s.file_name,
-              s.provider_name,
-              s.video_codec,
-              s.hdr_type,
-              s.audio_languages,
-            ])
-              .toLowerCase()
-              .includes(search.value.toLowerCase())),
-      )
-      .sort((a, b) =>
-        sort.value === "small"
-          ? (a.file_size || Infinity) - (b.file_size || Infinity)
-          : sort.value === "large"
-            ? (b.file_size || 0) - (a.file_size || 0)
-            : (b.video_height || 0) - (a.video_height || 0),
-      );
-    summary.textContent = translateUI(
-      "{0} z {1} zdrojů{2}",
-      filtered.length,
-      all.length,
-      pending ? translateUI(" · hledání pokračuje ({0})", pending) : "",
+  const selectionFor = (stream) => {
+    const selection = {
+      title_id: t.id,
+      ...(stream.origin >= 2
+        ? { source: "live", ticket: stream.ticket }
+        : { source: stream.origin ? "ai" : "human", stream_id: stream.id }),
+      ...(episode ? { episode_id: episode.id } : {}),
+    };
+    Object.defineProperty(selection, "playback_owner", { value: sourceOwner });
+    Object.defineProperty(selection, "diagnostic_provider", { value: stream.provider_name || stream.provider_identifier });
+    if (stream.origin >= 2) Object.defineProperty(selection, "resume_selection", { value: stream.resume_ticket
+      ? { title_id: t.id, source: "resume", ticket: stream.resume_ticket, ...(episode ? { episode_id: episode.id } : {}) }
+      : { title_id: t.id, source: "lookup", provider: stream.provider_name || stream.provider_identifier,
+          name: stream.file_name, quality: stream.video_height || null, size: stream.file_size || null } });
+    return selection;
+  };
+  const languagesOf = (s) =>
+    (s.audio_languages || (s.audio_language ? [s.audio_language] : [])).map((l) => String(l).toUpperCase());
+  const sizeLabel = (s) => (s.file_size ? `${(s.file_size / 1024 ** 3).toFixed(2)} GB` : null);
+  const qualityLabel = (s) => (s.video_height >= 2160 ? "4K" : s.video_height ? `${s.video_height}p` : null);
+  function sourceRow(stream, recommended) {
+    const supported =
+      supportedProvider.test(
+        stream.provider_name || stream.provider_identifier || "",
+      ) &&
+      stream.available !== false &&
+      providerReady(stream);
+    const metadata = [
+      stream.provider_name,
+      stream.video_height ? `${stream.video_height}p` : null,
+      stream.video_codec,
+      stream.hdr_type,
+      ...languagesOf(stream),
+      sizeLabel(stream),
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const tags = [
+      qualityLabel(stream),
+      stream.hdr_type,
+      stream.video_codec,
+      stream.audio_codec,
+      ...languagesOf(stream),
+      ...(Array.isArray(stream.subtitle_languages)
+        ? stream.subtitle_languages.map((l) => translateUI("{0} titulky", String(l).toUpperCase()))
+        : []),
+    ].filter(Boolean);
+    const selection = selectionFor(stream);
+    const choice = el(
+      "button",
+      {
+        type: "button",
+        class: "pk-play",
+        "aria-label": translateUI("Přehrát"),
+        title: translateUI("Přehrát"),
+        onClick: () => play(t, episode, selection),
+      },
+      playGlyph(),
     );
-    list.replaceChildren(
-      ...streamPickerSections(filtered, autoPlay || autoDownload ? null : {
-        title: t.title, originalTitle: t.original_title,
-        year: t.year || Number(String(t.release_date || "").slice(0, 4)) || null,
-        season: episode?.season_number, episode: episode?.episode_number,
-        runtimeMinutes: episode?.runtime || t.runtime,
-        downlinkMbps: navigator.connection?.downlink,
-        displayMaxRank: (() => {
-          const width = Math.max(screen.width, screen.height) * (window.devicePixelRatio || 1);
-          return width >= 7680 ? 5 : width >= 3840 ? 4 : width >= 2560 ? 3 : width >= 1920 ? 2 : width >= 1280 ? 1 : 0;
-        })(),
-        wideColor: window.matchMedia("(dynamic-range: high)").matches,
-      }, s => supportedProvider.test(s.provider_name || s.provider_identifier || "") && providerReady(s))
-        .flatMap(section => [el("h3", { class: "source-section-title" }, `${translateUI(section.name)} · ${section.streams.length}`), ...section.streams.map((stream) => {
-        const supported =
-          supportedProvider.test(
-            stream.provider_name || stream.provider_identifier || "",
-          ) &&
-          stream.available !== false &&
-          providerReady(stream);
-        const metadata = [
-          stream.provider_name,
-          stream.video_height ? `${stream.video_height}p` : null,
-          stream.video_codec,
-          stream.hdr_type,
-          ...(stream.audio_languages ||
-            (stream.audio_language ? [stream.audio_language] : [])),
-          stream.file_size
-            ? `${(stream.file_size / 1024 ** 3).toFixed(2)} GB`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" · ");
-        const selection = {
-          title_id: t.id,
-          ...(stream.origin >= 2
-            ? { source: "live", ticket: stream.ticket }
-            : { source: stream.origin ? "ai" : "human", stream_id: stream.id }),
-          ...(episode ? { episode_id: episode.id } : {}),
-        };
-        Object.defineProperty(selection, "playback_owner", { value: sourceOwner });
-        Object.defineProperty(selection, "diagnostic_provider", { value: stream.provider_name || stream.provider_identifier });
-        if (stream.origin >= 2) Object.defineProperty(selection, "resume_selection", { value: stream.resume_ticket
-          ? { title_id: t.id, source: "resume", ticket: stream.resume_ticket, ...(episode ? { episode_id: episode.id } : {}) }
-          : { title_id: t.id, source: "lookup", provider: stream.provider_name || stream.provider_identifier,
-              name: stream.file_name, quality: stream.video_height || null, size: stream.file_size || null } });
-        const choice = button(
-          translateUI("Přehrát"),
-          () => play(t, episode, selection),
-          "small",
-        );
-        choice.disabled = !supported;
-        return el(
+    choice.disabled = !supported;
+    return el(
+      "div",
+      {
+        class: `source-row pk-source-row${recommended ? " is-recommended" : ""}${supported ? "" : " is-unavailable"}`,
+      },
+      providerBadge(stream.provider_name || stream.provider_identifier || origins[stream.origin]),
+      el(
+        "div",
+        { class: "pk-source-main" },
+        el(
+          "strong",
+          { class: stream.file_name ? "pk-file" : null },
+          stream.file_name ||
+            metadata ||
+            translateUI("Zdroj {0}", stream.id),
+        ),
+        tags.length
+          ? el("div", { class: "pk-tags" }, ...tags.map((tag) => el("span", { class: "pk-tag" }, tag)))
+          : null,
+        el(
+          "p",
+          { class: "meta" },
+          stream.file_name
+            ? [stream.provider_name, sizeLabel(stream), stream.origin < 2 ? origins[stream.origin] : null].filter(Boolean).join(" · ")
+            : origins[stream.origin],
+        ),
+        !supported
+          ? el(
+              "small",
+              { class: "pk-unavailable" },
+              stream.available === false
+                ? translateUI("Zdroj není dostupný")
+                : !providerReady(stream)
+                  ? translateUI(
+                      "Nejdřív připoj účet poskytovatele v Úložištích a doplňcích.",
+                    )
+                  : translateUI(
+                      "Přehrávání tohoto poskytovatele zatím není na webu dostupné.",
+                    ),
+            )
+          : null,
+        el(
           "div",
-          { class: "source-row" },
-          el(
-            "div",
-            {},
-            el(
-              "strong",
-              {},
-              stream.file_name ||
-                metadata ||
-                translateUI("Zdroj {0}", stream.id),
-            ),
-            el(
-              "p",
-              { class: "meta" },
-              stream.file_name ? metadata : origins[stream.origin],
-            ),
-            !supported
-              ? el(
-                  "small",
-                  {},
-                  stream.available === false
-                    ? translateUI("Zdroj není dostupný")
-                    : !providerReady(stream)
-                      ? translateUI(
-                          "Nejdřív připoj účet poskytovatele v Úložištích a doplňcích.",
-                        )
-                      : translateUI(
-                          "Přehrávání tohoto poskytovatele zatím není na webu dostupné.",
-                        ),
-                )
-              : null,
-          ),
-          choice,
+          { class: "pk-row-actions" },
           stream.origin < 2
             ? button(
                 translateUI("Nahlásit"),
@@ -391,14 +429,130 @@ export async function sources(
                 "small",
               )
             : null,
+        ),
+      ),
+      choice,
+    );
+  }
+  function render() {
+    const seen = new Set(),
+      all = [];
+    for (let i = 0; i < origins.length; i++)
+      for (const s of results.get(i) || []) {
+        const key = s.source_stream_id
+          ? `${(s.provider_name || "").toLowerCase()}:${s.source_stream_id}`
+          : `${i}:${s.id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        all.push({ ...s, origin: i });
+      }
+    const counts = new Map();
+    for (const s of all)
+      if (s.provider_name) counts.set(s.provider_name, (counts.get(s.provider_name) || 0) + 1);
+    for (const [name, count] of counts) {
+      if (!providerChips.has(name)) {
+        const label = el("span", { class: "pk-chip-count" });
+        const chip = el(
+          "button",
+          { type: "button", class: "pk-chip", "aria-pressed": "false", onClick: () => { providerFilter = providerFilter === name ? "" : name; render(); } },
+          providerBadge(name),
+          el("span", {}, name),
+          label,
         );
-      })]),
+        providerChips.set(name, { chip, label });
+        provider.append(chip);
+      }
+      providerChips.get(name).label.textContent = String(count);
+    }
+    allChip.textContent = `${translateUI("Vše")} · ${all.length}`;
+    allChip.setAttribute("aria-pressed", String(!providerFilter));
+    for (const [name, { chip }] of providerChips)
+      chip.setAttribute("aria-pressed", String(providerFilter === name));
+    for (const b of qualityButtons)
+      b.setAttribute("aria-pressed", String(b.dataset.value === qualityFilter));
+    for (const language of new Set(all.flatMap(languagesOf)))
+      if (![...audioFilter.options].some((o) => o.value === language))
+        audioFilter.append(el("option", { value: language }, language));
+    const filtered = all
+      .filter(
+        (s) =>
+          (!providerFilter || s.provider_name === providerFilter) &&
+          (!qualityFilter || s.video_height === Number(qualityFilter)) &&
+          (!audioFilter.value || languagesOf(s).includes(audioFilter.value)) &&
+          (!search.value ||
+            JSON.stringify([
+              s.file_name,
+              s.provider_name,
+              s.video_codec,
+              s.hdr_type,
+              s.audio_languages,
+            ])
+              .toLowerCase()
+              .includes(search.value.toLowerCase())),
+      )
+      .sort((a, b) =>
+        sort.value === "small"
+          ? (a.file_size || Infinity) - (b.file_size || Infinity)
+          : sort.value === "large"
+            ? (b.file_size || 0) - (a.file_size || 0)
+            : (b.video_height || 0) - (a.video_height || 0),
+      );
+    summary.textContent = translateUI(
+      "{0} z {1} zdrojů{2}",
+      filtered.length,
+      all.length,
+      pending ? translateUI(" · hledání pokračuje ({0})", pending) : "",
+    );
+    progress.classList.toggle("is-pending", pending > 0);
+    progressBar.style.width = `${((origins.length - pending) / origins.length) * 100}%`;
+    const sections = streamPickerSections(filtered, autoPlay || autoDownload ? null : {
+      title: t.title, originalTitle: t.original_title,
+      year: t.year || Number(String(t.release_date || "").slice(0, 4)) || null,
+      season: episode?.season_number, episode: episode?.episode_number,
+      runtimeMinutes: episode?.runtime || t.runtime,
+      downlinkMbps: navigator.connection?.downlink,
+      displayMaxRank: (() => {
+        const width = Math.max(screen.width, screen.height) * (window.devicePixelRatio || 1);
+        return width >= 7680 ? 5 : width >= 3840 ? 4 : width >= 2560 ? 3 : width >= 1920 ? 2 : width >= 1280 ? 1 : 0;
+      })(),
+      wideColor: window.matchMedia("(dynamic-range: high)").matches,
+    }, s => supportedProvider.test(s.provider_name || s.provider_identifier || "") && providerReady(s));
+    const best = sections.find((section) => section.key === "recommended")?.streams[0];
+    hero.replaceChildren(
+      ...(best
+        ? [
+            el(
+              "div",
+              { class: "pk-hero" },
+              el(
+                "div",
+                { class: "pk-hero-text" },
+                el("span", { class: "pk-eyebrow" }, translateUI("Doporučený zdroj")),
+                el(
+                  "strong",
+                  {},
+                  [best.provider_name, qualityLabel(best), best.hdr_type, ...languagesOf(best), sizeLabel(best)]
+                    .filter(Boolean)
+                    .join(" · "),
+                ),
+                best.file_name ? el("span", { class: "pk-hero-file" }, best.file_name) : null,
+              ),
+              button(translateUI("Přehrát doporučený"), () => play(t, episode, selectionFor(best)), "primary pk-hero-play"),
+            ),
+          ]
+        : []),
+    );
+    list.replaceChildren(
+      ...sections.flatMap((section) => [
+        el("h3", { class: "source-section-title pk-section-title" }, `${translateUI(section.name)} · ${section.streams.length}`),
+        ...section.streams.map((stream) => sourceRow(stream, section.key === "recommended")),
+      ]),
     );
     if (!filtered.length && !pending)
       list.append(
         el(
           "p",
-          {},
+          { class: "pk-empty" },
           all.length
             ? translateUI("Žádné zdroje neodpovídají filtrům.")
             : translateUI(
@@ -407,7 +561,7 @@ export async function sources(
         ),
       );
   }
-  for (const control of [search, provider, quality, sort])
+  for (const control of [search, audioFilter, sort])
     control.addEventListener("input", render);
   const suffix = `?limit=100${episode ? `&episode_id=${episode.id}` : ""}`;
   const ep = episode ? `?episode_id=${episode.id}` : "";
@@ -426,12 +580,15 @@ export async function sources(
         results.set(i, streams);
         rows[i].textContent =
           `${origins[i]}: ${data.state === "not_connected" ? translateUI(data.message) : translateUI("{0} výsledků", streams.length)}${data.partial ? translateUI(" · neúplné hledání") : ""}`;
+        rows[i].classList.remove("is-pending");
+        rows[i].classList.add(data.state === "not_connected" ? "is-warning" : data.partial || data.warnings?.length ? "is-partial" : "is-done");
         if (data.warnings?.length)
           rows[i].append(el("small", {}, data.warnings.join(" ")));
       } catch (e) {
         if (revision !== sourceRevision || !dialog.open) return;
         rows[i].textContent = `${origins[i]}: ${e.message}`;
-        rows[i].classList.add("source-error");
+        rows[i].classList.remove("is-pending");
+        rows[i].classList.add("source-error", "is-error");
       } finally {
         pending--;
         if (revision === sourceRevision && dialog.open) render();
@@ -505,9 +662,17 @@ async function play(
   const dialog = showDialog(
     el(
       "div",
-      { class: "dialog-body" },
+      { class: "dialog-body pk-player-state" },
       el("h2", { id: "dialog-title" }, t.title),
-      loading(),
+      el(
+        "div",
+        { class: "pk-state-card", role: "status" },
+        el("span", { class: "pk-spinner pk-spinner-lg", "aria-hidden": "true" }),
+        el("strong", {}, translateUI("Připravuji video…")),
+        selection.diagnostic_provider
+          ? el("span", {}, translateUI("Ověřuji zdroj {0}…", selection.diagnostic_provider))
+          : null,
+      ),
     ),
   );
   const saved = recalledPlayback(t.id, episode, scope);
@@ -560,6 +725,7 @@ async function play(
       if (handle.cancelled) return;
       failureDiagnostics = playbackDiagnostics(stage, selection.diagnostic_provider, error, code);
       reportFailure.hidden = false;
+      reportFailure.parentElement?.classList.add("is-error");
     }
     if (handle.cancelled || current !== handle || !dialog.open) {
       await api(`playback/${session.id}`, { method: "DELETE" });
@@ -671,37 +837,73 @@ async function play(
       step: 1,
       "aria-label": translateUI("Pozice ve filmu"),
     });
-    const clock = el("span", {}, `${time(offset)} / ${time(session.duration)}`);
-    const tracks = el(
-      "select",
-      { "aria-label": translateUI("Zvuková stopa") },
-      ...session.audio.map((a) =>
-        el(
-          "option",
-          { value: a.index, selected: a.index === audio },
-          a.name ||
-            [a.language, a.codec].filter(Boolean).join(" · ") ||
-            translateUI("Zvuk {0}", a.index + 1),
-        ),
-      ),
+    const clock = el("span", { class: "pk-clock" }, `${time(offset)} / ${time(session.duration)}`);
+    const fill = () =>
+      position.style.setProperty("--pk-fill", `${session.duration > 0 ? (Number(position.value) / session.duration) * 100 : 0}%`);
+    fill();
+    position.addEventListener("input", fill);
+    const chapterMarks = el(
+      "div",
+      { class: "pk-chapter-marks", "aria-hidden": "true" },
+      ...(session.duration > 0 ? session.chapters || [] : [])
+        .filter((chapter) => chapter.start > 0 && chapter.start < session.duration)
+        .map((chapter) => {
+          const mark = el("span");
+          mark.style.left = `${(chapter.start / session.duration) * 100}%`;
+          return mark;
+        }),
     );
-    const subtitles = el(
-      "select",
-      { "aria-label": translateUI("Titulky") },
-      el(
-        "option",
-        { value: -1, selected: subtitle < 0 },
-        translateUI("Titulky vypnuté"),
-      ),
-      ...session.subtitles.map((s) =>
+    // Výběr stopy jako skupina přepínačů (role=radio) s ovládáním šipkami.
+    function radioGroup(label, options, selected, onPick) {
+      const heading = el("span", { class: "pk-panel-label", id: `pk-${label.replace(/\W+/g, "-")}-${revision}` }, label);
+      const radios = options.map((option) =>
         el(
-          "option",
+          "button",
           {
-            value: s.index,
-            selected: s.index === subtitle,
-            disabled: !s.supported,
+            type: "button",
+            role: "radio",
+            class: "pk-radio",
+            "aria-checked": String(option.value === selected),
+            tabindex: option.value === selected ? "0" : "-1",
+            disabled: option.disabled,
+            onClick: () => option.value !== selected && onPick(option.value),
           },
-          [
+          el("span", {}, option.label),
+          option.value === selected ? el("span", { class: "pk-radio-mark", "aria-hidden": "true" }, "✓") : null,
+        ),
+      );
+      if (!radios.some((radio) => radio.tabIndex === 0) && radios[0]) radios[0].tabIndex = 0;
+      const group = el("div", { class: "pk-radiogroup", role: "radiogroup", "aria-labelledby": heading.id }, heading, ...radios);
+      group.addEventListener("keydown", (event) => {
+        const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
+        if (!step) return;
+        event.preventDefault();
+        const enabled = radios.filter((radio) => !radio.disabled);
+        const index = enabled.indexOf(document.activeElement);
+        enabled[(index + step + enabled.length) % enabled.length]?.focus();
+      });
+      return group;
+    }
+    const tracks = radioGroup(
+      translateUI("Zvuková stopa"),
+      session.audio.map((a) => ({
+        value: a.index,
+        label:
+          a.name ||
+          [a.language, a.codec].filter(Boolean).join(" · ") ||
+          translateUI("Zvuk {0}", a.index + 1),
+      })),
+      audio,
+      (value) => changeTracks(value, subtitle),
+    );
+    const subtitles = radioGroup(
+      translateUI("Titulky"),
+      [
+        { value: -1, label: translateUI("Titulky vypnuté") },
+        ...session.subtitles.map((s) => ({
+          value: s.index,
+          disabled: !s.supported,
+          label: [
             s.name || s.language || translateUI("Stopa {0}", s.index + 1),
             !s.supported
               ? translateUI("formát titulků není podporovaný")
@@ -709,8 +911,10 @@ async function play(
           ]
             .filter(Boolean)
             .join(" · "),
-        ),
-      ),
+        })),
+      ],
+      subtitle,
+      (value) => changeTracks(audio, value),
     );
     const positionNow = () =>
       Math.min(session.duration, offset + (video.currentTime || 0));
@@ -753,15 +957,14 @@ async function play(
           ).catch((e) => toast(e.message))
         : play(t, episode, selection, Number(position.value), audio, subtitle),
     );
-    const changeTracks = () => {
-      audio = Number(tracks.value);
-      subtitle = Number(subtitles.value);
+    const changeTracks = (nextAudio, nextSubtitle) => {
+      audio = nextAudio;
+      subtitle = nextSubtitle;
       play(t, episode, selection, positionNow(), audio, subtitle);
     };
-    tracks.addEventListener("change", changeTracks);
-    subtitles.addEventListener("change", changeTracks);
     video.addEventListener("timeupdate", () => {
       position.value = Math.floor(positionNow());
+      fill();
       clock.textContent = `${time(positionNow())} / ${time(session.duration)}`;
     });
     video.addEventListener("playing", () => {
@@ -822,22 +1025,31 @@ async function play(
     sound.addEventListener("change", () =>
       updateMediaPreferences().catch((e) => toast(e.message)),
     );
+    const currentRate = inParty ? 1 : mediaPreferences.playback_rate;
     const speed = el(
-      "select",
-      { "aria-label": translateUI("Rychlost přehrávání"), disabled: inParty },
+      "div",
+      { class: "pk-segmented pk-speed", role: "group", "aria-label": translateUI("Rychlost přehrávání") },
       ...[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) =>
-        el("option", { value: rate }, rate + "×"),
+        el(
+          "button",
+          {
+            type: "button",
+            "aria-pressed": String(rate === currentRate),
+            disabled: inParty,
+            onClick: async () => {
+              if (rate === mediaPreferences.playback_rate) return;
+              mediaPreferences.playback_rate = rate;
+              localStorage.setItem(
+                "movly.mediaPreferences",
+                JSON.stringify(mediaPreferences),
+              );
+              await play(t, episode, selection, positionNow(), audio, subtitle);
+            },
+          },
+          rate + "×",
+        ),
       ),
     );
-    speed.value = String(inParty ? 1 : mediaPreferences.playback_rate);
-    speed.addEventListener("change", async () => {
-      mediaPreferences.playback_rate = Number(speed.value);
-      localStorage.setItem(
-        "movly.mediaPreferences",
-        JSON.stringify(mediaPreferences),
-      );
-      await play(t, episode, selection, positionNow(), audio, subtitle);
-    });
     const audioDelay = el("input", {
       type: "number",
       min: -10000,
@@ -965,52 +1177,155 @@ async function play(
         toast(translateUI("Další díl se nepodařilo připravit: {0}", e.message));
       }
     });
+    const panelId = `pk-settings-${revision}`;
+    const settings = el(
+      "aside",
+      { class: "pk-settings", id: panelId, "aria-label": translateUI("Zvuk a titulky"), hidden: true },
+      tracks,
+      subtitles,
+      el(
+        "div",
+        { class: "pk-panel-group" },
+        el("span", { class: "pk-panel-label" }, translateUI("Rychlost přehrávání")),
+        speed,
+      ),
+      el(
+        "details",
+        { class: "pk-advanced" },
+        el("summary", {}, translateUI("Obraz, zvuk a synchronizace")),
+        el(
+          "div",
+          { class: "pk-advanced-grid" },
+          formField(translateUI("Kapitoly"), chapters),
+          formField(translateUI("Kvalita videa"), quality),
+          formField(translateUI("Zvukový výstup"), sound),
+          formField(translateUI("Posun zvuku (ms)"), audioDelay),
+          formField(translateUI("Posun titulků (ms)"), subtitleDelay),
+        ),
+      ),
+    );
+    const settingsToggle = el(
+      "button",
+      {
+        type: "button",
+        class: "pk-control pk-settings-toggle",
+        "aria-expanded": "false",
+        "aria-controls": panelId,
+        onClick: () => {
+          settings.hidden = !settings.hidden;
+          settingsToggle.setAttribute("aria-expanded", String(!settings.hidden));
+          if (!settings.hidden) settings.querySelector('[role="radio"][tabindex="0"]')?.focus();
+        },
+      },
+      svgGlyph(["M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z", "M7 13h4M13 13h4M7 16h7"]),
+      el("span", {}, translateUI("Zvuk a titulky")),
+    );
+    settings.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      settings.hidden = true;
+      settingsToggle.setAttribute("aria-expanded", "false");
+      settingsToggle.focus();
+    });
+    const otherSource = () => sources(t, episode, { skipResume: true });
+    const nextEpisode =
+      episode && !inParty
+        ? el(
+            "button",
+            {
+              type: "button",
+              class: "pk-control",
+              onClick: async () => {
+                try {
+                  const data = await api(`titles/${t.id}`);
+                  const seasons = data.seasons || (await api(`titles/${t.id}/seasons`));
+                  const next = nextReleasedEpisode(array(seasons), episode.id);
+                  if (!next) return toast(translateUI("Další díl zatím není dostupný."));
+                  if (current === handle && !handle.cancelled) await sources(t, next, { autoPlay: true });
+                } catch (e) {
+                  toast(translateUI("Další díl se nepodařilo připravit: {0}", e.message));
+                }
+              },
+            },
+            svgGlyph(["M5 5v14l10-7zM17 5h2.5v14H17z"], { fill: "currentColor", stroke: "none" }),
+            el("span", {}, translateUI("Další epizoda")),
+          )
+        : null;
+    skipIntro.classList.add("pk-skip-intro");
     showDialog(
       el(
         "div",
-        { class: "dialog-body player-body" },
-        el("h2", { id: "dialog-title" }, t.title),
-        video,
-        status,
-        reportFailure,
-        el("div", { class: "player-seek" }, position, clock),
+        { class: "dialog-body player-body pk-player" },
+        el(
+          "header",
+          { class: "pk-player-top" },
+          el(
+            "div",
+            { class: "pk-player-title" },
+            el("h2", { id: "dialog-title" }, t.title),
+            episode
+              ? el("span", {}, `S${episode.season_number} E${episode.episode_number}${episode.name ? ` · ${episode.name}` : ""}`)
+              : null,
+          ),
+          selection.diagnostic_provider
+            ? el(
+                "button",
+                {
+                  type: "button",
+                  class: "pk-source-pill",
+                  "aria-label": translateUI("Aktuální zdroj {0}, změnit zdroj", selection.diagnostic_provider),
+                  onClick: otherSource,
+                },
+                providerBadge(selection.diagnostic_provider),
+                el("span", {}, selection.diagnostic_provider),
+                svgGlyph(["m6 9 6 6 6-6"]),
+              )
+            : null,
+        ),
+        el("div", { class: "pk-stage" }, video, settings),
+        el("div", { class: "pk-status" }, status, reportFailure),
         el(
           "div",
-          { class: "actions" },
-          tracks,
-          subtitles,
-          speed,
-          chapters,
-          skipIntro,
-          formField(translateUI("Posun zvuku (ms)"), audioDelay),
-          formField(translateUI("Posun titulků (ms)"), subtitleDelay),
-          quality,
-          sound,
-          button(translateUI("Jiný zdroj"), () => sources(t, episode, { skipResume: true }), "small"),
-          ...(episode
-            ? [
-                el(
-                  "label",
-                  {},
-                  el("input", {
-                    type: "checkbox",
-                    checked:
-                      localStorage.getItem("movly.autoplayNext") !== "false",
-                    onChange: (event) =>
-                      localStorage.setItem(
-                        "movly.autoplayNext",
-                        String(event.target.checked),
-                      ),
-                  }),
-                  translateUI(" Automaticky další díl"),
-                ),
-              ]
-            : []),
+          { class: "player-seek pk-seek" },
+          el("div", { class: "pk-seek-track" }, chapterMarks, position),
+          clock,
         ),
         el(
-          "p",
-          { class: "login-note" },
-          [
+          "div",
+          { class: "pk-controls" },
+          skipIntro,
+          nextEpisode,
+          episode
+            ? el(
+                "label",
+                { class: "pk-autoplay" },
+                el("input", {
+                  type: "checkbox",
+                  checked:
+                    localStorage.getItem("movly.autoplayNext") !== "false",
+                  onChange: (event) =>
+                    localStorage.setItem(
+                      "movly.autoplayNext",
+                      String(event.target.checked),
+                    ),
+                }),
+                translateUI(" Automaticky další díl"),
+              )
+            : null,
+          el("span", { class: "pk-spacer" }),
+          el(
+            "button",
+            { type: "button", class: "pk-control", onClick: otherSource },
+            svgGlyph(["M4 7h13l-3-3M20 17H7l3 3"]),
+            el("span", {}, translateUI("Jiný zdroj")),
+          ),
+          settingsToggle,
+        ),
+        el(
+          "ul",
+          { class: "pk-quality", "aria-label": translateUI("Parametry přehrávání") },
+          ...[
             session.quality?.originalVideo
               ? translateUI("Původní obraz")
               : translateUI(
@@ -1033,7 +1348,7 @@ async function play(
               : null,
           ]
             .filter(Boolean)
-            .join(" · "),
+            .map((item) => el("li", {}, item)),
         ),
       ),
     );
@@ -1140,13 +1455,18 @@ async function play(
       showDialog(
         el(
           "div",
-          { class: "dialog-body" },
+          { class: "dialog-body pk-player-error" },
           el("h2", { id: "dialog-title" }, t.title),
           errorBox(e, () =>
             play(t, episode, selection, offset, audio, subtitle),
           ),
-          button(translateUI("Připojit Webshare"), providerSettings),
-          button(translateUI("Nahlásit chybu"), () => createFeedbackDialog("bug", "mine", "web", playbackDiagnostics(e.body?.diagnostic_stage || "source_resolve", selection.diagnostic_provider, e)), "small"),
+          el(
+            "div",
+            { class: "pk-error-actions" },
+            button(translateUI("Vybrat jiný zdroj"), () => sources(t, episode, { skipResume: true })),
+            button(translateUI("Připojit Webshare"), providerSettings),
+            button(translateUI("Nahlásit chybu"), () => createFeedbackDialog("bug", "mine", "web", playbackDiagnostics(e.body?.diagnostic_stage || "source_resolve", selection.diagnostic_provider, e)), "small"),
+          ),
         ),
       );
   }

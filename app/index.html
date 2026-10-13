@@ -4,63 +4,87 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="robots" content="noindex,nofollow" />
-    <meta name="theme-color" content="#0c0d12" />
+    <meta name="theme-color" content="#0a0a12" />
     <title>Movly — Objevuj svůj další příběh</title>
     <link rel="icon" href="/assets/movly-icon.svg" />
     <link rel="stylesheet" href="/app/styles.css" />
+    <link rel="stylesheet" href="/app/css/catalog.css" />
+    <link rel="stylesheet" href="/app/css/player.css" />
+    <link rel="stylesheet" href="/app/css/library.css" />
+    <link rel="stylesheet" href="/app/css/account.css" />
     <script type="module" src="/app/main.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#content">Přejít k obsahu</a>
     <header class="header">
       <a class="brand" href="#home" aria-label="Movly — domů"
-        ><img src="/assets/movly-mark.svg" alt="" width="34" height="34" /><span
+        ><img src="/assets/movly-mark.svg" alt="" width="28" height="28" /><span
           >Movly</span
         ></a
       >
       <nav id="navigation" aria-label="Hlavní navigace" hidden>
-        <a href="#home" data-page="home"><img class="feedback-sidebar-icon" src="/app/vendor/feedback-icons/home.svg" alt="" />Home</a
-        ><a href="#movies" data-page="movies"><img class="feedback-sidebar-icon" src="/app/vendor/feedback-icons/film.svg" alt="" />Filmy</a
-        ><a href="#series" data-page="series"><img class="feedback-sidebar-icon" src="/app/vendor/feedback-icons/tv.svg" alt="" />Seriály</a
-        ><a href="#lists" data-page="lists"><img class="feedback-sidebar-icon" src="/app/vendor/feedback-icons/bookmark.svg" alt="" />Moje seznamy</a
+        <a href="#home" data-page="home">Domů</a
+        ><a href="#movies" data-page="movies">Filmy</a
+        ><a href="#series" data-page="series">Seriály</a
+        ><a href="#movies?view=grid" data-page="genres">Žánry</a
+        ><a href="#lists" data-page="lists">Moje knihovna</a
+        ><a href="#friends" data-page="friends">Přátelé</a
         ><a href="#admin" data-page="admin" id="admin-link" hidden>Nahlášení</a>
-        <a href="#feedback" data-page="feedback"><img class="feedback-sidebar-icon" src="/app/vendor/feedback-icons/message-square.svg" alt="" />Pomoz vylepšit Movly</a>
       </nav>
       <div class="header-actions" id="header-actions" hidden>
-        <a
-          class="icon-button"
-          href="#search"
-          aria-label="Hledat"
-          id="search-link"
-        ></a>
-        <button
-          class="profile-button"
-          id="profile-button"
-          aria-label="Vybrat profil"
+        <a class="header-search" href="#search" id="search-link" data-page="search"
+          ><span>Hledat</span><kbd aria-hidden="true">/</kbd></a
         >
-          <span class="avatar" id="avatar">M</span
-          ><span id="profile-name"></span>
-        </button>
-        <button
-          class="icon-button"
-          id="account-button"
-          aria-label="Účet a nastavení"
-          aria-expanded="false"
-        ></button>
-        <div class="account-menu" id="account-menu" hidden>
-          <strong id="account-name"></strong
-          ><button id="switch-profile">Změnit profil</button
-          ><button id="app-settings">Nastavení</button
-          ><a href="#history">Historie sledování</a
-          ><a href="#friends">Přátelé</a
-          ><a href="#premium">Premium a coiny</a
-          ><a href="#hidden">Skryté tituly</a
-          ><a href="#feedback">Pomoz vylepšit Movly</a
-          ><a href="#stats">Moje statistiky</a
-          ><a href="#offline">Offline knihovna</a
-          ><a href="/devices">Správa zařízení</a
-          ><a href="/">Stáhnout aplikaci</a
-          ><button id="logout">Odhlásit se</button>
+        <div class="header-popover">
+          <button
+            class="icon-button header-bell"
+            id="inbox-button"
+            aria-label="Upozornění"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="inbox-menu"
+          ></button>
+          <div class="header-panel inbox-menu" id="inbox-menu" hidden></div>
+        </div>
+        <a class="coin-pill" href="#premium" id="coin-pill" hidden></a>
+        <div class="header-popover">
+          <button
+            class="profile-button"
+            id="account-button"
+            aria-label="Účet a profily"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            aria-controls="account-menu"
+          >
+            <span class="avatar" id="avatar">M</span>
+          </button>
+          <div class="header-panel account-menu" id="account-menu" hidden>
+            <div class="account-head">
+              <span class="avatar" id="menu-avatar">M</span
+              ><span class="account-who"
+                ><strong id="profile-name"></strong
+                ><small id="account-name"></small
+              ></span>
+            </div>
+            <div class="account-profiles" id="account-profiles">
+              <button id="switch-profile">Přepnout profil</button>
+            </div>
+            <hr />
+            <a href="#stats">Moje statistiky</a
+            ><a href="#premium" class="account-premium"
+              >Premium a coiny<small id="premium-meta"></small></a
+            ><button id="app-settings">Nastavení</button
+            ><a href="#feedback">Pomoz vylepšit Movly</a>
+            <hr />
+            <a href="#history">Historie sledování</a
+            ><a href="#hidden">Skryté tituly</a
+            ><a href="#offline">Offline knihovna</a
+            ><a href="/devices">Správa zařízení</a
+            ><a href="/">Stáhnout aplikaci</a>
+            <div class="account-language" id="account-language"></div>
+            <hr />
+            <button id="logout" class="account-logout">Odhlásit se</button>
+          </div>
         </div>
       </div>
     </header>
@@ -68,8 +92,9 @@
       <div class="loading" role="status">Načítám Movly…</div>
     </main>
     <footer>
-      Movly <span>Všechny tvé příběhy na jednom místě.</span
-      ><a href="/privacy.html">Soukromí</a>
+      <span>© 2026 Movly</span><a href="#feedback">Pomoz vylepšit Movly</a
+      ><a href="/privacy.html">Soukromí</a
+      ><a href="/">Aplikace pro iOS, Android, Windows a TV</a>
     </footer>
     <div id="toast" class="toast" role="status" hidden></div>
     <dialog id="dialog" aria-labelledby="dialog-title">
