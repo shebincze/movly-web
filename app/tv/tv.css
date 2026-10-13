@@ -41,6 +41,7 @@ html.tv-lite body > #tv-root {
   right: 0;
   bottom: 0;
   overflow: hidden;
+  overflow-y: auto;
   padding: 1.5rem 3rem 3rem;
   box-sizing: border-box;
 }
@@ -476,4 +477,57 @@ button[disabled].tv-f {
 }
 .tv-player-error .tv-actions {
   justify-content: center;
+}
+
+/* Ovládání kurzorem (LG NetCast: šipky ovladače pohybují kurzorem) */
+.tv-f:hover {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 4px #ff4f6d;
+}
+.tv-button:hover {
+  background: #ffffff;
+  color: #0a0a12;
+}
+.tv-back {
+  margin-right: 1.5rem;
+}
+.tv-scroller {
+  position: relative;
+}
+.tv-scroll-nav {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 4rem;
+  padding: 0;
+  border: 0;
+  background: rgba(10, 10, 18, 0.82);
+  color: #ffffff;
+  font-size: 2rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+.tv-scroll-nav:hover,
+.tv-scroll-nav:focus {
+  outline: none;
+  background: #ff4f6d;
+}
+.tv-scroll-prev {
+  left: -3rem;
+}
+.tv-scroll-next {
+  right: -3rem;
+}
+.tv-osd-controls {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 0.9rem;
+}
+.tv-osd-controls .tv-button {
+  margin-right: 0.9rem;
+  min-width: 7rem;
+}
+.tv-osd-controls .tv-osd-play {
+  min-width: 10rem;
 }
