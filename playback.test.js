@@ -167,6 +167,7 @@ for (const [codec, withSubs, native = false] of [
           "https://h1.webshare.cz/test",
           {
             subtitle: withSubs ? 0 : -1,
+            cookieless: true,
             ...(native
               ? { videoMode: "native", capabilities: { hevc: true } }
               : {}),
@@ -234,6 +235,19 @@ for (const [codec, withSubs, native = false] of [
           assert.match((await capture(vtt)).toString(), /Test českých titulků/);
         }
         const playlist = (await capture("index.m3u8")).toString();
+        // TV přehrávače bez cookie: klíč v adrese, jen playlist a TS segmenty, ne titulky/status.
+        if (!withSubs) {
+          const token = /^\/api\/app\/tv-media\/[a-f0-9]{48}\/([a-f0-9]{48})\/index\.m3u8$/.exec(result.media_playlist)[1];
+          const viaToken = [];
+          const res = new Writable({ write(d, _enc, done) { viaToken.push(d); done(); } });
+          res.writeHead = () => {};
+          await engine.handle(null, { method: "GET" }, res, result.id, "index.m3u8", token);
+          await finished(res);
+          assert.match(Buffer.concat(viaToken).toString(), /#EXTM3U/);
+          await assert.rejects(engine.handle(null, { method: "GET" }, null, result.id, "index.m3u8", "0".repeat(48)), { status: 404 });
+          await assert.rejects(engine.handle(null, { method: "GET" }, null, result.id, "status", token), { status: 404 });
+          await assert.rejects(engine.handle(null, { method: "DELETE" }, null, result.id, undefined, token), { status: 404 });
+        } else assert.equal(result.media_playlist, undefined);
         const segment = playlist
           .split("\n")
           .find((line) => /^index\d+\.(?:ts|m4s)$/.test(line));

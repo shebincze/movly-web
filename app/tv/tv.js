@@ -1049,7 +1049,9 @@
         max_width: Math.max(window.screen.width || 0, window.screen.height || 0) >= 1920 ? 1920 : 1280,
         playback_rate: 1, audio_delay: 0,
         // Staré TV: H.264 + stereo AAC, server případně převede.
-        capabilities: { hevc: false, dolbyVision: false, aacMultichannel: false, ac3: false, eac3: false }
+        capabilities: { hevc: false, dolbyVision: false, aacMultichannel: false, ac3: false, eac3: false },
+        // Nativní přehrávač TV stahuje video bez cookie: server vrátí adresu s klíčem.
+        cookieless_media: true
       };
       for (var k in selection) if (Object.prototype.hasOwnProperty.call(selection, k)) body[k] = selection[k];
       api("playback", { method: "POST", body: body }, function (err, data) {
@@ -1057,7 +1059,7 @@
         if (err) { fail(err.status === 0 ? NETWORK_ERROR : "Zdroj se nepodařilo připravit: " + err.message); return; }
         if (!data || typeof data.id !== "string" || !/^\/api\/app\/playback\/[a-f0-9]{48}\/(?:index|master)\.m3u8$/.test(data.playlist || "")) { fail("Server vrátil neplatnou relaci přehrávání."); return; }
         session = data;
-        diag("session", { offset: data.offset, duration: data.duration, playlist: /master/.test(data.playlist) ? "master" : "index" });
+        diag("session", { offset: data.offset, duration: data.duration, playlist: /master/.test(data.playlist) ? "master" : "index", media: Boolean(data.media_playlist) });
         offset = typeof data.offset === "number" ? data.offset : body.offset;
         paint();
         prepare(mine);
@@ -1088,7 +1090,9 @@
       if (!skipNative && canNativeHls(video)) {
         el.setAttribute("data-engine", "native");
         diag("engine", { e: "native" });
-        video.src = playlist;
+        var media = session.media_playlist;
+        video.src = typeof media === "string" && /^\/api\/app\/tv-media\/[a-f0-9]{48}\/[a-f0-9]{48}\/index\.m3u8$/.test(media)
+          ? location.protocol + "//" + location.host + media : playlist;
         go();
         return;
       }

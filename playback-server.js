@@ -543,6 +543,9 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
         resourceIDs: new Map(),
         dir: await fs.mkdtemp(path.join(os.tmpdir(), "movly-play-")),
         touched: Date.now(),
+        // Přehrávače TV (LG NetCast) stahují HLS mimo prohlížeč bez cookie;
+        // pro ně tajný klíč v adrese, jen pro index.m3u8 a segmenty.
+        mediaToken: options.cookieless === true ? crypto.randomBytes(24).toString("hex") : null,
       };
       sessions.set(p.id, p);
       const input = `http://127.0.0.1:${port}/${p.id}`;
@@ -735,6 +738,7 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
           ].includes(t.codec_name),
         })),
         playlist: `/api/app/playback/${p.id}/${p.subtitle >= 0 ? "master" : "index"}.m3u8`,
+        ...(p.mediaToken && p.subtitle < 0 ? { media_playlist: `/api/app/tv-media/${p.id}/${p.mediaToken}/index.m3u8` } : {}),
       };
     } catch (e) {
       await stop(p);
@@ -743,9 +747,18 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
       starting = false;
     }
   }
-  async function handle(s, req, res, id, file) {
+  async function handle(s, req, res, id, file, mediaToken) {
     const p = sessions.get(id);
-    if (!p || p.owner !== owner(s))
+    const allowed =
+      p &&
+      (mediaToken
+        ? req.method === "GET" &&
+          /^(?:index\.m3u8|index\d+\.ts)$/.test(file || "") &&
+          typeof p.mediaToken === "string" &&
+          p.mediaToken.length === mediaToken.length &&
+          crypto.timingSafeEqual(Buffer.from(p.mediaToken), Buffer.from(mediaToken))
+        : p.owner === owner(s));
+    if (!allowed)
       throw fail(404, "Přehrávání vypršelo. Otevři zdroj znovu.");
     p.touched = Date.now();
     if (req.method === "DELETE") {
