@@ -549,6 +549,7 @@ function createAppHandler({
       ["page", "limit", "type"],
     ],
   ];
+  let tvDiagnostics = { windowStart: 0, count: 0 };
   return async function handle(req, res, url) {
     if (!url.pathname.startsWith("/api/app/")) return false;
     res.setHeader("Cache-Control", "no-store");
@@ -645,6 +646,25 @@ function createAppHandler({
           s.managedDeviceId = login.device_id.toLowerCase();
         writeSession(res, s);
         json(res, 200, { account, profile: null });
+        return true;
+      }
+      // Technická diagnostika TV lite (klávesy, schopnosti přehrávače, chyby) do logu
+      // serveru; omezená velikostí i počtem, bez obsahu formulářů a bez IP.
+      if (target === "tv-diagnostics" && req.method === "POST") {
+        const now = Date.now();
+        if (now - tvDiagnostics.windowStart > 60_000) tvDiagnostics = { windowStart: now, count: 0 };
+        if (++tvDiagnostics.count > 120) throw new HttpError(429, "Příliš mnoho diagnostických záznamů.");
+        const body = objectBody(await readBody(req, 16384));
+        const id = typeof body.id === "string" && /^[a-z0-9]{1,12}$/.test(body.id) ? body.id : "?";
+        const events = Array.isArray(body.events) ? body.events.slice(0, 20) : [];
+        for (const event of events) {
+          if (!event || typeof event !== "object" || Array.isArray(event)) continue;
+          const type = typeof event.t === "string" && /^[a-z-]{1,16}$/.test(event.t) ? event.t : "?";
+          const line = JSON.stringify({ at: event.s, d: event.d ?? null }).replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 1500);
+          console.log(`[Movly TV] ${id} ${s ? "auth" : "anon"} ${type} ${line}`);
+        }
+        res.statusCode = 204;
+        res.end();
         return true;
       }
       if (!s)
