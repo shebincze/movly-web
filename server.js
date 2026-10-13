@@ -1922,6 +1922,8 @@ function pipeReadableFileStream(stream, res, label) {
 function serveStatic(req, res, pathname) {
   let relativePath = pathname === '/app' || pathname === '/app/'
     ? '/app/index.html'
+    : pathname === '/app/tv' || pathname === '/app/tv/'
+      ? '/app/tv/index.html'
     : pathname === '/'
     ? '/index.html'
     : pathname === '/activate'

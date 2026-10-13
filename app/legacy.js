@@ -1,5 +1,7 @@
 /* Kontrola zastaralého prohlížeče (např. vestavěný prohlížeč starších TV).
-   Záměrně ES5 bez modulů: musí běžet i tam, kde se aplikace nespustí. */
+   Záměrně ES5 bez modulů: musí běžet i tam, kde se aplikace nespustí.
+   Nepodporovaný prohlížeč dostane omezenou verzi „Movly TV lite“ (/app/tv/tv.js);
+   hláška o nepodporovaném prohlížeči zůstává jako záloha, když se nespustí ani ta. */
 (function () {
   var lang = (navigator.language || "cs").slice(0, 2);
   var text = {
@@ -8,6 +10,9 @@
     en: ["This browser can't run Movly", "This device's built-in browser is too old to run the Movly web app.", "Use a current Chrome, Edge, Firefox or Safari, or the Movly app for iOS, Android, Android TV, Apple TV or Windows.", "Download the apps", "Browser identification:"]
   };
   var t = text[lang] || (lang === "sk" ? text.sk : lang === "cs" ? text.cs : text.en);
+  var root = document.documentElement;
+  // Samostatná stránka /app/tv/ (data-movly-tv) spouští lite verzi vždy.
+  var tvPage = root.getAttribute("data-movly-tv") === "1";
   function node(tag, className, value) {
     var n = document.createElement(tag);
     if (className) n.className = className;
@@ -15,10 +20,13 @@
     return n;
   }
   function show() {
-    if (window.__movlyStarted) return;
+    if (window.__movlyStarted || window.__movlyTvStarted || window.__movlyNoticeShown) return;
     var main = document.getElementById("content");
     if (!main) return;
-    document.documentElement.className += " legacy-browser";
+    window.__movlyNoticeShown = true;
+    var tvRoot = document.getElementById("tv-root");
+    if (tvRoot && tvRoot.parentNode) tvRoot.parentNode.removeChild(tvRoot);
+    root.className = root.className.replace(/(^|\s)tv-lite(?=\s|$)/g, " ") + " legacy-browser";
     while (main.firstChild) main.removeChild(main.firstChild);
     var box = node("section", "legacy-notice");
     box.appendChild(node("h1", "", t[0]));
@@ -32,13 +40,47 @@
     box.appendChild(ua);
     main.appendChild(box);
   }
-  var script = document.createElement("script");
-  var modern = "noModule" in script && !!(window.CSS && CSS.supports && CSS.supports("--movly-check", "0"));
+  // Načte omezenou TV verzi. tv.js po spuštění nastaví window.__movlyTvStarted.
+  function startTv() {
+    if (window.__movlyStarted || window.__movlyTvLoading) return;
+    window.__movlyTvLoading = true;
+    var head = document.getElementsByTagName("head")[0] || root;
+    var css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = "/app/tv/tv.css";
+    head.appendChild(css);
+    var script = document.createElement("script");
+    script.src = "/app/tv/tv.js";
+    script.onerror = show;
+    script.onload = function () {
+      if (!window.__movlyTvStarted) show();
+    };
+    head.appendChild(script);
+    setTimeout(function () {
+      if (!window.__movlyTvStarted) show();
+    }, 20000);
+  }
+  function whenReady(fn) {
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn);
+    else fn();
+  }
+  if (tvPage) {
+    whenReady(startTv);
+    return;
+  }
+  // Přímý vstup z plné aplikace: /app/?tv=1 nebo /app/#tv vede na /app/tv/.
+  if (/(?:^|[?&])tv=1(?:&|$)/.test(location.search) || location.hash === "#tv") {
+    location.replace("/app/tv/");
+    return;
+  }
+  var probe = document.createElement("script");
+  var modern = "noModule" in probe && !!(window.CSS && CSS.supports && CSS.supports("--movly-check", "0"));
   if (!modern) {
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", show);
-    else show();
+    whenReady(startTv);
   } else {
     // Moduly existují, ale aplikace se nemusí spustit (např. nepodporovaná syntaxe).
-    setTimeout(show, 20000);
+    setTimeout(function () {
+      if (!window.__movlyStarted) startTv();
+    }, 20000);
   }
 })();
