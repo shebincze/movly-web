@@ -31,6 +31,12 @@ const paths = {
   down: ["m6 9 6 6 6-6"],
   check: ["m5 12 4 4L19 6"],
   trash: ["M3 6h18", "M9 6V3h6v3", "m6 6 1 15h10l1-15", "M10 10v7", "M14 10v7"],
+  bell: ["M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9", "M10.3 21a1.94 1.94 0 0 0 3.4 0"],
+  coin: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18", "M12 7v10", "M9 9.5h4.5a2 2 0 0 1 0 4H9"],
+  play: ["M7 4.5v15l13-7.5z"],
+  info: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18", "M12 11v5", "M12 8h.01"],
+  tv: ["M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1", "M8 21h8"],
+  lock: ["M7 11h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2", "M8 11V8a4 4 0 0 1 8 0v3"],
 };
 export function icon(name) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -44,6 +50,10 @@ export function icon(name) {
     "aria-hidden": "true",
   }))
     svg.setAttribute(k, v);
+  if (name === "play") {
+    svg.setAttribute("fill", "currentColor");
+    svg.setAttribute("stroke", "none");
+  }
   for (const d of paths[name] || paths.chevron) {
     const p = document.createElementNS(svg.namespaceURI, "path");
     p.setAttribute("d", d);
@@ -191,8 +201,28 @@ export function rail(name, items, onTitle, more) {
     track,
   );
 }
-export function hero(t, onTitle, onSave) {
+export function runtimeLabel(minutes) {
+  if (!minutes) return null;
+  const h = Math.floor(minutes / 60), m = minutes % 60;
+  return `${h ? `${h} h ` : ""}${m ? `${m} min` : ""}`.trim();
+}
+// Meta řádek ve stylu návrhu: hodnoty oddělené tečkou, štítky zvlášť.
+export function metaLine(parts, tags = []) {
+  const node = el("p", { class: "meta" });
+  parts.filter(Boolean).forEach((part, i) => {
+    if (i) node.append(el("span", { class: "meta-sep", "aria-hidden": "true" }, "•"));
+    node.append(el("span", {}, part));
+  });
+  for (const tag of tags.filter(Boolean)) node.append(tag);
+  return node;
+}
+export function hero(t, onTitle, onSave, onPlay) {
   const url = imageURL(t.backdrop_path, "w1280");
+  const quality = t.streams?.video_height
+    ? t.streams.video_width >= 3800 || t.streams.video_height >= 2100
+      ? translateUI("4K")
+      : `${t.streams.video_height}p`
+    : null;
   return el(
     "section",
     { class: `hero${url ? "" : " no-art"}` },
@@ -210,32 +240,37 @@ export function hero(t, onTitle, onSave) {
       "div",
       { class: "hero-content" },
       el("h1", {}, t.title),
-      el(
-        "p",
-        { class: "meta" },
+      metaLine(
         [
           t.year,
-          ...(t.genres || []).slice(0, 2).map((g) => g.name_cs || g.name),
-          t.runtime
-            ? `${Math.floor(t.runtime / 60) ? `${Math.floor(t.runtime / 60)} h ` : ""}${t.runtime % 60 ? `${t.runtime % 60} min` : ""}`.trim()
+          runtimeLabel(t.runtime),
+          (t.genres || []).slice(0, 2).map((g) => g.name_cs || g.name).join(", "),
+        ],
+        [
+          quality ? el("span", { class: "meta-tag" }, quality) : null,
+          Number.isFinite(t.rating)
+            ? el("span", { class: "meta-score", "aria-label": translateUI("Hodnocení {0} %", Math.round(t.rating)) }, `${Math.round(t.rating)} %`)
             : null,
-        ]
-          .filter(Boolean)
-          .join(" · "),
+        ],
       ),
       t.overview ? el("p", { class: "synopsis" }, t.overview) : null,
       el(
         "div",
         { class: "actions" },
-        button(
-          t.type === "tv"
-            ? translateUI("Detail seriálu")
-            : translateUI("Detail filmu"),
-          () => onTitle(t),
-          "primary",
-          "chevron",
-        ),
+        onPlay
+          ? button(translateUI("Přehrát"), () => onPlay(t), "primary", "play")
+          : null,
         button(translateUI("Do seznamu"), () => onSave(t), "secondary", "plus"),
+        button(
+          onPlay
+            ? translateUI("Informace")
+            : t.type === "tv"
+              ? translateUI("Detail seriálu")
+              : translateUI("Detail filmu"),
+          () => onTitle(t),
+          onPlay ? "secondary" : "primary",
+          "info",
+        ),
       ),
     ),
   );

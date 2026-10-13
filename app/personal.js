@@ -1,6 +1,6 @@
 import { translateUI } from "./i18n.js";
-import { api, array, title } from "./api.js";
-import { setWatched } from "./user-state.js";
+import { api, array, title, imageURL } from "./api.js";
+import { setWatched, isWatched, progressPercent } from "./user-state.js";
 import {
   el,
   button,
@@ -9,8 +9,8 @@ import {
   errorBox,
   formField,
   toast,
-  poster,
   empty,
+  countLabel,
 } from "./ui.js";
 export async function titleActivity(t, section = "all") {
   const dialog = showDialog(
@@ -175,6 +175,192 @@ export async function titleActivity(t, section = "all") {
       );
   }
 }
+// Společná hlavička „Moje knihovna“: nadpis, akce a záložky jednotlivých částí.
+export function libraryHead(active, ...extra) {
+  return [
+    el(
+      "div",
+      { class: "lib-head" },
+      el("h1", {}, translateUI("Moje knihovna")),
+      el("span", { class: "lib-spacer" }),
+      ...extra,
+    ),
+    el(
+      "nav",
+      { class: "lib-tabs", "aria-label": translateUI("Části knihovny") },
+      [
+        ["lists", translateUI("Seznamy")],
+        ["history", translateUI("Historie")],
+        ["hidden", translateUI("Skryté")],
+        ["offline", translateUI("Offline")],
+      ].map(([key, label]) =>
+        el(
+          "a",
+          { href: `#${key}`, "aria-current": key === active ? "page" : null },
+          label,
+        ),
+      ),
+    ),
+  ];
+}
+export function libraryThumb(path, className = "lib-thumb") {
+  const url = imageURL(path, "w185");
+  return el(
+    "span",
+    { class: className, "aria-hidden": "true" },
+    url
+      ? el("img", {
+          src: url,
+          alt: "",
+          loading: "lazy",
+          decoding: "async",
+          onError: (e) => e.target.remove(),
+        })
+      : null,
+  );
+}
+// Karta seznamu: tři překryté plakáty, název, počet a štítek.
+export function listCard({ href, name, meta, tag, tone, posters = [], featured }) {
+  return el(
+    "a",
+    { class: `lib-list-card${featured ? " featured" : ""}`, href },
+    el(
+      "span",
+      { class: "lib-stack", "aria-hidden": "true" },
+      [0, 1, 2].map((i) => libraryThumb(posters[i], "lib-stack-art")),
+    ),
+    el(
+      "span",
+      { class: "lib-list-text" },
+      el("strong", {}, name),
+      meta ? el("span", { class: "lib-muted" }, meta) : null,
+    ),
+    tag ? el("span", { class: `lib-tag${tone ? " " + tone : ""}` }, tag) : null,
+  );
+}
+export function initialAvatar(name) {
+  const text = String(name || "?");
+  let hash = 0;
+  for (const ch of text) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
+  return el(
+    "span",
+    { class: "lib-avatar", "data-tone": String(hash % 4), "aria-hidden": "true" },
+    [...text.trim()][0]?.toUpperCase() || "?",
+  );
+}
+function dayLabel(value) {
+  const date = new Date(value);
+  if (!value || !Number.isFinite(date.getTime())) return null;
+  const now = new Date(),
+    start = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = Math.round((start(now) - start(date)) / 864e5);
+  if (diff === 0) return translateUI("Dnes");
+  if (diff === 1) return translateUI("Včera");
+  return date.toLocaleDateString(document.documentElement.lang || "cs", {
+    day: "numeric",
+    month: "long",
+    ...(date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+  });
+}
+function historyRow(t, onTitle) {
+  const p = t.progress,
+    done = isWatched(t),
+    percent = progressPercent(t);
+  const episode =
+    p?.season_number && p?.episode_number
+      ? `S${p.season_number} E${p.episode_number}`
+      : null;
+  return el(
+    "li",
+    { class: "lib-row" },
+    el(
+      "button",
+      { type: "button", class: "lib-row-main", onClick: () => onTitle(t) },
+      libraryThumb(t.poster_path),
+      el(
+        "span",
+        { class: "lib-row-text" },
+        el("strong", {}, t.title),
+        el(
+          "span",
+          { class: "lib-row-sub" },
+          [
+            t.type === "tv" ? episode || translateUI("Seriál") : translateUI("Film"),
+            done
+              ? translateUI("Zhlédnuto")
+              : percent > 0
+                ? translateUI("{0} % zhlédnuto", Math.round(percent))
+                : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        ),
+        !done && percent > 0
+          ? el("progress", {
+              max: 100,
+              value: Math.min(100, percent),
+              "aria-label": translateUI("Rozkoukáno"),
+            })
+          : null,
+      ),
+    ),
+  );
+}
+// Řádky historie seskupené podle dne posledního sledování.
+function historyList(items, onTitle) {
+  const root = el("div", { class: "lib-day-groups" });
+  let day, list;
+  for (const t of items) {
+    const label = dayLabel(t.progress?.last_watched_at || t.progress?.watched_at);
+    if (!list || label !== day) {
+      day = label;
+      list = el("ul", { class: "lib-rows" });
+      if (label) root.append(el("h3", { class: "lib-day" }, label));
+      root.append(list);
+    }
+    list.append(historyRow(t, onTitle));
+  }
+  return root;
+}
+export async function recentHistory(signal, actions) {
+  let items;
+  try {
+    items = array(
+      (await api("watch-history/list?page=1&limit=5", { signal })).items,
+    ).map(title);
+  } catch (e) {
+    if (signal.aborted) throw e;
+    return null;
+  }
+  return el(
+    "section",
+    { class: "lib-card lib-recent", "aria-labelledby": "lib-recent-title" },
+    el("h2", { id: "lib-recent-title" }, translateUI("Historie")),
+    items.length
+      ? historyList(items, actions.detail)
+      : el("p", { class: "lib-muted" }, translateUI("Zatím bez titulů")),
+    el(
+      "div",
+      { class: "lib-links" },
+      el("a", { class: "text-link", href: "#history" }, translateUI("Celá historie")),
+      el("a", { class: "text-link", href: "#stats" }, translateUI("Statistiky sledování")),
+    ),
+  );
+}
+function pager(page, hasMore, href) {
+  if (page <= 1 && !hasMore) return null;
+  return el(
+    "nav",
+    { class: "lib-pager", "aria-label": translateUI("Stránkování") },
+    page > 1
+      ? el("a", { class: "button secondary", href: href(page - 1) }, translateUI("Předchozí"))
+      : null,
+    el("span", {}, translateUI("Strana {0}", page)),
+    hasMore
+      ? el("a", { class: "button secondary", href: href(page + 1) }, translateUI("Další"))
+      : null,
+  );
+}
 export async function history(params, signal, actions) {
   const page = Math.max(1, Number(params.get("page")) || 1),
     status = params.get("status") === "completed" ? "completed" : "watching";
@@ -183,67 +369,65 @@ export async function history(params, signal, actions) {
     { signal },
   );
   const items = array(data.items).map(title);
+  const segment = (key, label) =>
+    el(
+      "a",
+      { href: `#history?status=${key}`, "aria-current": status === key ? "page" : null },
+      label,
+    );
   return el(
     "div",
-    { class: "page" },
-    el("h1", {}, translateUI("Historie sledování")),
+    { class: "page library-page" },
+    ...libraryHead(
+      "history",
+      el("a", { class: "button secondary", href: "#stats" }, translateUI("Statistiky sledování")),
+    ),
     el(
       "div",
-      { class: "actions" },
+      { class: "lib-toolbar" },
       el(
-        "a",
-        {
-          class: `button ${status === "watching" ? "primary" : "secondary"}`,
-          href: "#history?status=watching",
-        },
-        translateUI("Rozkoukané"),
+        "nav",
+        { class: "lib-segmented", "aria-label": translateUI("Historie sledování") },
+        segment("watching", translateUI("Rozkoukané")),
+        segment("completed", translateUI("Zhlédnuté")),
       ),
-      el(
-        "a",
-        {
-          class: `button ${status === "completed" ? "primary" : "secondary"}`,
-          href: "#history?status=completed",
-        },
-        translateUI("Zhlédnuté"),
-      ),
+      Number.isFinite(data.total_items)
+        ? el(
+            "span",
+            { class: "lib-muted" },
+            countLabel(data.total_items, translateUI("titul"), translateUI("tituly"), translateUI("titulů")),
+          )
+        : null,
     ),
     items.length
-      ? el(
-          "div",
-          { class: "catalog-grid" },
-          items.map((t) => poster(t, actions.detail)),
-        )
+      ? el("section", { class: "lib-card lib-history" }, historyList(items, actions.detail))
       : empty(
           translateUI("Zatím bez titulů"),
           translateUI(
             "Historie se synchronizuje se stejným profilem v aplikacích.",
           ),
         ),
-    el(
-      "div",
-      { class: "actions" },
-      page > 1
-        ? el(
-            "a",
-            {
-              class: "button secondary",
-              href: `#history?status=${status}&page=${page - 1}`,
-            },
-            translateUI("Předchozí"),
-          )
-        : null,
-      data.has_more
-        ? el(
-            "a",
-            {
-              class: "button secondary",
-              href: `#history?status=${status}&page=${page + 1}`,
-            },
-            translateUI("Další"),
-          )
-        : null,
-    ),
+    pager(page, data.has_more, (n) => `#history?status=${status}&page=${n}`),
   );
+}
+function rankedBars(rows) {
+  const max = Math.max(1, ...rows.map((row) => Number(row.count) || 0));
+  return rows.map((row) => {
+    const fill = el("span");
+    // CSP zakazuje style atribut; šířka přes CSSOM je povolená.
+    fill.style.width = `${Math.max(2, Math.round(((Number(row.count) || 0) / max) * 100))}%`;
+    return el(
+      "div",
+      { class: "lib-bar" },
+      el(
+        "div",
+        { class: "lib-bar-label" },
+        el("span", {}, row.name),
+        el("span", { class: "lib-muted" }, String(row.count)),
+      ),
+      el("div", { class: "lib-bar-track", "aria-hidden": "true" }, fill),
+    );
+  });
 }
 export async function stats(params, signal) {
   const year = params.get("year"),
@@ -253,91 +437,99 @@ export async function stats(params, signal) {
   const data = await api(chosen ? `stats/me/wrapped/${chosen}` : "stats/me", {
     signal,
   });
-  const select = el(
-    "select",
-    {
-      "aria-label": translateUI("Období statistik"),
-      onChange: (e) => {
-        location.hash = e.target.value
-          ? `stats?year=${e.target.value}`
-          : "stats";
-      },
-    },
+  const number = (v) =>
+    new Intl.NumberFormat("cs", { maximumFractionDigits: 1 }).format(v);
+  const period = (value, label) =>
     el(
-      "option",
-      { value: "", selected: !chosen },
-      translateUI("Celá historie"),
-    ),
-    ...Array.from({ length: 6 }, (_, i) =>
-      el(
-        "option",
-        { value: current - i, selected: String(current - i) === chosen },
-        String(current - i),
-      ),
-    ),
-  );
+      "a",
+      {
+        href: value ? `#stats?year=${value}` : "#stats",
+        "aria-current": String(value || "") === String(chosen || "") ? "page" : null,
+      },
+      label,
+    );
+  const kpis = [
+    ["watch_hours", translateUI("Hodin sledování")],
+    ["completed_titles", translateUI("Zhlédnutých titulů")],
+    ["movies", translateUI("Filmů")],
+    ["shows", translateUI("Seriálů")],
+    ["episodes", translateUI("Epizod")],
+    ["longest_streak_days", translateUI("Dní v řadě")],
+  ].filter(([key]) => Number.isFinite(data[key]));
+  const ranked = [
+    ["top_genres", translateUI("Nejčastější žánry")],
+    ["top_actors", translateUI("Oblíbení herci")],
+  ];
+  const summary = [
+    Number.isFinite(data.watch_hours)
+      ? countLabel(Math.round(data.watch_hours), translateUI("hodina"), translateUI("hodiny"), translateUI("hodin"))
+      : null,
+    Number.isFinite(data.movies)
+      ? countLabel(data.movies, translateUI("film"), translateUI("filmy"), translateUI("filmů"))
+      : null,
+    Number.isFinite(data.episodes)
+      ? countLabel(data.episodes, translateUI("epizoda"), translateUI("epizody"), translateUI("epizod"))
+      : null,
+  ].filter(Boolean);
+  const wrappedYear = chosen || String(current - 1);
   return el(
     "div",
-    { class: "page" },
+    { class: "page library-page stats-page" },
     el(
       "div",
-      { class: "page-heading" },
+      { class: "lib-head" },
+      el("h1", {}, translateUI("Statistiky sledování")),
+      el("span", { class: "lib-spacer" }),
       el(
-        "h1",
-        {},
-        chosen
-          ? translateUI("Tvůj rok {0}", chosen)
-          : translateUI("Moje statistiky"),
+        "nav",
+        { class: "lib-segmented", "aria-label": translateUI("Období statistik") },
+        period("", translateUI("Celkem")),
+        ...Array.from({ length: 6 }, (_, i) => period(current - i, String(current - i))),
       ),
-      select,
     ),
-    el(
-      "div",
-      { class: "stat-grid" },
-      [
-        ["watch_hours", translateUI("Hodin sledování")],
-        ["completed_titles", translateUI("Zhlédnutých titulů")],
-        ["movies", translateUI("Filmů")],
-        ["shows", translateUI("Seriálů")],
-        ["episodes", translateUI("Epizod")],
-        ["longest_streak_days", translateUI("Dní v řadě")],
-      ]
-        .filter(([key]) => Number.isFinite(data[key]))
-        .map(([key, label]) =>
-          el(
-            "div",
-            { class: "stat-card" },
+    kpis.length
+      ? el(
+          "div",
+          { class: "lib-kpis" },
+          kpis.map(([key, label]) =>
             el(
-              "strong",
-              {},
-              new Intl.NumberFormat("cs", { maximumFractionDigits: 1 }).format(
-                data[key],
-              ),
+              "div",
+              { class: "lib-kpi" },
+              el("span", { class: "lib-muted" }, label),
+              el("strong", {}, number(data[key])),
             ),
-            label,
           ),
-        ),
-    ),
-    ...["top_genres", "top_actors"].map((key) =>
-      el(
-        "section",
-        {},
+        )
+      : null,
+    el(
+      "div",
+      { class: "lib-split" },
+      ranked.map(([key, heading]) =>
         el(
-          "h2",
-          {},
-          key === "top_genres"
-            ? translateUI("Nejčastější žánry")
-            : translateUI("Oblíbení herci"),
-        ),
-        ...array(data[key]).map((row) =>
-          el(
-            "div",
-            { class: "share-row" },
-            row.name,
-            el("strong", {}, String(row.count)),
-          ),
+          "section",
+          { class: "lib-card", "aria-labelledby": `lib-${key}` },
+          el("h2", { id: `lib-${key}` }, heading),
+          array(data[key]).length
+            ? rankedBars(array(data[key]))
+            : el("p", { class: "lib-muted" }, translateUI("Zatím bez dat.")),
         ),
       ),
+    ),
+    el(
+      "section",
+      { class: "lib-wrapped", "aria-labelledby": "lib-wrapped-title" },
+      el(
+        "div",
+        {},
+        el("span", { class: "lib-eyebrow" }, "Movly Wrapped"),
+        el("h2", { id: "lib-wrapped-title" }, translateUI("Tvůj rok {0}", wrappedYear)),
+        chosen && summary.length
+          ? el("p", {}, summary.join(" · "))
+          : el("p", {}, translateUI("Celý rok sledování v jednom přehledu.")),
+      ),
+      chosen
+        ? el("a", { class: "button secondary", href: "#stats" }, translateUI("Celá historie"))
+        : el("a", { class: "button primary", href: `#stats?year=${wrappedYear}` }, translateUI("Zobrazit rok {0}", wrappedYear)),
     ),
   );
 }
@@ -366,63 +558,73 @@ export async function hiddenTitles(params, signal, actions) {
       { signal },
     ),
   );
-  const node = el(
-    "div",
-    { class: "page" },
-    el("h1", {}, translateUI("Skryté tituly")),
-  );
+  const rows = el("ul", { class: "lib-rows" });
   for (const item of data) {
     const details =
       item.title && typeof item.title === "object"
         ? title(item.title)
         : title(await api("titles/" + item.title_id, { signal }));
-    node.append(
+    rows.append(
       el(
-        "div",
-        { class: "source-row" },
-        button(details.title, () => actions.detail(details)),
-        button(translateUI("Obnovit v rozkoukaných"), async (event) => {
-          const control = event.currentTarget;
-          const row = control.closest(".source-row");
-          control.disabled = true;
-          try {
-            await api(
-              "user/hidden-titles/" +
-                item.title_id +
-                "?source=continue_watching",
-              { method: "DELETE" },
-            );
-            row.remove();
-            window.dispatchEvent(new Event("movly:personal-changed"));
-          } catch (error) {
-            toast(error.message);
-            control.disabled = false;
-          }
-        }),
+        "li",
+        { class: "lib-row" },
+        el(
+          "button",
+          { type: "button", class: "lib-row-main", onClick: () => actions.detail(details) },
+          libraryThumb(details.poster_path),
+          el(
+            "span",
+            { class: "lib-row-text" },
+            el("strong", {}, details.title),
+            el(
+              "span",
+              { class: "lib-row-sub" },
+              [details.year, details.type === "tv" ? translateUI("Seriál") : translateUI("Film")]
+                .filter(Boolean)
+                .join(" · "),
+            ),
+          ),
+        ),
+        button(
+          translateUI("Obnovit v rozkoukaných"),
+          async (event) => {
+            const control = event.currentTarget;
+            const row = control.closest(".lib-row");
+            control.disabled = true;
+            try {
+              await api(
+                "user/hidden-titles/" +
+                  item.title_id +
+                  "?source=continue_watching",
+                { method: "DELETE" },
+              );
+              row.remove();
+              window.dispatchEvent(new Event("movly:personal-changed"));
+            } catch (error) {
+              toast(error.message);
+              control.disabled = false;
+            }
+          },
+          "secondary small",
+        ),
       ),
     );
   }
-  if (!data.length)
-    node.append(el("p", {}, translateUI("Žádné skryté tituly.")));
-  node.append(
+  return el(
+    "div",
+    { class: "page library-page" },
+    ...libraryHead("hidden"),
     el(
-      "div",
-      { class: "actions" },
-      page > 1
-        ? el(
-            "a",
-            { class: "button secondary", href: "#hidden?page=" + (page - 1) },
-            translateUI("Předchozí"),
-          )
-        : null,
-      data.length === 100
-        ? el(
-            "a",
-            { class: "button secondary", href: "#hidden?page=" + (page + 1) },
-            translateUI("Další"),
-          )
-        : null,
+      "p",
+      { class: "lib-intro" },
+      translateUI("Tituly skryté z řady Pokračovat ve sledování. Obnovením se do ní vrátí."),
     ),
+    data.length
+      ? el("section", { class: "lib-card" }, rows)
+      : empty(
+          translateUI("Žádné skryté tituly."),
+          translateUI("Skrýt titul můžeš v jeho detailu."),
+        ),
+    pager(page, data.length === 100, (n) => "#hidden?page=" + n),
   );
-  return node;
 }

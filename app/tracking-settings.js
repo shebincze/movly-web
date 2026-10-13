@@ -2,22 +2,49 @@ import { translateUI } from "./i18n.js";
 import { api } from "./api.js";
 import { el, button } from "./ui.js";
 
+const pills = {
+  connected: ["Připojeno", "success"],
+  disconnected: ["Nepřipojeno", "neutral"],
+  syncing: ["Synchronizuji", "accent"],
+  pending: ["Čeká na autorizaci v prohlížeči", "info"],
+  reconnect: ["Znovu propojit", "warning"],
+  error: ["Chyba synchronizace", "danger"],
+  unavailable: ["Nedostupné", "neutral"],
+  revoking: ["Odpojuje se", "neutral"],
+  failed: ["Stav nelze načíst", "danger"],
+};
+export const servicePill = (key) => el("span", { class: `service-pill ${pills[key][1]}` }, translateUI(pills[key][0]));
+// Karta propojené služby: značka, název, podtitulek a stav (sdílí i provider-settings).
+export function serviceCard({ key, badge, name, subtitle, pill }) {
+  return el(
+    "article",
+    { class: `service-card service-${key}`, "data-state": pill?.classList[1] || "" },
+    el(
+      "div",
+      { class: "service-head" },
+      el("span", { class: "service-badge", "aria-hidden": "true" }, badge),
+      el("span", { class: "service-name" }, el("strong", {}, name), subtitle ? el("span", {}, subtitle) : null),
+      pill,
+    ),
+  );
+}
+
 export async function appendTrackingSettings(container, dialog) {
   const section = el(
     "section",
-    {},
-    el("h3", {}, "Trakt / Simkl"),
+    { class: "connections-section", "aria-labelledby": "tracking-title" },
+    el("h3", { id: "tracking-title" }, translateUI("Propojené služby")),
     el(
       "p",
-      {},
+      { class: "connections-intro" },
       translateUI(
         "Propojení platí jen pro tento profil. Import doplní dostupnou historii a zachová místní volby. Další změny Viděno se synchronizují automaticky.",
       ),
     ),
   );
   container.append(section);
-  const content = el("div", { class: "dialog-form" }),
-    message = el("p", { role: "status" });
+  const content = el("div", { class: "service-grid" }),
+    message = el("p", { role: "status", class: "service-message" });
   section.append(message, content);
   let busy = false,
     alive = true;
@@ -35,13 +62,30 @@ export async function appendTrackingSettings(container, dialog) {
     if (!alive) return;
     content.replaceChildren();
     for (const item of result.items) {
-      const row = el(
-        "div",
-        { class: "dialog-form" },
-        el("strong", {}, item.provider === "trakt" ? "Trakt.tv" : "Simkl"),
+      const row = serviceCard({
+        key: item.provider,
+        badge: item.provider === "trakt" ? "Tr" : "Si",
+        name: item.provider === "trakt" ? "Trakt.tv" : "Simkl",
+        pill: servicePill(
+          !item.configured
+            ? "unavailable"
+            : item.revocation_pending
+              ? "revoking"
+              : item.error === "reconnect_required"
+                ? "reconnect"
+                : item.error
+                  ? "error"
+                  : item.sync_pending
+                    ? "syncing"
+                    : item.connected
+                      ? "connected"
+                      : "disconnected",
+        ),
+      });
+      row.append(
         el(
           "p",
-          {},
+          { class: "service-note" },
           !item.configured
             ? translateUI("Služba není na tomto API nakonfigurovaná.")
             : item.revocation_pending
@@ -72,6 +116,8 @@ export async function appendTrackingSettings(container, dialog) {
               translateUI("Synchronizace se nepodařila. Zkus obnovit stav."),
           ),
         );
+      const actions = el("div", { class: "service-actions" });
+      row.append(actions);
       for (const [action, label] of item.connected
         ? [
             ["sync", translateUI("Synchronizovat")],
@@ -79,9 +125,9 @@ export async function appendTrackingSettings(container, dialog) {
             ["disconnect", translateUI("Odpojit")],
           ]
         : [["connect", translateUI("Připojit")]]) {
-        const control = button(label, () => run(item.provider, action));
+        const control = button(label, () => run(item.provider, action), action === "connect" ? "primary small" : action === "disconnect" ? "secondary small service-quiet" : "secondary small");
         control.disabled = busy || !item.configured || item.revocation_pending;
-        row.append(control);
+        actions.append(control);
       }
       content.append(row);
     }
@@ -111,22 +157,29 @@ export async function appendTrackingSettings(container, dialog) {
           throw new Error(
             translateUI("Služba vrátila neplatnou ověřovací adresu."),
           );
-        const code = el("p", { class: "party-code" }, authorization.user_code);
+        const code = el("p", { class: "party-code service-code" }, authorization.user_code);
         const link = el(
           "a",
           {
             href: url.href,
             target: "_blank",
             rel: "noopener noreferrer",
-            class: "button",
+            class: "button primary small",
           },
           translateUI("Potvrdit propojení ve službě"),
         );
-        content.replaceChildren(
+        const pending = serviceCard({
+          key: provider,
+          badge: provider === "trakt" ? "Tr" : "Si",
+          name: provider === "trakt" ? "Trakt.tv" : "Simkl",
+          pill: servicePill("pending"),
+        });
+        pending.append(
+          el("p", { class: "service-note" }, translateUI("Zadej tento kód na stránce služby:")),
           code,
-          link,
-          button(translateUI("Zrušit"), () => dialog.close()),
+          el("div", { class: "service-actions" }, link, button(translateUI("Zrušit"), () => dialog.close(), "secondary small")),
         );
+        content.replaceChildren(pending);
         const expires = Date.parse(authorization.expires_at);
         if (!Number.isFinite(expires))
           throw new Error(
@@ -185,7 +238,7 @@ export async function appendTrackingSettings(container, dialog) {
             message.textContent = error.message;
           });
       },
-      "small",
+      "secondary small connections-refresh",
     ),
   );
   try {

@@ -12,7 +12,7 @@ export function reportStream(selection) {
   const dialog = showDialog(
     el(
       "div",
-      { class: "dialog-body" },
+      { class: "dialog-body pk-feedback" },
       el("h2", { id: "dialog-title" }, translateUI("Nahlásit zdroj")),
       el(
         "form",
@@ -87,7 +87,7 @@ export function uploadStream(selection, onSaved) {
   const dialog = showDialog(
     el(
       "div",
-      { class: "dialog-body" },
+      { class: "dialog-body pk-feedback" },
       el("h2", { id: "dialog-title" }, translateUI("Přidat zdroj do databáze")),
       status,
       languages,

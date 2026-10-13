@@ -14,7 +14,7 @@ export async function editProfile(profile, done) {
   const dialog = showDialog(
     el(
       "div",
-      { class: "dialog-body" },
+      { class: "dialog-body narrow" },
       el(
         "h2",
         { id: "dialog-title" },
@@ -43,22 +43,34 @@ export async function editProfile(profile, done) {
         ? translateUI("Prázdné pole ponechá stávající PIN")
         : translateUI("Volitelné, 4 až 8 číslic"),
     });
-    const kids = el("input", { type: "checkbox", checked: profile?.is_kids });
+    const kids = el("input", { type: "checkbox", role: "switch", checked: profile?.is_kids });
     const unrated = el("input", {
       type: "checkbox",
+      role: "switch",
       checked: profile?.allow_unrated ?? true,
     });
-    const age = el(
-      "select",
-      {},
+    const age = { value: [7, 12, 15, 18].includes(profile?.max_certification) ? profile.max_certification : 18 };
+    const ages = el(
+      "div",
+      { class: "pill-group" },
       ...[7, 12, 15, 18].map((n) =>
         el(
-          "option",
-          { value: n, selected: n === (profile?.max_certification || 18) },
+          "button",
+          {
+            type: "button",
+            class: "chip",
+            "aria-pressed": String(n === age.value),
+            onClick: (e) => {
+              age.value = n;
+              ages.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === e.currentTarget)));
+            },
+          },
           `${n}+`,
         ),
       ),
     );
+    const switchRow = (input, title, hint) =>
+      el("label", { class: "switch-row" }, el("span", {}, el("strong", {}, title), hint ? el("small", {}, hint) : null), input);
     const status = el("p", { role: "alert", class: "form-status" });
     const grid = el("div", {
       class: "avatar-grid",
@@ -88,7 +100,7 @@ export async function editProfile(profile, done) {
     const submit = el(
       "button",
       { type: "submit", class: "button primary" },
-      translateUI("Uložit profil"),
+      translateUI("Uložit"),
     );
     const form = el(
       "form",
@@ -118,20 +130,14 @@ export async function editProfile(profile, done) {
           }
         },
       },
-      formField(translateUI("Jméno"), name),
-      el("h3", {}, translateUI("Avatar")),
-      grid,
-      formField(translateUI("PIN"), pin),
-      el("label", {}, kids, translateUI(" Dětský profil")),
-      formField(translateUI("Věková hranice"), age),
-      el(
-        "label",
-        {},
-        unrated,
-        translateUI(" Povolit tituly bez věkového hodnocení"),
-      ),
+      formField(translateUI("Jméno profilu"), name),
+      el("fieldset", { class: "plain-fieldset" }, el("legend", {}, translateUI("Avatar")), grid),
+      el("fieldset", { class: "plain-fieldset" }, el("legend", {}, translateUI("Věkové omezení")), ages),
+      switchRow(kids, translateUI("Dětský profil")),
+      switchRow(unrated, translateUI("Tituly bez hodnocení"), translateUI("Povolit tituly bez věkového hodnocení")),
+      formField(translateUI("PIN profilu"), pin),
       status,
-      submit,
+      el("div", { class: "dialog-actions" }, button(translateUI("Zrušit"), () => dialog.close()), submit),
     );
     if (profile && !profile.is_default)
       form.append(
@@ -168,7 +174,7 @@ export async function editProfile(profile, done) {
     showDialog(
       el(
         "div",
-        { class: "dialog-body" },
+        { class: "dialog-body narrow" },
         el(
           "h2",
           { id: "dialog-title" },
@@ -181,7 +187,7 @@ export async function editProfile(profile, done) {
     showDialog(
       el(
         "div",
-        { class: "dialog-body" },
+        { class: "dialog-body narrow" },
         el("h2", { id: "dialog-title" }, translateUI("Profily")),
         errorBox(e, () => editProfile(profile, done)),
       ),

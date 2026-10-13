@@ -55,7 +55,7 @@ export async function openNotifications(titleId = null, draft = null, afterClose
         const refresh = () => { permission.textContent = label(Notification.permission === "granted" ? "NotificationsPermissionAllowed" : Notification.permission === "denied" ? "NotificationsPermissionDenied" : "NotificationsPermissionPending"); };
         refresh();
         window.addEventListener("focus",refresh,{signal:cancel.signal});
-        content.append(button(label("NotificationsPermission"),async()=>{ await Notification.requestPermission(); if(current()) refresh(); },"secondary"),permission);
+        content.append(el("div",{class:"notification-permission"},permission,button(label("NotificationsPermission"),async()=>{ await Notification.requestPermission(); if(current()) refresh(); },"secondary small")));
       }
     }
     const disable = !account && subscribed ? button(label("NotificationsDisable"),()=>persist(true),"secondary") : null;
@@ -75,15 +75,16 @@ export async function openNotifications(titleId = null, draft = null, afterClose
     if(account) {
       const inbox = await api("notifications/inbox",{signal:cancel.signal,expectedOwner:owner});
       if(!current())return;
-      content.append(el("h3",{},label("NotificationsInbox")));
-      for(const item of inbox.items) content.append(button(item.message,async()=>{
+      const list=el("ul",{class:"notification-inbox"});
+      content.append(el("h3",{},label("NotificationsInbox")),list);
+      for(const item of inbox.items) list.append(el("li",{},button(item.message,async()=>{
         await api(`notifications/inbox/${item.id}/read`,{method:"PUT",body:{},signal:cancel.signal,expectedOwner:owner});
         if(!current())return;
         dialog.close();
         const data=await api(`titles/${item.title_id}`,{expectedOwner:owner});
         const {detail}=await import("./library.js");await detail(data,{save:()=>{}});
-      }));
-      if(!inbox.items.length)content.append(el("p",{},label("NotificationsEmpty")));
+      })));
+      if(!inbox.items.length)list.replaceWith(el("p",{class:"notification-empty"},label("NotificationsEmpty")));
     }
   }catch(error){if(current()){content.querySelector(".loading")?.remove();status.textContent=error.message;content.append(status,button(label("NotificationsRetry"),()=>void openNotifications(titleId,draft,afterClose)));}}
 }

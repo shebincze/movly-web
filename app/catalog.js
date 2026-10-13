@@ -27,6 +27,7 @@ import {
   countLabel,
   errorBox,
   toast,
+  icon,
 } from "./ui.js";
 function carousel(items, actions) {
   let index = 0;
@@ -35,10 +36,19 @@ function carousel(items, actions) {
       class: "hero-dots",
       "aria-label": translateUI("Výběr doporučeného titulu"),
     });
+  const play = async (t) => {
+    if (t.type === "tv") return actions.detail(t);
+    try {
+      await (await import("./player.js")).sources(t);
+    } catch (error) {
+      toast(error.message);
+    }
+  };
   function show(next) {
     index = (next + items.length) % items.length;
-    slide.replaceChildren(hero(items[index], actions.detail, actions.save));
-    if (items[index].homeHighlight?.label || items[index].homeHeading) slide.querySelector(".hero-content").prepend(el("p", { class: "meta" }, items[index].homeHighlight?.label || items[index].homeHeading));
+    slide.replaceChildren(hero(items[index], actions.detail, actions.save, play));
+    const label = items[index].homeHighlight?.label || items[index].homeHeading;
+    if (label) slide.querySelector(".hero-content").prepend(el("span", { class: "hero-label" }, label));
     actions.onHero?.(slide.firstElementChild, items[index]);
     dots
       .querySelectorAll("button")
@@ -48,17 +58,26 @@ function carousel(items, actions) {
     .slice(0, 10)
     .forEach((t, i) => dots.append(button(t.title, () => show(i), "hero-dot")));
   show(0);
+  const step = (label, delta, glyph) => {
+    const node = button("", () => show(index + delta), "small", glyph);
+    node.setAttribute("aria-label", label);
+    return node;
+  };
+  const back = step(translateUI("Předchozí"), -1, "chevron");
+  back.classList.add("hero-prev");
   return el(
     "section",
     { class: "home-carousel" },
     slide,
-    el(
-      "div",
-      { class: "hero-controls" },
-      button(translateUI("Předchozí"), () => show(index - 1), "small"),
-      dots,
-      button(translateUI("Další"), () => show(index + 1), "small"),
-    ),
+    items.length > 1
+      ? el(
+          "div",
+          { class: "hero-controls" },
+          dots,
+          back,
+          step(translateUI("Další"), 1, "chevron"),
+        )
+      : null,
   );
 }
 function feedRail(group, actions, source = "main") {
@@ -441,25 +460,34 @@ function filterBuilder({
   const grid = !allowType;
   const genreNames = new Map(genres.map((g) => [g.id, g.name_cs || g.name]));
   const selectedGenres = new Set(definition.genre_ids || []);
+  // Typ jako přepínač a žánry jako štítky; FormData je čte stejně jako dřív select.
   const typeSelect = allowType
     ? el(
-        "select",
-        { name: "t" },
-        [
-          ["", translateUI("Filmy i seriály")],
-          ["movie", translateUI("Filmy")],
-          ["tv", translateUI("Seriály")],
-        ].map(([v, label]) => el("option", { value: v }, label)),
+        "fieldset",
+        { class: "filter-group" },
+        el("legend", {}, translateUI("Typ")),
+        el(
+          "div",
+          { class: "segmented" },
+          [
+            ["", translateUI("Vše")],
+            ["movie", translateUI("Filmy")],
+            ["tv", translateUI("Seriály")],
+          ].map(([v, label]) => {
+            const input = el("input", { type: "radio", name: "t", value: v });
+            input.checked = (definition.type || "") === v;
+            return el("label", {}, input, el("span", {}, label));
+          }),
+        ),
       )
     : null;
-  if (typeSelect) typeSelect.value = definition.type || "";
   const genre = el(
-    "select",
-    { name: "genre", multiple: true, size: 6 },
+    "div",
+    { class: "genre-chips" },
     genres.map((g) => {
-      const option = el("option", { value: g.id }, g.name_cs || g.name);
-      option.selected = selectedGenres.has(g.id);
-      return option;
+      const input = el("input", { type: "checkbox", name: "genre", value: g.id });
+      input.checked = selectedGenres.has(g.id);
+      return el("label", { class: "choice-chip" }, input, el("span", {}, g.name_cs || g.name));
     }),
   );
   const genreMatch = el("input", { type: "checkbox", name: "gm", value: "1" });
@@ -527,15 +555,17 @@ function filterBuilder({
       onSubmit: (e) => {
         e.preventDefault();
         const q = new URLSearchParams(grid ? { view: "grid" } : {});
-        const genreIds = [...genre.selectedOptions].map((o) => o.value);
+        const genreIds = [...genre.querySelectorAll("input:checked")].map((o) => o.value);
         if (genreIds.length) q.set("genre", genreIds.join(","));
         for (const [k, v] of new FormData(filters))
           if (v && k !== "genre") q.set(k, v);
         location.hash = `${route}?${q}`;
       },
     },
-    typeSelect ? formField(translateUI("Typ"), typeSelect) : null,
-    formField(translateUI("Žánry (více najednou)"), genre),
+    typeSelect,
+    genres.length
+      ? el("fieldset", { class: "filter-group" }, el("legend", {}, translateUI("Žánry (více najednou)")), genre)
+      : null,
     el(
       "label",
       { class: "field checkbox" },
@@ -552,7 +582,7 @@ function filterBuilder({
     formField(translateUI("Řazení"), sort),
     el(
       "button",
-      { class: "button secondary", type: "submit" },
+      { class: "button primary", type: "submit" },
       translateUI("Použít filtry"),
     ),
     hasCriteria(definition) || (allowType && definition.type)
@@ -691,19 +721,11 @@ async function catalogGrid(route, params, signal, actions) {
     savedFilters,
     actions,
   });
-  const node = el(
-    "div",
-    { class: "page" },
-    el("h1", {}, isSeries ? translateUI("Seriály") : translateUI("Filmy")),
-    el("p", {}, translateUI("Vyber si příběh podle své nálady.")),
-    el(
-      "a",
-      { class: "text-link", href: `#${route}` },
-      translateUI("Zpět na řady katalogu"),
-    ),
-    filters,
-    chipsRow,
+  const results = el(
+    "section",
+    { class: "search-results", "aria-label": translateUI("Výsledky") },
     savedRow,
+    chipsRow,
     warning(data),
     items.length
       ? el(
@@ -713,10 +735,31 @@ async function catalogGrid(route, params, signal, actions) {
         )
       : empty(translateUI("Žádné tituly"), translateUI("Zkus změnit filtry.")),
   );
+  const node = el(
+    "div",
+    { class: "page catalog-grid-page" },
+    el(
+      "a",
+      { class: "text-link catalog-back", href: `#${route}` },
+      translateUI("Zpět na řady katalogu"),
+    ),
+    el(
+      "div",
+      { class: "page-heading catalog-heading" },
+      el("h1", {}, isSeries ? translateUI("Seriály") : translateUI("Filmy")),
+      el("p", {}, translateUI("Vyber si příběh podle své nálady.")),
+    ),
+    el(
+      "div",
+      { class: "search-layout" },
+      filterPanel(filters, hasCriteria(definition), hasCriteria(definition)),
+      results,
+    ),
+  );
   if (!Number.isInteger(data.total_pages) || !Number.isInteger(data.total))
     throw new Error(translateUI("API nevrátilo stránkování katalogu."));
   const pager = pagination(route, params, page, data.total_pages);
-  if (pager) node.append(pager);
+  if (pager) results.append(pager);
   return node;
 }
 export function pagination(route, params, page, total) {
@@ -738,10 +781,22 @@ export function pagination(route, params, page, total) {
     next,
   );
 }
+// Panel filtrů: na širokém displeji otevřený vedle výsledků, na mobilu sbalený.
+function filterPanel(form, active, open) {
+  const details = el(
+    "details",
+    { class: "filters-details filter-panel" },
+    el("summary", {}, active ? translateUI("Filtry (aktivní)") : translateUI("Filtry")),
+    form,
+  );
+  details.open = open || matchMedia("(min-width: 900px)").matches;
+  return el("aside", { class: "filter-aside" }, details);
+}
 export async function search(params, signal, actions) {
   const q = params.get("q") || "",
     page = Math.max(1, Number(params.get("page")) || 1);
   const input = el("input", {
+    id: "search-q",
     type: "search",
     name: "q",
     placeholder: translateUI("Filmy, seriály…"),
@@ -750,61 +805,105 @@ export async function search(params, signal, actions) {
     required: true,
     autocomplete: "off",
   });
+  const clear = el(
+    "button",
+    {
+      type: "button",
+      class: "search-clear",
+      "aria-label": translateUI("Vymazat"),
+      onClick: () => {
+        input.value = "";
+        clear.hidden = true;
+        input.focus();
+      },
+    },
+    icon("close"),
+  );
+  clear.hidden = !q;
+  input.addEventListener("input", () => (clear.hidden = !input.value));
   const form = el(
     "form",
     {
-      class: "search-form",
+      class: "search-form search-hero",
       role: "search",
       onSubmit: (e) => {
         e.preventDefault();
         location.hash = `search?q=${encodeURIComponent(input.value.trim())}`;
       },
     },
-    formField(translateUI("Co chceš objevit?"), input),
+    el("label", { class: "catalog-sr-only", for: "search-q" }, translateUI("Co chceš objevit?")),
     el(
-      "button",
-      { type: "submit", class: "button primary" },
-      translateUI("Hledat"),
+      "div",
+      { class: "search-box" },
+      icon("search"),
+      input,
+      clear,
+      el("button", { type: "submit", class: "button primary" }, translateUI("Hledat")),
     ),
   );
   const node = el(
     "div",
-    { class: "page" },
-    el("h1", {}, translateUI("Hledání")),
+    { class: "page search-page" },
+    el("h1", { class: "catalog-sr-only" }, translateUI("Hledání")),
     form,
   );
   if (q.trim()) rememberSearch(q);
   else {
     const history = el("section", {
+      class: "search-history",
       "aria-label": translateUI("Nedávná hledání"),
     });
     const refresh = () => {
+      const terms = searchHistory();
+      history.hidden = !terms.length;
       history.replaceChildren(
-        el("h2", {}, translateUI("Nedávná hledání")),
-        ...searchHistory().map((term) =>
-          el(
-            "div",
-            { class: "actions" },
-            button(term, () => {
-              location.hash = "search?q=" + encodeURIComponent(term);
-            }),
-            button(
-              translateUI("Odstranit"),
-              () => {
-                removeSearch(term);
-                refresh();
-              },
-              "small",
-            ),
+        el(
+          "div",
+          { class: "search-history-head" },
+          el("h2", {}, translateUI("Nedávná hledání")),
+          button(
+            translateUI("Vymazat historii hledání"),
+            () => {
+              clearSearchHistory();
+              refresh();
+            },
+            "small",
           ),
         ),
-        button(
-          translateUI("Vymazat historii hledání"),
-          () => {
-            clearSearchHistory();
-            refresh();
-          },
-          "small",
+        el(
+          "ul",
+          { class: "search-history-list" },
+          terms.map((term) => {
+            const remove = el(
+              "button",
+              {
+                type: "button",
+                class: "chip-remove",
+                "aria-label": translateUI("Odstranit „{0}“ z historie", term),
+                onClick: () => {
+                  removeSearch(term);
+                  refresh();
+                },
+              },
+              icon("close"),
+            );
+            return el(
+              "li",
+              { class: "history-chip" },
+              el(
+                "button",
+                {
+                  type: "button",
+                  class: "history-term",
+                  onClick: () => {
+                    location.hash = "search?q=" + encodeURIComponent(term);
+                  },
+                },
+                term,
+              ),
+              remove,
+            );
+          }),
         ),
       );
     };
@@ -838,21 +937,22 @@ export async function search(params, signal, actions) {
     actions,
     allowType: true,
   });
-  const details = el(
-    "details",
-    { class: "filters-details" },
-    el(
-      "summary",
-      {},
-      filterActive ? translateUI("Filtry (aktivní)") : translateUI("Filtry"),
-    ),
-    builder.filters,
+  const results = el(
+    "section",
+    { class: "search-results", "aria-label": translateUI("Výsledky") },
+    ...[builder.savedRow, builder.chipsRow].filter(Boolean),
   );
-  details.open = filterActive && !q.trim();
-  node.append(...[details, builder.chipsRow, builder.savedRow].filter(Boolean));
+  node.append(
+    el(
+      "div",
+      { class: "search-layout" },
+      filterPanel(builder.filters, filterActive, filterActive && !q.trim()),
+      results,
+    ),
+  );
   if (!q.trim()) {
     if (!filterActive) {
-      node.append(
+      results.append(
         empty(
           translateUI("Na co máš dnes náladu?"),
           translateUI(
@@ -868,11 +968,11 @@ export async function search(params, signal, actions) {
     query.set("limit", "24");
     const data = await api(`titles/filter?${query}`, { signal });
     const items = array(data.results, translateUI("výsledky")).map(title);
-    node.append(
+    results.append(
       ...[
         el(
           "h2",
-          {},
+          { class: "results-heading" },
           definition.type === "tv"
             ? translateUI("Seriály podle filtrů")
             : definition.type === "movie"
@@ -894,12 +994,12 @@ export async function search(params, signal, actions) {
     );
     if (Number.isInteger(data.total_pages)) {
       const pager = pagination("search", params, page, data.total_pages);
-      if (pager) node.append(pager);
+      if (pager) results.append(pager);
     }
     return node;
   }
   if (filterActive)
-    node.append(
+    results.append(
       el(
         "p",
         { class: "muted" },
@@ -939,11 +1039,11 @@ export async function search(params, signal, actions) {
       ? filtered.results.map(title)
       : [];
   if (filteredItems.length) {
-    node.append(
+    results.append(
       el(
         "section",
         { class: "filter-results" },
-        el("h2", {}, translateUI("Podle filtrů")),
+        el("h2", { class: "results-heading" }, translateUI("Podle filtrů")),
         el(
           "div",
           { class: "filter-chips" },
@@ -963,14 +1063,13 @@ export async function search(params, signal, actions) {
           { class: "catalog-grid" },
           filteredItems.map((t) => poster(t, (selected) => openSearchResult(selected, filteredItems))),
         ),
-        el("h2", {}, translateUI("Podle názvu")),
       ),
     );
   }
-  node.append(
+  results.append(
     el(
-      "p",
-      {},
+      "h2",
+      { class: "results-heading" },
       translateUI(
         "{0} pro „{1}“",
         countLabel(
@@ -984,25 +1083,27 @@ export async function search(params, signal, actions) {
     ),
   );
   const w = warning(data);
-  if (w) node.append(w);
-  node.append(
-    items.length
-      ? el(
-          "div",
-          { class: "catalog-grid" },
-          items.map((t) => poster(t, (selected) => openSearchResult(selected, items))),
-        )
-      : filteredItems.length
-        ? null
-        : empty(
-            translateUI("Nic jsme nenašli"),
-            translateUI(
-              "Zkus jiný název, nebo filtr: akční komedie 2020-2023, horory 90. léta 7+, seriály sci-fi 4k cz.",
+  if (w) results.append(w);
+  results.append(
+    ...[
+      items.length
+        ? el(
+            "div",
+            { class: "catalog-grid" },
+            items.map((t) => poster(t, (selected) => openSearchResult(selected, items))),
+          )
+        : filteredItems.length
+          ? null
+          : empty(
+              translateUI("Nic jsme nenašli"),
+              translateUI(
+                "Zkus jiný název, nebo filtr: akční komedie 2020-2023, horory 90. léta 7+, seriály sci-fi 4k cz.",
+              ),
             ),
-          ),
+    ].filter(Boolean),
   );
   const pager = pagination("search", params, page, Math.ceil(data.total / 24));
-  if (pager) node.append(pager);
+  if (pager) results.append(pager);
   return node;
 }
 export async function collection(params, signal, actions) {
@@ -1027,8 +1128,8 @@ export async function collection(params, signal, actions) {
   if (tracker) tracker.setOwner(data.viewer_scope);
   const node = el(
     "div",
-    { class: "page" },
-    el("a", { href: "#home", class: "text-link" }, translateUI("Zpět na Home")),
+    { class: "page collection-page" },
+    el("a", { href: "#home", class: "text-link catalog-back" }, translateUI("Zpět na Home")),
     el("h1", {}, list.name || translateUI("Katalog")),
     warning(data),
     items.length
@@ -1069,7 +1170,7 @@ export async function collection(params, signal, actions) {
 }
 
 function serverHomeCollectionList(list, params) {
-  const node = el("div", { class: "page" }, el("a", { href: "#home", class: "text-link" }, translateUI("Zpět na Home")), el("h1", {}, list.name),
+  const node = el("div", { class: "page collection-page" }, el("a", { href: "#home", class: "text-link catalog-back" }, translateUI("Zpět na Home")), el("h1", {}, list.name),
     el("div", { class: "collection-banners" }, (list.collections || []).map(c => el("a", {
       class: "collection-banner", href: `#collection?${new URLSearchParams({ source: "home_collection", slug: c.slug })}`,
     }, el("strong", {}, c.name), el("span", {}, translateUI("{0} titulů", c.total_items))))));

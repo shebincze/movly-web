@@ -1,6 +1,7 @@
 import { api, title } from './api.js';
 import { translateUI } from './i18n.js';
-import { el, rail, poster, button, toast, countLabel } from './ui.js';
+import { el, poster, button, toast, countLabel } from './ui.js';
+import { listCard, libraryThumb } from './personal.js';
 
 export function localizedExternalTitle(raw, item) {
   const mapped = title(raw);
@@ -73,33 +74,31 @@ function openCard(actions, card) {
   if (card.unresolved) toast(translateUI('Titul nemá rozpoznané katalogové ID.'));
   else actions.detail(card);
 }
-export async function externalListSections(signal, actions) {
+// Externí seznamy jako karty v mřížce knihovny; plakáty se doplní po vyřešení ID.
+export async function externalListCards(signal, actions) {
   const owner = actions.owner;
   const request = (path) => api(path, { signal, expectedOwner: owner });
   const resolve = createExternalCardResolver(request, signal);
   const results = await Promise.all(['trakt', 'simkl'].map(provider => fetchLists(provider, request, signal)));
-  const root = el('div', { class: 'external-lists' });
+  const cards = [], messages = [];
   for (const result of results) {
     if (['disconnected', 'unconfigured'].includes(result.status)) continue;
-    root.append(el('h2', {}, source(result.provider)), ...notices(result));
+    const notes = notices(result);
+    if (notes.length) messages.push(el('div', { class: 'lib-notice' }, el('strong', {}, source(result.provider)), ...notes));
     for (const list of result.lists) {
-      const preview = list.items.slice(0, 12);
-      const section = rail(listName(result.provider, list), preview.map(item => placeholder(item, result.provider)),
-        card => openCard(actions, card), `#lists?provider=${result.provider}&external=${encodeURIComponent(list.id)}`);
-      section.classList.add('list-section');
-      section.querySelector('.section-heading').after(el('p', { class: 'list-meta' }, meta(result.provider, list.items.length)));
-      root.append(section);
-      Promise.all(preview.map(async item => {
-        try { return await resolve(item); }
-        catch { return placeholder(item, result.provider); }
-      })).then(cards => {
-        if (signal.aborted) return;
-        section.querySelector('.poster-rail').replaceChildren(...cards.map(card => poster(card, value => openCard(actions, value))));
-        if (cards.some(card => card.unresolved)) section.append(el('p', { class: 'error-copy' }, translateUI('Některé tituly se nepodařilo načíst. Položky zůstávají v seznamu.')));
+      const card = listCard({ href: `#lists?provider=${result.provider}&external=${encodeURIComponent(list.id)}`,
+        name: `${source(result.provider)} · ${listName(result.provider, list)}`,
+        meta: countLabel(list.items.length, translateUI('položka'), translateUI('položky'), translateUI('položek')),
+        tag: translateUI('Externí seznam'), tone: 'external' });
+      cards.push(card);
+      Promise.all(list.items.slice(0, 3).map(item => resolve(item).catch(() => null))).then(found => {
+        const art = found.map(t => t?.poster_path).filter(Boolean);
+        if (signal.aborted || !art.length) return;
+        card.querySelector('.lib-stack').replaceChildren(...[0, 1, 2].map(i => libraryThumb(art[i], 'lib-stack-art')));
       });
     }
   }
-  return root;
+  return { cards, notices: messages };
 }
 export async function externalListDetail(params, signal, actions) {
   const provider = params.get('provider');
@@ -108,9 +107,9 @@ export async function externalListDetail(params, signal, actions) {
   const request = path => api(path, { signal, expectedOwner: owner });
   const result = await fetchLists(provider, request, signal);
   const list = result.lists.find(value => value.id === params.get('external'));
-  const root = el('div', { class: 'page' }, el('a', { href: '#lists', class: 'text-link' }, translateUI('Všechny seznamy')), ...notices(result));
+  const root = el('div', { class: 'page library-page' }, el('a', { href: '#lists', class: 'text-link lib-back' }, translateUI('Všechny seznamy')), ...notices(result));
   if (!list) { root.append(el('p', {}, translateUI('Seznam se nepodařilo načíst.'))); return root; }
-  const grid = el('div', { class: 'catalog-grid' });
+  const grid = el('div', { class: 'lib-poster-grid' });
   const warning = el('p', { class: 'error-copy' });
   const resolve = createExternalCardResolver(request, signal);
   let offset = 0, busy = false;
@@ -129,8 +128,9 @@ export async function externalListDetail(params, signal, actions) {
     more.hidden = offset >= list.items.length;
     if (cards.some(card => card.unresolved)) warning.textContent = translateUI('Některé tituly se nepodařilo načíst. Položky zůstávají v seznamu.');
   }
-  root.append(el('h1', {}, listName(provider, list)), el('p', { class: 'list-meta' }, meta(provider, list.items.length)),
-    el('p', {}, list.description), warning, grid, more);
+  root.append(el('div', { class: 'lib-head' }, el('div', { class: 'lib-title-block' }, el('h1', {}, listName(provider, list)),
+    el('p', { class: 'lib-muted' }, meta(provider, list.items.length))), el('span', { class: 'lib-tag external' }, translateUI('Externí seznam'))),
+    list.description ? el('p', { class: 'lib-intro' }, list.description) : null, warning, grid, el('div', { class: 'lib-pager' }, more));
   if (!list.items.length) more.hidden = true;
   await loadPage();
   return root;

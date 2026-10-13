@@ -1,6 +1,6 @@
 import { translateUI } from "./i18n.js";
 import { waitingForParty, effectivePartyPosition } from "./party-clock.js";
-import { api } from "./api.js";
+import { api, imageURL } from "./api.js";
 import { el, button, showDialog, toast } from "./ui.js";
 let state = null,
   host = false,
@@ -172,33 +172,94 @@ export async function hostParty(title, episode) {
       },
     });
     await activate(fresh, true);
+    const partyId = state.party_id;
+    const members = el("ul", { class: "pk-party-members" });
+    const count = el("h3", {}, translateUI("Účastníci"));
+    // Živý seznam účastníků z party stavu (members + připravenost zařízení).
+    const renderMembers = () => {
+      const list = state?.members || [];
+      count.textContent = `${translateUI("Účastníci")} · ${list.length}`;
+      const devices = state?.preparation?.devices || [];
+      const started = Boolean(state?.preparation?.started_at);
+      members.replaceChildren(
+        ...list.map((member) => {
+          const own = devices.filter((d) => d.user_id === member.user_id);
+          const ready = own.some((d) => d.ready);
+          const label = [
+            member.is_host ? translateUI("Zakladatel") : null,
+            started ? (ready ? translateUI("Připraven") : own.length ? translateUI("Načítá video…") : translateUI("Čeká na připojení")) : null,
+          ].filter(Boolean).join(" · ");
+          return el(
+            "li",
+            { class: `pk-party-member${member.is_host ? " is-host" : ""}${started && ready ? " is-ready" : ""}` },
+            el("span", { class: "pk-party-avatar", "aria-hidden": "true" }, String(member.username || "?").slice(0, 1).toUpperCase()),
+            el("span", { class: "pk-party-member-text" }, el("strong", {}, member.username || translateUI("Účastník")), label ? el("span", {}, label) : null),
+          );
+        }),
+      );
+    };
+    renderMembers();
+    const refresh = setInterval(() => {
+      if (!members.isConnected || state?.party_id !== partyId) return clearInterval(refresh);
+      renderMembers();
+    }, 1000);
+    const art = imageURL(title.backdrop_path || title.poster_path, "w300");
     showDialog(
       el(
         "div",
-        { class: "dialog-body" },
-        el("h2", { id: "dialog-title" }, translateUI("Sledovat společně")),
-        el("p", {}, translateUI("Kód party: {0}", state.code)),
+        { class: "dialog-body pk-party" },
         el(
-          "p",
-          {},
-          translateUI("Po výběru zdroje počkáme na všechny přehrávače."),
+          "div",
+          { class: "pk-party-hero" },
+          art ? el("img", { class: "pk-party-art", src: art, alt: "", referrerpolicy: "no-referrer" }) : null,
+          el(
+            "div",
+            { class: "pk-party-heading" },
+            el("span", { class: "pk-eyebrow" }, translateUI("Watch Party · zakladatel")),
+            el("h2", { id: "dialog-title" }, translateUI("Sledovat společně")),
+            el(
+              "p",
+              { class: "pk-party-title" },
+              [title.title, episode?.season_number ? `S${episode.season_number} E${episode.episode_number}` : null].filter(Boolean).join(" · "),
+            ),
+            el("p", {}, translateUI("Po výběru zdroje počkáme na všechny přehrávače.")),
+          ),
+          el(
+            "div",
+            { class: "pk-party-code" },
+            el("span", {}, translateUI("Kód pro připojení")),
+            el("strong", {}, state.code),
+            button(translateUI("Kopírovat kód"), async () => {
+              try {
+                await navigator.clipboard.writeText(state?.code || "");
+                toast(translateUI("Kód zkopírován."));
+              } catch {
+                toast(translateUI("Kód party: {0}", state?.code || ""));
+              }
+            }, "small"),
+          ),
         ),
-        button(
-          translateUI("Spustit pro všechny"),
-          async () => {
-            try {
-              await preparation("start", false);
-              await openSources();
-            } catch (e) {
-              toast(e.message);
-            }
-          },
-          "primary",
+        el("div", { class: "pk-party-body" }, count, members),
+        el(
+          "div",
+          { class: "pk-party-actions" },
+          button(translateUI("Zrušit party"), async () => {
+            await leaveParty();
+            document.querySelector("#dialog").close();
+          }),
+          button(
+            translateUI("Spustit pro všechny"),
+            async () => {
+              try {
+                await preparation("start", false);
+                await openSources();
+              } catch (e) {
+                toast(e.message);
+              }
+            },
+            "primary",
+          ),
         ),
-        button(translateUI("Zrušit party"), async () => {
-          await leaveParty();
-          document.querySelector("#dialog").close();
-        }),
       ),
     );
   } catch (e) {
@@ -209,35 +270,49 @@ export function partyJoinForm() {
   const code = el("input", {
     placeholder: translateUI("Kód party"),
     maxlength: 6,
+    autocomplete: "off",
+    autocapitalize: "characters",
+    spellcheck: "false",
+    class: "pk-party-input",
     "aria-label": translateUI("Kód party"),
   });
+  const status = el("p", { class: "pk-party-status", role: "status" });
   return el(
-    "div",
-    { class: "actions" },
-    code,
-    button(translateUI("Připojit k party"), async () => {
-      try {
-        await leaveParty();
-        await activate(
-          await api("party/join", {
-            method: "POST",
-            body: { code: code.value.trim().toUpperCase() },
-          }),
-          false,
-        );
-        toast(translateUI("Připojeno. Čekám na hostitele."));
-      } catch (e) {
-        toast(e.message);
-      }
-    }),
+    "section",
+    { class: "pk-party-join", "aria-labelledby": "pk-party-join-title" },
+    el("h2", { id: "pk-party-join-title" }, translateUI("Připojit k party")),
+    el("p", { class: "pk-party-hint" }, translateUI("Zadej kód od zakladatele. Přehrávání řídí zakladatel, ty čekáš na spuštění.")),
+    el(
+      "div",
+      { class: "pk-party-join-row" },
+      code,
+      button(translateUI("Připojit k party"), async () => {
+        try {
+          await leaveParty();
+          await activate(
+            await api("party/join", {
+              method: "POST",
+              body: { code: code.value.trim().toUpperCase() },
+            }),
+            false,
+          );
+          status.textContent = translateUI("Připojeno. Čekám na hostitele.");
+          toast(translateUI("Připojeno. Čekám na hostitele."));
+        } catch (e) {
+          toast(e.message);
+        }
+      }, "accent"),
+    ),
+    status,
     button(translateUI("Opustit party"), async () => {
       try {
         await leaveParty();
+        status.textContent = "";
         toast(translateUI("Party opuštěna."));
       } catch (e) {
         toast(e.message);
       }
-    }),
+    }, "secondary small"),
   );
 }
 export async function partyTransport(playing, position) {
