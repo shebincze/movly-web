@@ -37,11 +37,11 @@ test("TV vstupní stránka nemá inline skripty ani styly (CSP)", () => {
   const html = read("app/tv/index.html");
   assert.match(html, /data-movly-tv="1"/);
   for (const tag of html.match(/<script\b[^>]*>[\s\S]*?<\/script>/g) || []) {
-    assert.match(tag, /\bsrc="\/app\/[^"]+\.js"/);
+    assert.match(tag, /\bsrc="\/app\/[^"]+\.js(?:\?v=\d+)?"/);
     assert.match(tag, /><\/script>$/);
   }
   assert.doesNotMatch(html, /<style|\sstyle=|\son[a-z]+=/i);
-  assert.match(html, /<script src="\/app\/legacy.js" defer><\/script>/);
+  assert.match(html, /<script src="\/app\/legacy.js\?v=2" defer><\/script>/);
 });
 
 test("vendorovaný hls.js 0.14.17 (ES5 UMD) má licenci a bez eval", () => {
