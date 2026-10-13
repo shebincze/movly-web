@@ -222,7 +222,7 @@ export async function detail(t, actions) {
         "section",
         { class: "detail-panel" },
         el("h3", {}, translateUI("Informace")),
-        info.childNodes.length ? info : null,
+        info,
         el(
           "div",
           { class: "detail-panel-actions" },
@@ -287,10 +287,94 @@ export async function detail(t, actions) {
     }
     main.prepend(...[sectionNav(sections)].filter(Boolean));
     showDialog(sheet(heroNode, el("div", { class: "detail-layout" }, main, aside)));
+    void titleFacts(data, revision, dialog, { metadata, facts, info, infoRow, aside });
   } catch (e) {
     if (revision === detailRevision && dialog.open)
       showDialog(sheet(el("h2", { id: "dialog-title", class: "detail-loading-title" }, t.title), errorBox(e, () => detail(t, actions))));
   }
+}
+// Doplňková fakta (věk, tvůrci, kde sledovat) z /titles/:id/facts. Jsou volitelná:
+// chyba ani starší API bez endpointu detail nerozbije.
+async function titleFacts(data, revision, dialog, { metadata, facts, infoRow, aside }) {
+  let result;
+  try {
+    result = await api(`titles/${data.id}/facts?region=CZ`);
+  } catch {
+    return;
+  }
+  if (revision !== detailRevision || !dialog.open || result?.title_id !== data.id) return;
+  const rating = result.age_rating;
+  if (typeof rating?.rating === "string" && /^[\w .+-]{1,12}$/.test(rating.rating)) {
+    const label = /^\d+$/.test(rating.rating) ? `${rating.rating}+` : rating.rating;
+    const badge = el("span", { class: "rating-badge flag age-badge", title: translateUI("Věková hranice ({0})", rating.country || "") }, label);
+    if (!metadata.isConnected) facts.append(metadata);
+    metadata.prepend(badge);
+    infoRow(translateUI("Věková hranice"), `${label}${rating.country ? ` (${rating.country})` : ""}`);
+  }
+  const creators = (Array.isArray(result.creators) ? result.creators : []).map((c) => c?.name).filter((n) => typeof n === "string" && n);
+  infoRow(translateUI("Tvůrci"), creators.slice(0, 6).join(", "));
+  const groups = { flatrate: translateUI("V předplatném"), free: translateUI("Zdarma"), ads: translateUI("Zdarma s reklamami"), rent: translateUI("Půjčení"), buy: translateUI("Koupě") };
+  const providers = (Array.isArray(result.watch_providers) ? result.watch_providers : []).filter((p) => typeof p?.provider_name === "string" && groups[p.type]);
+  if (!providers.length) return;
+  const safeLink = (value) => {
+    try {
+      const u = new URL(value);
+      return u.protocol === "https:" ? u.href : null;
+    } catch {
+      return null;
+    }
+  };
+  const panel = el("section", { class: "detail-panel watch-providers" }, el("h3", {}, translateUI("Kde sledovat legálně")));
+  for (const [type, label] of Object.entries(groups)) {
+    const list = providers.filter((p) => p.type === type);
+    if (!list.length) continue;
+    panel.append(
+      el("h4", {}, label),
+      el(
+        "ul",
+        { class: "provider-list" },
+        list.map((p) => {
+          const logo = imageURL(p.logo_path, "w92");
+          const link = safeLink(p.link);
+          const body = [logo ? el("img", { src: logo, alt: "", loading: "lazy" }) : el("span", { class: "provider-initial", "aria-hidden": "true" }, p.provider_name.slice(0, 1)), el("span", {}, p.provider_name)];
+          return el("li", {}, link ? el("a", { href: link, target: "_blank", rel: "noopener noreferrer" }, ...body) : el("span", { class: "provider-item" }, ...body));
+        }),
+      ),
+    );
+  }
+  panel.append(el("p", { class: "provider-note" }, translateUI("Zdroj: TMDB / JustWatch, region CZ.")));
+  aside.prepend(panel);
+}
+// Hromadné označení odvysílaných epizod řady (core-API /watch-history/season).
+function seasonToggle(data, season, refresh) {
+  const aired = array(season.episodes).filter((e) => e.episode_number > 0 && !episodeState(e).upcoming);
+  if (!aired.length || season.season_number < 1) return null;
+  const allWatched = aired.every((e) => episodeState(e).watched);
+  const control = button(
+    allWatched ? translateUI("Odznačit řadu") : translateUI("Označit řadu jako zhlédnutou"),
+    async () => {
+      control.disabled = true;
+      try {
+        await api("watch-history/season", {
+          method: "POST",
+          body: { title_id: data.id, season_number: season.season_number, watch_status: allWatched ? "plan_to_watch" : "completed" },
+        });
+        for (const e of aired)
+          e.watch_history = allWatched ? null : { ...(e.watch_history || {}), watch_status: "completed" };
+        for (const e of aired) e.watch_progress = null;
+        document.dispatchEvent(new CustomEvent("movly:personal-changed"));
+        toast(allWatched ? translateUI("Řada označena jako nezhlédnutá.") : translateUI("Řada označena jako zhlédnutá."));
+        refresh();
+      } catch (error) {
+        toast(error.status === 404 ? translateUI("Označení celé řady zatím není na serveru dostupné.") : error.message);
+        control.disabled = false;
+      }
+    },
+    "secondary small",
+    "check",
+  );
+  control.classList.add("season-toggle");
+  return control;
 }
 // Řady jako přepínač (jedna viditelná řada), epizody jako řádky s náhledem.
 function seasonsSection(data, seasons, section) {
@@ -309,14 +393,17 @@ function seasonsSection(data, seasons, section) {
     );
     return pill;
   });
+  const tools = el("div", { class: "season-tools" });
   function select(season, pill) {
     for (const p of pills) p.setAttribute("aria-pressed", String(p === pill));
     list.replaceChildren(...array(season.episodes).map((episode) => episodeRow(data, season, episode)));
+    tools.replaceChildren(...[seasonToggle(data, season, () => select(season, pill))].filter(Boolean));
   }
   select(current, pills[seasons.indexOf(current)]);
   return section(
     translateUI("Řady a epizody"),
     el("div", { class: "season-pills", role: "group", "aria-label": translateUI("Řady") }, pills),
+    tools,
     list,
   );
 }
@@ -363,6 +450,15 @@ function episodeRow(data, season, episode) {
     el("span", { class: "episode-number", "aria-hidden": "true" }, String(episode.episode_number)),
     state.upcoming ? null : el("span", { class: "episode-play", "aria-hidden": "true" }, glyph(PLAY, true)),
   );
+  const ep = episode.watch_progress;
+  const epPct = ep?.progress_percentage ?? ep?.progress_percent;
+  if (!state.watched && Number.isFinite(epPct) && epPct > 0 && epPct < 100)
+    thumb.append(el("progress", { class: "episode-progress", max: 100, value: Math.round(epPct), "aria-label": translateUI("Rozkoukáno {0} %", Math.round(epPct)) }));
+  const epMeta = [
+    Number.isFinite(episode.runtime) && episode.runtime > 0 ? `${episode.runtime} min` : null,
+    !state.upcoming && episode.air_date ? new Date(episode.air_date).toLocaleDateString("cs-CZ") : null,
+    !state.watched && Number.isFinite(epPct) && epPct > 0 && epPct < 100 ? translateUI("Rozkoukáno {0} %", Math.round(epPct)) : null,
+  ].filter(Boolean);
   thumb.disabled = state.upcoming;
   const row = el(
     "li",
@@ -372,6 +468,7 @@ function episodeRow(data, season, episode) {
       "div",
       { class: "episode-copy" },
       el("strong", {}, name),
+      epMeta.length ? el("span", { class: "episode-meta" }, epMeta.join(" · ")) : null,
       episode.overview ? el("p", {}, episode.overview) : null,
       state.upcoming
         ? el("p", { class: "meta" }, translateUI("Premiéra: {0}", episode.air_date.slice(0, 10)))

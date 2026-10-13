@@ -394,6 +394,8 @@ function createAppHandler({
         throw new HttpError(400, "Neplatný počet náhledů.");
       if (["title_id", "episode_id"].includes(k) && !integer(v))
         throw new HttpError(400, "Neplatný titul nebo epizoda.");
+      if (k === "region" && !/^[A-Z]{2}$/.test(v))
+        throw new HttpError(400, "Neplatný region.");
       if (k === "offset" && (!/^\d+$/.test(v) || Number(v) > 100000))
         throw new HttpError(400, "Neplatné stránkování.");
       if (["section", "collection"].includes(k) && !/^[a-z0-9_-]{1,100}$/.test(v))
@@ -482,6 +484,7 @@ function createAppHandler({
     ["POST", /^ratings$/, ["title_id"], "ratings/"],
     ["DELETE", /^ratings\/[1-9]\d*$/, []],
     ["POST", /^watch-history$/, []],
+    ["POST", /^watch-history\/season$/, []],
     ["GET", /^watch-history\/list$/, ["page", "limit", "status", "type"]],
     [
       "GET",
@@ -529,6 +532,8 @@ function createAppHandler({
     ["PUT", /^saved-filters\/[1-9]\d*$/, []],
     ["DELETE", /^saved-filters\/[1-9]\d*$/, []],
     ["GET", /^titles\/[1-9]\d*$/, []],
+    // Doplňková fakta detailu (věk, tvůrci, kde sledovat), core-API #705.
+    ["GET", /^titles\/[1-9]\d*\/facts$/, ["region"]],
     ["GET", /^search$/, ["q", "type", "limit", "offset"]],
     ["POST", /^track-search$/, []],
     ["GET", /^watchlists$/, []],
@@ -1720,6 +1725,20 @@ function createAppHandler({
           )
             throw new HttpError(400, "Hodnocení musí být od 0 do 10.");
           body = { rating: body.rating, is_public: body.is_public === true };
+        } else if (target === "watch-history/season") {
+          if (
+            !integer(body.title_id) ||
+            !Number.isSafeInteger(body.season_number) ||
+            body.season_number < 1 ||
+            body.season_number > 1000 ||
+            !["completed", "plan_to_watch"].includes(body.watch_status)
+          )
+            throw new HttpError(400, "Neplatná řada.");
+          body = {
+            title_id: Number(body.title_id),
+            season_number: body.season_number,
+            watch_status: body.watch_status,
+          };
         } else if (target === "watch-history") {
           if (
             !integer(body.title_id) ||

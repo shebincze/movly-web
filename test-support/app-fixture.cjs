@@ -209,6 +209,16 @@ function createFixture() {
           pagination: { page: 1, total_pages: 1 },
         },
       };
+    // Testovací fakta titulu a hromadné označení řady (core-API #705).
+    if (/^v1\/titles\/\d+\/facts$/.test(p)) {
+      const id = Number(p.split("/")[2]);
+      return { payload: { title_id: id, region: "CZ", age_rating: { country: "CZ", rating: "12" },
+        creators: id % 2 ? [{ id: 1, name: "Testovací tvůrce", profile_path: null }] : [],
+        watch_providers: [{ provider_name: "Testovací streaming", type: "flatrate", logo_path: null, link: null, display_priority: 1 },
+          { provider_name: "Testovací půjčovna", type: "rent", logo_path: null, link: null, display_priority: 2 }] } };
+    }
+    if (p === "v1/watch-history/season" && method === "POST")
+      return { payload: { title_id: body.title_id, season_number: body.season_number, watch_status: body.watch_status, episodes_updated: 1 } };
     if (/^v1\/titles\/\d+\/similar$/.test(p))
       return {
         payload: films.slice(1, 5).map((t) => ({
