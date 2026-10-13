@@ -78,6 +78,54 @@
     return e;
   }
   var pendingRequests = [];
+  // ---------- diagnostika pro ladění na skutečných TV ----------
+  // Posílá jen technické údaje (klávesy, schopnosti prohlížeče, chyby); nikdy obsah polí.
+  var diagQueue = [], diagTimer = null, diagCount = 0, diagKeys = 0, bootAt = new Date().getTime();
+  var diagId = Math.floor(Math.random() * 1e9).toString(36);
+  function diag(type, data) {
+    if (diagCount >= 300) return;
+    diagCount++;
+    diagQueue.push({ t: type, s: Math.round((new Date().getTime() - bootAt) / 100) / 10, d: data || null });
+    if (!diagTimer) diagTimer = setTimeout(flushDiag, 1500);
+  }
+  function flushDiag() {
+    diagTimer = null;
+    if (!diagQueue.length) return;
+    var batch = diagQueue.splice(0, 20);
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/app/tv-diagnostics", true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.setRequestHeader("X-Movly-App", "1");
+      xhr.send(JSON.stringify({ id: diagId, events: batch }));
+    } catch (e) { /* ignorovat */ }
+    if (diagQueue.length) diagTimer = setTimeout(flushDiag, 1500);
+  }
+  function mediaSupport() {
+    var v = document.createElement("video"), out = {};
+    function cpt(type) { try { return v.canPlayType ? v.canPlayType(type) : "none"; } catch (e) { return "err"; } }
+    out.hls = cpt("application/vnd.apple.mpegurl");
+    out.xhls = cpt("application/x-mpegURL");
+    out.mp4 = cpt('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+    out.ts = cpt("video/mp2t");
+    var MS = window.MediaSource || window.WebKitMediaSource;
+    out.mse = MS ? (window.MediaSource ? "std" : "webkit") : "none";
+    try { out.mseAvc = MS && MS.isTypeSupported ? MS.isTypeSupported('video/mp4; codecs="avc1.42E01E,mp4a.40.2"') : null; } catch (e) { out.mseAvc = "err"; }
+    return out;
+  }
+  window.onerror = function (message, source, line, col) {
+    diag("error", { m: String(message).slice(0, 300), src: String(source || "").slice(-60), l: line, c: col });
+  };
+  function logKey(phase, event) {
+    if (diagKeys >= 60) return;
+    diagKeys++;
+    var t = event.target;
+    diag(phase, { k: event.keyCode, w: event.which, key: event.key || event.keyIdentifier || "", tg: t && t.tagName ? t.tagName + (t.type ? ":" + t.type : "") : "" });
+  }
+  window.addEventListener("keydown", function (event) { logKey("keydown", event); }, true);
+  window.addEventListener("keypress", function (event) { logKey("keypress", event); }, true);
+  window.addEventListener("keyup", function (event) { if (event.keyCode !== 13 && (event.keyCode < 37 || event.keyCode > 40)) logKey("keyup", event); }, true);
+  window.addEventListener("mousedown", function (event) { if (diagKeys < 60) { diagKeys++; diag("mouse", { tg: event.target && event.target.tagName }); } }, true);
   function api(path, options, done) {
     options = options || {};
     var xhr = new XMLHttpRequest(), finished = false;
@@ -92,6 +140,7 @@
       finished = true;
       var i = pendingRequests.indexOf(xhr);
       if (i >= 0) pendingRequests.splice(i, 1);
+      if (err && path !== "session") diag("api", { p: (options.method || "GET") + " " + path.split("?")[0].replace(/[a-f0-9]{48}/, "<id>"), st: err.status, c: err.code || null, m: String(err.message || "").slice(0, 160) });
       if (err && !options.quiet && handleAuthError(err)) return;
       if (done) done(err, data);
     }
@@ -902,6 +951,7 @@
     }
     function say(text) { info.textContent = text || ""; showOsd(Boolean(text)); }
     function fail(text) {
+      diag("fail", { m: String(text).slice(0, 200), engine: el.getAttribute("data-engine") });
       // Uvolní relaci na serveru (webový server zvládá jen omezený počet přehrávání).
       var at = position();
       saveHistory();
@@ -968,6 +1018,7 @@
         if (err) { fail(err.status === 0 ? NETWORK_ERROR : "Zdroj se nepodařilo připravit: " + err.message); return; }
         if (!data || typeof data.id !== "string" || !/^\/api\/app\/playback\/[a-f0-9]{48}\/(?:index|master)\.m3u8$/.test(data.playlist || "")) { fail("Server vrátil neplatnou relaci přehrávání."); return; }
         session = data;
+        diag("session", { offset: data.offset, duration: data.duration, playlist: /master/.test(data.playlist) ? "master" : "index" });
         offset = typeof data.offset === "number" ? data.offset : body.offset;
         paint();
         prepare(mine);
@@ -997,6 +1048,7 @@
       played = false;
       if (!skipNative && canNativeHls(video)) {
         el.setAttribute("data-engine", "native");
+        diag("engine", { e: "native" });
         video.src = playlist;
         go();
         return;
@@ -1007,8 +1059,10 @@
         if (stopped || mine !== generation) return;
         if (!Hls || !Hls.isSupported()) { fail("Tento televizor neumí přehrát video ve formátu HLS (hls.js zde není podporováno)."); return; }
         el.setAttribute("data-engine", "hls.js");
+        diag("engine", { e: "hls.js" });
         hls = new Hls({ enableWorker: false, liveSyncDurationCount: 3, startPosition: 0, maxBufferLength: 24 });
         hls.on(Hls.Events.ERROR, function (_event, data) {
+          if (data) diag("hls-error", { type: data.type, details: data.details, fatal: Boolean(data.fatal), code: data.response && data.response.code, reason: data.reason ? String(data.reason).slice(0, 160) : null });
           if (!data || !data.fatal || stopped || mine !== generation) return;
           if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !hls.__recovered) { hls.__recovered = true; hls.recoverMediaError(); return; }
           fail(data.type === Hls.ErrorTypes.NETWORK_ERROR ? "Přehrávání se přerušilo kvůli chybě sítě." : "Televizor nedokáže toto video dekódovat. Zkus jiný zdroj.");
@@ -1043,12 +1097,16 @@
       }, 800);
     }
     video.addEventListener("timeupdate", paint, false);
-    video.addEventListener("playing", function () { say(""); showOsd(); }, false);
+    video.addEventListener("playing", function () { say(""); showOsd(); diag("playing", { engine: el.getAttribute("data-engine"), w: video.videoWidth, h: video.videoHeight }); }, false);
     video.addEventListener("pause", function () { if (!stopped) showOsd(true); }, false);
+    each(["loadstart", "loadedmetadata", "canplay", "stalled"], function (name) {
+      video.addEventListener(name, function () { diag("video", { ev: name, rs: video.readyState, ns: video.networkState }); }, false);
+    });
     video.addEventListener("waiting", function () { say("Načítám video…"); }, false);
     video.addEventListener("ended", function () { saveHistory(); say("Konec videa. Stiskni Zpět."); }, false);
     video.addEventListener("timeupdate", function () { if (video.currentTime > 1) played = true; }, false);
     video.addEventListener("error", function () {
+      diag("video-error", { code: video.error ? video.error.code : null, engine: el.getAttribute("data-engine"), played: played });
       if (stopped || hls || !session) return;
       // Nativní HLS ohlášené přes canPlayType, které nic nepřehrálo: zkusit hls.js nad stejnou relací.
       if (el.getAttribute("data-engine") === "native" && !played && hasMediaSource()) {
@@ -1142,6 +1200,7 @@
   }
   // Příznak pro legacy.js: až po úspěšném vykreslení první obrazovky, jinak zobrazí původní hlášku.
   function start() {
+    diag("boot", { ua: navigator.userAgent.slice(0, 200), sw: window.screen.width, sh: window.screen.height, iw: window.innerWidth, ih: window.innerHeight, dpr: window.devicePixelRatio || 1, media: mediaSupport() });
     boot();
     window.__movlyTvStarted = true;
   }

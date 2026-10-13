@@ -30,3 +30,20 @@ test("public account flows validate input and never forward browser authority or
   assert.equal(calls.length, count);
   await assert.rejects(request("password-reset/request", {}, "https://evil.test"), /aplikace Movly/);
 });
+test("TV lite diagnostics are logged locally, bounded and never forwarded upstream", async () => {
+  const calls = [], logs = [];
+  const handler = createAppHandler({ api: async (...args) => { calls.push(args); return { payload: {} }; },
+    json: (res, status, body) => Object.assign(res, { status, body }), readBody: async req => req.body,
+    HttpError, secret: "synthetic-test-secret", production: false });
+  const original = console.log;
+  console.log = (line) => logs.push(line);
+  try {
+    const res = { setHeader() {}, end() { this.ended = true; } };
+    await handler({ method: "POST", body: { id: "abc123", events: [{ t: "keydown", s: 1.5, d: { k: 461 } }, { t: "BAD TYPE", s: 2, d: "x\ny" }, "nope"] },
+      headers: { host: "localhost", origin: "http://localhost", "x-movly-app": "1" } }, res, new URL("http://localhost/api/app/tv-diagnostics"));
+    assert.equal(res.statusCode, 204);
+    assert.ok(res.ended);
+  } finally { console.log = original; }
+  assert.equal(calls.length, 0);
+  assert.deepEqual(logs, ['[Movly TV] abc123 anon keydown {"at":1.5,"d":{"k":461}}', '[Movly TV] abc123 anon ? {"at":2,"d":"x\\ny"}']);
+});
