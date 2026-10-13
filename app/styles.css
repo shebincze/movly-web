@@ -648,7 +648,11 @@ select {
   gap: 16px;
   overflow-x: auto;
   scroll-snap-type: x proximity;
-  padding-bottom: 8px;
+  /* Místo pro obrys fokusu (3 + 3 px) a zvednutí karty při najetí, které by
+     overflow řady jinak ořízl; záporný okraj zachová zarovnání s nadpisem. */
+  padding: 8px 8px 12px;
+  margin: -8px -8px 0;
+  scroll-padding-inline: 8px;
   scrollbar-width: thin;
   scrollbar-color: var(--surface-3) transparent;
 }
