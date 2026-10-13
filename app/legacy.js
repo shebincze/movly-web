@@ -79,8 +79,11 @@
     whenReady(startTv);
   } else {
     // Moduly existují, ale aplikace se nemusí spustit (např. nepodporovaná syntaxe).
+    // Aplikace se spustila, pokud nahradila úvodní zástupný obsah. Příznak z main.js
+    // nestačí: prohlížeč může mít z cache (Cloudflare) starší main.js bez příznaku.
     setTimeout(function () {
-      if (!window.__movlyStarted) startTv();
+      if (window.__movlyStarted || !document.querySelector("#content > [data-boot]")) return;
+      startTv();
     }, 20000);
   }
 })();

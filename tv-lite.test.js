@@ -53,7 +53,7 @@ test("vendorovaný hls.js 0.14.17 (ES5 UMD) má licenci a bez eval", () => {
 });
 
 // Minimální DOM pro spuštění legacy.js v izolovaném kontextu.
-function runLegacy({ modern = false, search = "", hash = "", tvPage = false } = {}) {
+function runLegacy({ modern = false, search = "", hash = "", tvPage = false, booting = true } = {}) {
   const timers = [];
   let replaced = null;
   function element(tag) {
@@ -71,6 +71,8 @@ function runLegacy({ modern = false, search = "", hash = "", tvPage = false } = 
     documentElement: html,
     getElementsByTagName: (name) => (name === "head" ? [head] : []),
     getElementById: (id) => (id === "content" ? content : null),
+    // Úvodní zástupný obsah #content, dokud ho aplikace nenahradí.
+    querySelector: (selector) => (selector === "#content > [data-boot]" && booting ? {} : null),
     createElement: (tag) => { const node = element(tag); if (tag === "script" && modern) node.noModule = false; return node; },
     createTextNode: (text) => ({ text }),
     addEventListener() {},
@@ -124,6 +126,12 @@ test("legacy.js v moderním prohlížeči nic nenačítá, dokud se aplikace spu
   const stuck = runLegacy({ modern: true });
   stuck.timers[0].fn();
   assert.equal(stuck.head.children[1].src, "/app/tv/tv.js");
+
+  // Starší main.js z cache příznak nenastaví, ale aplikaci vykreslí: TV lite se nespustí.
+  const stale = runLegacy({ modern: true, booting: false });
+  stale.timers[0].fn();
+  assert.equal(stale.head.children.length, 0);
+  assert.equal(stale.content.children.length, 0);
 });
 
 test("přímý vstup do TV lite: /app/?tv=1, /app/#tv a stránka /app/tv/", () => {
