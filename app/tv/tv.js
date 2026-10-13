@@ -51,6 +51,26 @@
   function button(label, onclick, className) {
     return h("button", { type: "button", className: "tv-f tv-button" + (className ? " " + className : ""), onclick: onclick, text: label });
   }
+  // Vodorovná řada s tlačítky ◀ ▶: prohlížeč LG NetCast mění šipky ovladače na kurzor,
+  // takže řady musí jít posouvat i kliknutím.
+  function scroller(track) {
+    function by(dir) {
+      return function () {
+        var step = Math.max(200, Math.floor(track.clientWidth * 0.8));
+        track.scrollLeft = Math.max(0, track.scrollLeft + dir * step);
+        sync();
+      };
+    }
+    var prev = h("button", { type: "button", className: "tv-scroll-nav tv-scroll-prev", "aria-label": "Posunout doleva", onclick: by(-1), text: "\u25C0" });
+    var next = h("button", { type: "button", className: "tv-scroll-nav tv-scroll-next", "aria-label": "Posunout doprava", onclick: by(1), text: "\u25B6" });
+    function sync() {
+      prev.hidden = track.scrollLeft <= 0;
+      next.hidden = track.scrollLeft + track.clientWidth >= track.scrollWidth - 2;
+    }
+    setTimeout(sync, 0);
+    setTimeout(sync, 1500);
+    return h("div", { className: "tv-scroller" }, [prev, track, next]);
+  }
   // Obrázky jen z důvěryhodných zdrojů (stejně jako api.js imageURL).
   function imageURL(value, size) {
     if (typeof value !== "string" || !value) return null;
@@ -181,6 +201,9 @@
     clear(root);
     root.appendChild(screen.el);
     root.className = "tv-root tv-screen-" + screen.name;
+    // Viditelné „Zpět“ pro ovládání kurzorem (klávesa Zpět nemusí stránce dorazit).
+    var head = screen.el.querySelector(".tv-header");
+    if (head && stack.length > 1 && !head.querySelector(".tv-back")) head.insertBefore(button("\u25C0 Zpět", back, "tv-back"), head.firstChild);
     if (screen.onShow) screen.onShow();
     var target = screen.lastFocus && screen.el.contains(screen.lastFocus) && isFocusable(screen.lastFocus) ? screen.lastFocus : null;
     focusEl(target || firstFocusable(screen.el), true);
@@ -304,6 +327,12 @@
   function isTextInput(n) {
     return n && n.tagName === "INPUT" && n.type !== "button" && n.type !== "submit";
   }
+  // Kurzor ovladače: najetí na prvek ho zvýrazní stejně jako fokus z šipek.
+  document.addEventListener("mouseover", function (event) {
+    var n = event.target;
+    while (n && n !== document.body && !isFocusable(n)) n = n.parentNode;
+    if (n && n !== document.body && n !== document.activeElement && !isTextInput(n)) { try { n.focus(); } catch (e) { /* ignorovat */ } remember(); }
+  }, false);
   document.addEventListener("keydown", function (event) {
     var screen = current();
     if (!screen) return;
@@ -374,7 +403,7 @@
     var track = h("div", { className: "tv-rail-track tv-scroll-x" }, map(items, function (t) {
       return posterCard(t, function () { openDetail(t); });
     }));
-    return h("section", { className: "tv-rail" }, [h("h2", { text: name }), track]);
+    return h("section", { className: "tv-rail" }, [h("h2", { text: name }), scroller(track)]);
   }
   function grid(items) {
     return h("div", { className: "tv-grid" }, map(items, function (t) {
@@ -557,12 +586,12 @@
             if (!banners.length) return;
             body.appendChild(h("section", { className: "tv-rail" }, [
               h("h2", { text: row.name }),
-              h("div", { className: "tv-rail-track tv-scroll-x" }, map(banners, function (c) {
+              scroller(h("div", { className: "tv-rail-track tv-scroll-x" }, map(banners, function (c) {
                 return h("button", { type: "button", className: "tv-f tv-collection", onclick: function () { push(collectionScreen(c)); } }, [
                   h("strong", { text: c.name }),
                   c.total_items ? h("span", { text: c.total_items + " titulů" }) : null
                 ]);
-              }))
+              })))
             ]));
             shown++;
             return;
@@ -730,7 +759,7 @@
         tabButtons.push({ btn: btn, season: season });
         tabs.appendChild(btn);
       });
-      body.appendChild(h("section", { className: "tv-seasons" }, [h("h2", { text: "Řady a epizody" }), tabs, episodes]));
+      body.appendChild(h("section", { className: "tv-seasons" }, [h("h2", { text: "Řady a epizody" }), scroller(tabs), episodes]));
       pick(selected, false);
       autoFocus(s, firstFocusable(episodes) ? episodes : tabs);
     }
@@ -932,6 +961,16 @@
       h("div", { className: "tv-osd-row" }, [timeText, h("span", { className: "tv-osd-hint", text: "OK přehrát/pozastavit · ◀ ▶ posun o 10 s · Zpět ukončit" })]),
       info
     ]);
+    // Tlačítka pro kurzor ovladače (LG NetCast posílá šipky jako pohyb kurzoru).
+    var playButton = button("Pozastavit", function () { togglePlay(); }, "tv-f-player tv-osd-play");
+    var controls = h("div", { className: "tv-osd-controls" }, [
+      button("\u25C0 Zpět", back, "tv-f-player"),
+      button("\u221210 s", function () { seek(-10); }, "tv-f-player"),
+      playButton,
+      button("+10 s", function () { seek(10); }, "tv-f-player"),
+      button("+60 s", function () { seek(60); }, "tv-f-player")
+    ]);
+    osd.insertBefore(controls, info);
     var errorBox = h("div", { className: "tv-player-error" });
     errorBox.hidden = true;
     var el = h("section", { className: "tv-player" }, [video, osd, errorBox]);
@@ -1097,12 +1136,26 @@
       }, 800);
     }
     video.addEventListener("timeupdate", paint, false);
+    function syncPlayButton() { playButton.textContent = video.paused ? "Přehrát" : "Pozastavit"; }
+    video.addEventListener("play", syncPlayButton, false);
+    video.addEventListener("pause", syncPlayButton, false);
+    // Pohyb kurzoru ukáže ovládání; klik do obrazu přepne přehrávání.
+    el.addEventListener("mousemove", function () { if (!stopped) showOsd(); }, false);
+    video.addEventListener("click", function () { if (osd.className.indexOf("tv-osd-visible") < 0) showOsd(); else togglePlay(); }, false);
+    // Diagnostika průběhu přehrávání (každých 5 s).
+    var beat = setInterval(function () {
+      if (stopped) { clearInterval(beat); return; }
+      if (!session) return;
+      var end = null;
+      try { if (video.buffered.length) end = Math.round(video.buffered.end(video.buffered.length - 1) * 10) / 10; } catch (e) { end = "err"; }
+      diag("beat", { ct: Math.round((video.currentTime || 0) * 10) / 10, buf: end, dur: isFinite(video.duration) ? Math.round(video.duration) : String(video.duration), p: video.paused, rs: video.readyState, ns: video.networkState });
+    }, 5000);
     video.addEventListener("playing", function () { say(""); showOsd(); diag("playing", { engine: el.getAttribute("data-engine"), w: video.videoWidth, h: video.videoHeight }); }, false);
     video.addEventListener("pause", function () { if (!stopped) showOsd(true); }, false);
     each(["loadstart", "loadedmetadata", "canplay", "stalled"], function (name) {
       video.addEventListener(name, function () { diag("video", { ev: name, rs: video.readyState, ns: video.networkState }); }, false);
     });
-    video.addEventListener("waiting", function () { say("Načítám video…"); }, false);
+    video.addEventListener("waiting", function () { say("Načítám video…"); diag("video", { ev: "waiting", ct: video.currentTime }); }, false);
     video.addEventListener("ended", function () { saveHistory(); say("Konec videa. Stiskni Zpět."); }, false);
     video.addEventListener("timeupdate", function () { if (video.currentTime > 1) played = true; }, false);
     video.addEventListener("error", function () {
