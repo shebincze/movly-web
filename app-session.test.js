@@ -1246,3 +1246,17 @@ test("title facts and season watched use closed, validated upstream calls", asyn
   assert.equal(h.calls.filter((c) => c[0].split("?")[0] === "v1/watch-history/season").length, 1);
   assert.ok(h.calls.length >= count);
 });
+test("playback segments reuse account validation for 60 s, other playback calls always validate", async () => {
+  const handled = [];
+  const h = harness({ playbackEngine: { handle: async (_s, _req, _res, id, file) => { handled.push(file); return file === "status" ? { ready: true } : null; } } });
+  const selected = await h.selected();
+  const id = "c".repeat(48);
+  const validations = () => h.calls.filter(([p]) => p.startsWith("v1/watchlists")).length;
+  const before = validations();
+  for (const file of ["index.m3u8", "index0.ts", "index1.ts", "index2.ts"])
+    await h.request(`playback/${id}/${file}`, { cookie: selected.cookie });
+  assert.equal(validations() - before, 1);
+  await h.request(`playback/${id}/status`, { cookie: selected.cookie });
+  assert.equal(validations() - before, 2);
+  assert.deepEqual(handled, ["index.m3u8", "index0.ts", "index1.ts", "index2.ts", "status"]);
+});

@@ -283,12 +283,15 @@ function ffmpegArgs(
     "hls",
     "-hls_time",
     "4",
+    // Celý playlist (EVENT); staré segmenty maže server podle pozice
+    // přehrávače (handle), ne ffmpeg podle nejnovějšího segmentu. Jinak po
+    // nasčítaném sekání (>2 min za výrobou) přehrávač dostal 404.
     "-hls_list_size",
-    "30",
+    "0",
+    "-hls_playlist_type",
+    "event",
     "-hls_flags",
-    "delete_segments+temp_file",
-    "-hls_delete_threshold",
-    "4",
+    "temp_file",
   );
   if (plan.fmp4)
     args.push(
@@ -338,9 +341,31 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
     p.child?.kill("SIGKILL");
     await fs.rm(p.dir, { recursive: true, force: true });
   }
-  const timer = setInterval(() => {
-    for (const p of sessions.values())
-      if (Date.now() - p.touched > 180000) stop(p).catch(() => {});
+  // Segmenty víc než KEEP_BEHIND za posledním vyžádaným smaže; přeskočení
+  // zpět mimo ně řeší přehrávač novou relací (404 → obnova).
+  const KEEP_BEHIND = 15,
+    MAX_LEAD = 40;
+  function prune(p, current) {
+    p.lastSegment = current;
+    const below = current - KEEP_BEHIND;
+    if (!(below > (p.prunedBelow || 0))) return;
+    for (let k = p.prunedBelow || 0; k < below; k++)
+      for (const ext of ["ts", "vtt", "m4s"])
+        fs.rm(path.join(p.dir, `index${k}.${ext}`), { force: true }).catch(() => {});
+    p.prunedBelow = below;
+  }
+  const timer = setInterval(async () => {
+    for (const p of sessions.values()) {
+      if (Date.now() - p.touched > 180000) { stop(p).catch(() => {}); continue; }
+      // Pozastavené přehrávání: výroba běží dál; po ~2,5 min náskoku relaci
+      // ukončí (disk), přehrávač ji po spuštění obnoví na stejném místě.
+      if (p.offlineExport || p.analyzing || p.lastSegment === undefined) continue;
+      const newest = await fs.readdir(p.dir).then(
+        (names) => names.reduce((max, n) => { const m = /^index(\d+)\.(?:ts|m4s)$/.exec(n); return m ? Math.max(max, Number(m[1])) : max; }, -1),
+        () => -1,
+      );
+      if (newest - p.lastSegment > MAX_LEAD) stop(p).catch(() => {});
+    }
   }, 30000);
   timer.unref();
   let proxyInitialization;
@@ -761,6 +786,8 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
     if (!allowed)
       throw fail(404, "Přehrávání vypršelo. Otevři zdroj znovu.");
     p.touched = Date.now();
+    const segment = /^index(\d+)\.(?:ts|vtt|m4s)$/.exec(file || "");
+    if (segment && req.method === "GET") prune(p, Number(segment[1]));
     if (req.method === "DELETE") {
       await stop(p);
       return { stopped: true };

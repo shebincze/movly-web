@@ -551,6 +551,7 @@ function createAppHandler({
   ];
   let tvDiagnostics = { windowStart: 0, count: 0 };
   const tvMediaSeen = new Set();
+  const validatedPlayback = new Map();
   return async function handle(req, res, url) {
     if (!url.pathname.startsWith("/api/app/")) return false;
     res.setHeader("Cache-Control", "no-store");
@@ -879,8 +880,24 @@ function createAppHandler({
         target.startsWith("download/") ||
         target === "playback" ||
         target.startsWith("playback/")
-      )
-        await call(s, "watchlists?lang=cs");
+      ) {
+        // Segmenty chodí každé 4 s; ověření účtu u každého by přehrávání
+        // zbytečně zdržovalo a při výpadku API sekalo. Platí 60 s na relaci.
+        const playbackFile =
+          req.method === "GET" &&
+          /^playback\/[a-f0-9]{48}\/(?:(?:index|index_vtt|master)\.m3u8|index\d+\.(?:ts|vtt|m4s)|init\.mp4)$/.test(target);
+        const validKey = crypto
+          .createHash("sha256")
+          .update(`${s.token}:${s.device}:${s.profile.id}:${s.grant}`)
+          .digest("hex");
+        if (!playbackFile || !((validatedPlayback.get(validKey) || 0) > Date.now())) {
+          await call(s, "watchlists?lang=cs");
+          if (playbackFile) {
+            if (validatedPlayback.size > 500) validatedPlayback.clear();
+            validatedPlayback.set(validKey, Date.now() + 60000);
+          }
+        }
+      }
       if (target === "sync/device" && req.method === "GET") {
         if (!s.managedDeviceId) {
           const bootstrap = await call(s, "auth/bootstrap", "GET", null, {
