@@ -1073,7 +1073,16 @@ function createAppHandler({
               provider === "native"
                 ? nativeResolver({
                     action: "search",
-                    title,
+                    // Resolver čte jen tato pole; celý detail (řady, epizody) by
+                    // u velkých titulů přesáhl jeho 64KB limit vstupu.
+                    title: {
+                      title: title.title,
+                      original_title: title.original_title,
+                      type: title.type,
+                      year: title.year,
+                      imdb_id: title.imdb_id,
+                      tmdb_id: title.tmdb_id,
+                    },
                     season: episode?.season_number,
                     episode: episode?.episode_number,
                     fastshare: s.fastshare,

@@ -600,6 +600,8 @@ test("native provider tickets keep URLs/credentials server-side and reports bind
   assert.equal(sources.status, 200);
   assert.equal(sources.body.streams[0].direct_url, undefined);
   assert.equal(sources.body.streams[0].headers, undefined);
+  // Resolver dostane jen identifikaci titulu, ne celý detail (limit vstupu 64 KB).
+  assert.deepEqual(Object.keys(resolved[0].title).sort(), ["imdb_id", "original_title", "title", "tmdb_id", "type", "year"]);
   const ticketBody = JSON.parse(
     Buffer.from(sources.body.streams[0].ticket.split(".")[0], "base64url"),
   );
