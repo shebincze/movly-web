@@ -1,4 +1,5 @@
 export const translations = {
+  "Nepodařilo se spojit se serverem Movly. Zkontroluj připojení a zkus to znovu.": ["Nepodarilo sa spojiť so serverom Movly. Skontroluj pripojenie a skús to znova.", "Couldn't reach the Movly server. Check your connection and try again."],
   "Části knihovny": ["Časti knižnice", "Library sections"],
   "Seznamy": ["Zoznamy", "Lists"],
   "Skryté": ["Skryté", "Hidden"],
