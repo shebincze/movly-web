@@ -1180,3 +1180,96 @@
     min-width: 0;
   }
 }
+
+/* Fakta titulu (#59): věk, kde sledovat, epizody a řada */
+.age-badge {
+  border-color: rgba(255, 255, 255, 0.35);
+  font-weight: 800;
+}
+.detail-info:empty {
+  display: none;
+}
+.watch-providers h4 {
+  margin: 14px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.provider-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.provider-list a,
+.provider-list .provider-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 10px 6px 6px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.provider-list a:hover {
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.provider-list img,
+.provider-initial {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex: none;
+}
+.provider-initial {
+  display: grid;
+  place-items: center;
+  background: var(--surface-3);
+  font-weight: 700;
+}
+.provider-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+}
+.season-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 8px;
+}
+.season-tools:empty {
+  display: none;
+}
+.episode-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.episode-thumb {
+  position: relative;
+}
+.episode-thumb .episode-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 4px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.18);
+  accent-color: var(--accent);
+}
+.episode-thumb .episode-progress::-webkit-progress-bar {
+  background: rgba(255, 255, 255, 0.18);
+}
+.episode-thumb .episode-progress::-webkit-progress-value {
+  background: var(--accent);
+}
+.episode-thumb .episode-progress::-moz-progress-bar {
+  background: var(--accent);
+}

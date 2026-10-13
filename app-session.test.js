@@ -1214,3 +1214,33 @@ test('external list reads and exact TMDB metadata retain selected scope and bloc
   assert.notEqual((await h.request('integrations/trakt/lists',{method:'POST',cookie:session.cookie,body:{}})).status,200);
   assert.equal(relevant(),before);
 });
+test("title facts and season watched use closed, validated upstream calls", async () => {
+  const h = harness({
+    override: (path, method) => {
+      if (path.startsWith("v1/titles/1/facts")) return { payload: { title_id: 1, region: "CZ", age_rating: null, creators: [], watch_providers: [] } };
+      if (path.split("?")[0] === "v1/watch-history/season" && method === "POST") return { payload: { episodes_updated: 3 } };
+    },
+  }),
+    s = await h.selected();
+  const facts = await h.request("titles/1/facts?region=CZ", { cookie: s.cookie });
+  assert.equal(facts.status, 200, JSON.stringify(facts.body));
+  assert.match(h.calls.at(-1)[0], /^v1\/titles\/1\/facts\?region=CZ/);
+  assert.equal((await h.request("titles/1/facts?region=cz1", { cookie: s.cookie })).status, 400);
+  assert.equal((await h.request("titles/1/facts?evil=1", { cookie: s.cookie })).status, 400);
+  const season = await h.request("watch-history/season", {
+    method: "POST",
+    cookie: s.cookie,
+    body: { title_id: 1, season_number: 2, watch_status: "completed", user_id: 999, profile_id: 7 },
+  });
+  assert.equal(season.status, 200, JSON.stringify(season.body));
+  assert.deepEqual(h.calls.at(-1)[2], { title_id: 1, season_number: 2, watch_status: "completed" });
+  const count = h.calls.length;
+  for (const body of [
+    { title_id: 1, season_number: 0, watch_status: "completed" },
+    { title_id: 1, season_number: 2, watch_status: "watching" },
+    { title_id: "x", season_number: 2, watch_status: "completed" },
+  ])
+    assert.equal((await h.request("watch-history/season", { method: "POST", cookie: s.cookie, body })).status, 400);
+  assert.equal(h.calls.filter((c) => c[0].split("?")[0] === "v1/watch-history/season").length, 1);
+  assert.ok(h.calls.length >= count);
+});
