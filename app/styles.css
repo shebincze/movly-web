@@ -621,36 +621,6 @@ select {
   background: var(--success-tint);
   color: var(--success-soft);
 }
-.password-strength {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: -8px;
-}
-.strength-bars {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-}
-.strength-bars span {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--surface-3);
-}
-.password-strength small {
-  font-size: 13px;
-  color: var(--muted);
-}
-.password-strength[data-score="1"] span:nth-child(-n + 1) {
-  background: var(--danger);
-}
-.password-strength[data-score="2"] span:nth-child(-n + 2) {
-  background: var(--warning);
-}
-.password-strength[data-score="3"] span:nth-child(-n + 3),
-.password-strength[data-score="4"] span {
-  background: var(--success);
-}
 
 /* Plakáty a řady */
 .rail-section {
@@ -1328,16 +1298,6 @@ body[data-route="profiles"] .header {
 }
 .login-tv:hover {
   border-color: var(--accent-soft);
-}
-.login-note {
-  font-size: 14px;
-  margin: 24px 0 0;
-  text-align: center;
-}
-.login-note a {
-  color: var(--accent-light);
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 
 /* Profily */
