@@ -7,7 +7,7 @@ import {
   removeSearch,
   clearSearchHistory,
 } from "./search-history.js";
-import { api, array, title, imageURL } from "./api.js";
+import { api, apiContextKey, array, title, imageURL } from "./api.js";
 import {
   applyUserState,
   isWatched,
@@ -115,12 +115,15 @@ export async function home(signal, actions) {
 // po vlastní změně vymění přes /main/personal (viz refreshPersonalRails).
 const CATALOG_TTL_MS = 5 * 60_000;
 const catalogCache = new Map();
+let catalogEpoch = 0, personalRefreshTimer = 0;
 export function resetCatalogCache() {
+  catalogEpoch++;
+  clearTimeout(personalRefreshTimer);
   catalogCache.clear();
   resetHomeImpressions();
 }
 function catalogKey(type) {
-  return `main?type=${type}&limit=30`;
+  return `${apiContextKey()}:main?type=${type}&limit=30`;
 }
 function orderedGroups(data) {
   const seen = new Set();
@@ -146,9 +149,10 @@ function renderRails(page, data, actions) {
   );
 }
 async function revalidateCatalog(type, page, actions, signal) {
-  const key = catalogKey(type);
+  const key = catalogKey(type), epoch = catalogEpoch;
   try {
-    const fresh = await api(key, { signal });
+    const fresh = await api(`main?type=${type}&limit=30`, { signal });
+    if (epoch !== catalogEpoch || key !== catalogKey(type) || signal?.aborted) return;
     const cached = catalogCache.get(key);
     catalogCache.set(key, { data: fresh, at: Date.now() });
     if (
@@ -169,23 +173,26 @@ export async function refreshPersonalRails() {
     key = catalogKey(type),
     cached = catalogCache.get(key);
   if (!cached) return;
+  const epoch = catalogEpoch;
   const personal = await api(`main/personal?type=${type}&limit=30`);
-  const curated = array(cached.data.lists).filter(
+  if (epoch !== catalogEpoch || key !== catalogKey(type)) return;
+  const current = catalogCache.get(key);
+  if (!current) return;
+  const curated = array(current.data.lists).filter(
     (g) => !isPersonalSlug(g.slug),
   );
   const lists = orderedGroups(personal);
   const merged = {
-    ...cached.data,
+    ...current.data,
     lists: [
       ...lists.filter((g) => g.slug !== "friends-activity"),
       ...curated,
       ...lists.filter((g) => g.slug === "friends-activity"),
     ],
   };
-  catalogCache.set(key, { data: merged, at: cached.at });
+  catalogCache.set(key, { data: merged, at: current.at });
   if (page.isConnected) renderRails(page, merged, page.movlyActions);
 }
-let personalRefreshTimer = 0;
 document.addEventListener("movly:personal-changed", () => {
   clearTimeout(personalRefreshTimer);
   personalRefreshTimer = setTimeout(() => {
@@ -202,7 +209,9 @@ export async function catalog(route, params, signal, actions) {
   let data;
   if (cached) data = cached.data;
   else {
-    data = await api(key, { signal });
+    const epoch = catalogEpoch;
+    data = await api(`main?type=${type}&limit=30`, { signal });
+    if (epoch !== catalogEpoch || key !== catalogKey(type) || signal?.aborted) throw new DOMException("Context changed", "AbortError");
     catalogCache.set(key, { data, at: Date.now() });
   }
   const page = el(

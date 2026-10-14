@@ -1939,39 +1939,36 @@ function serveStatic(req, res, pathname) {
     throw new HttpError(400, 'Neplatná URL.');
   }
 
-  if (
-    relativePath.startsWith('/.git') ||
-    relativePath.startsWith('/design/') ||
-    relativePath.startsWith('/test-support/') ||
-    relativePath.endsWith('-server.js') ||
-    relativePath.endsWith('.test.js') ||
-    relativePath.startsWith('/downloads') ||
-    relativePath === '/server.js' ||
-    relativePath === '/offline-grant.js' ||
-    relativePath === '/native-providers.js' ||
-    relativePath === '/stream-feedback.js' ||
-    relativePath.startsWith('/provider-resolver/') ||
-    relativePath === '/package.json' ||
-    relativePath.toLowerCase().endsWith('.md') ||
-    relativePath.toLowerCase().endsWith('.zip') ||
-    relativePath === '/.env' ||
-    relativePath === '/.env.example'
-  ) {
-    notFound(res);
-    return;
-  }
-
+  // Authorization is based on the final normalized asset, never the spelling
+  // of its URL. Server-side files are outside the public asset allowlist.
+  relativePath = path.posix.normalize(relativePath);
+  const rootFiles = new Set(["/index.html", "/privacy.html", "/delete-account.html", "/activate.html", "/activate.js", "/activate.css", "/devices.html", "/devices.js", "/devices.css", "/party.html", "/support.js"]);
+  const publicPath = rootFiles.has(relativePath)
+    || /^\/(?:en|sk)\/(?:index|privacy|delete-account)\.html$/.test(relativePath)
+    || ["/.well-known/apple-app-site-association", "/.well-known/assetlinks.json", "/app/vendor/hls-LICENSE.txt", "/app/vendor/hls-0.14.17-LICENSE.txt", "/app/vendor/feedback-icons/LICENSE"].includes(relativePath)
+    || (/^\/(?:app|assets)\//.test(relativePath)
+      && !relativePath.split("/").some(segment => segment.startsWith("."))
+      && !/(?:-server|\.test)\.js$/.test(relativePath)
+      && /\.(?:html|js|mjs|css|svg|png|jpe?g|webp|avif|gif|ico|woff2?|ttf)$/.test(relativePath));
+  if (!publicPath) { notFound(res); return; }
   const filePath = path.resolve(ROOT_DIR, `.${relativePath}`);
-  if (!filePath.startsWith(`${ROOT_DIR}${path.sep}`)) throw new HttpError(403, 'Přístup odepřen.');
-  const stat = statPath(filePath, `statický soubor ${relativePath}`);
-  if (!stat) {
-    notFound(res);
-    return;
+  if (!filePath.startsWith(`${ROOT_DIR}${path.sep}`)) { notFound(res); return; }
+  let opened;
+  try {
+    const fd = fs.openSync(filePath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    opened = { fd, identity: { realPath: filePath } };
+    const stat = fs.fstatSync(fd), named = fs.lstatSync(filePath);
+    if (!stat.isFile() || named.isSymbolicLink() || fs.realpathSync(filePath) !== filePath
+      || stat.dev !== named.dev || stat.ino !== named.ino) {
+      fs.closeSync(fd); opened.fd = null; notFound(res); return;
+    }
+    opened.stat = stat;
+  } catch (error) {
+    if (opened?.fd != null) fs.closeSync(opened.fd);
+    if (["ENOENT", "ENOTDIR", "ELOOP"].includes(error.code)) { notFound(res); return; }
+    throw error;
   }
-  if (!stat.isFile()) {
-    notFound(res);
-    return;
-  }
+  const stat = opened.stat;
   const ext = path.extname(filePath).toLowerCase();
   const contentType = relativePath === '/.well-known/apple-app-site-association'
     ? 'application/json; charset=utf-8'
@@ -1983,10 +1980,11 @@ function serveStatic(req, res, pathname) {
     'X-Content-Type-Options': 'nosniff',
   });
   if (req.method === 'HEAD') {
+    fs.closeSync(opened.fd); opened.fd = null;
     res.end();
     return;
   }
-  pipeFile(filePath, res, {}, `statický soubor ${relativePath}`);
+  pipeOpenedWindowsFile(opened, res, {}, `statický soubor ${relativePath}`);
 }
 
 const handleApp = createAppHandler({

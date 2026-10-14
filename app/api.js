@@ -12,10 +12,20 @@ export class RequestError extends Error {
     this.body = body;
   }
 }
+let contextRevision = 0;
+let contextOwner = null;
+export function invalidateApiContext(owner = null) { contextRevision++; contextOwner = owner; }
+export function apiContextKey() { return `${contextRevision}:${JSON.stringify(contextOwner)}:${uiLanguage()}`; }
+function assertCurrentContext(revision, signal) {
+  if (revision !== contextRevision || signal?.aborted) throw new DOMException("Context changed", "AbortError");
+}
 export async function api(
   path,
   { method = "GET", body, signal, expectedOwner } = {},
 ) {
+  const revision = contextRevision;
+  const owner = expectedOwner || (contextOwner?.accountId && contextOwner?.profile?.id
+    ? {accountId: contextOwner.accountId, profileId: contextOwner.profile.id} : null);
   let response;
   try {
     response = await fetch(`/api/app/${path}`, {
@@ -27,10 +37,10 @@ export async function api(
         Accept: "application/json",
         "X-Movly-App": "1",
         "X-Movly-Language": uiLanguage(),
-        ...(expectedOwner
+        ...(owner
           ? {
-              "X-Movly-Expected-Account": String(expectedOwner.accountId),
-              "X-Movly-Expected-Profile": String(expectedOwner.profileId),
+              "X-Movly-Expected-Account": String(owner.accountId),
+              "X-Movly-Expected-Profile": String(owner.profileId),
             }
           : {}),
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
@@ -38,20 +48,24 @@ export async function api(
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
   } catch (error) {
+    assertCurrentContext(revision, signal);
     // Síťová chyba: srozumitelná hláška, ale stále TypeError kvůli offline režimu.
     if (error?.name === "AbortError" || signal?.aborted) throw error;
     throw new TypeError(
       translateUI("Nepodařilo se spojit se serverem Movly. Zkontroluj připojení a zkus to znovu."),
     );
   }
+  assertCurrentContext(revision, signal);
   let data;
   try {
     data = await response.json();
   } catch {
+    assertCurrentContext(revision, signal);
     throw new RequestError(502, {
       message: translateUI("Server vrátil nečitelnou odpověď."),
     });
   }
+  assertCurrentContext(revision, signal);
   if (!response.ok) {
     if (
       response.status === 401 ||
