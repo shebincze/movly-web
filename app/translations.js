@@ -92,6 +92,7 @@ export const translations = {
   "Zadej PIN profilu {0}": ["Zadaj PIN profilu {0}", "Enter the PIN for {0}"],
   "Profil je chráněný PINem.": ["Profil je chránený PINom.", "This profile is protected by a PIN."],
   "Jméno profilu": ["Meno profilu", "Profile name"],
+  "Věková omezení a tituly bez hodnocení se používají pouze u dětského profilu.": ["Vekové obmedzenia a tituly bez hodnotenia sa používajú iba pri detskom profile.", "Age limits and unrated titles apply only to kids profiles."],
   "Věkové omezení": ["Vekové obmedzenie", "Age limit"],
   "Tituly bez hodnocení": ["Tituly bez hodnotenia", "Unrated titles"],
   "Povolit tituly bez věkového hodnocení": ["Povoliť tituly bez vekového hodnotenia", "Allow titles without an age rating"],

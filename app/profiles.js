@@ -71,6 +71,17 @@ export async function editProfile(profile, done) {
     );
     const switchRow = (input, title, hint) =>
       el("label", { class: "switch-row" }, el("span", {}, el("strong", {}, title), hint ? el("small", {}, hint) : null), input);
+    const policyHint = el("p", { id: "profile-age-policy-hint", class: "muted" },
+      translateUI("Věková omezení a tituly bez hodnocení se používají pouze u dětského profilu."));
+    const policyFields = el("fieldset", { class: "plain-fieldset", "aria-describedby": "profile-age-policy-hint" },
+      el("legend", {}, translateUI("Věkové omezení")), ages,
+      switchRow(unrated, translateUI("Tituly bez hodnocení"), translateUI("Povolit tituly bez věkového hodnocení")));
+    const updatePolicyAvailability = () => {
+      policyFields.disabled = !kids.checked;
+      policyHint.hidden = kids.checked;
+    };
+    kids.addEventListener("change", updatePolicyAvailability);
+    updatePolicyAvailability();
     const status = el("p", { role: "alert", class: "form-status" });
     const grid = el("div", {
       class: "avatar-grid",
@@ -132,9 +143,9 @@ export async function editProfile(profile, done) {
       },
       formField(translateUI("Jméno profilu"), name),
       el("fieldset", { class: "plain-fieldset" }, el("legend", {}, translateUI("Avatar")), grid),
-      el("fieldset", { class: "plain-fieldset" }, el("legend", {}, translateUI("Věkové omezení")), ages),
       switchRow(kids, translateUI("Dětský profil")),
-      switchRow(unrated, translateUI("Tituly bez hodnocení"), translateUI("Povolit tituly bez věkového hodnocení")),
+      policyHint,
+      policyFields,
       formField(translateUI("PIN profilu"), pin),
       status,
       el("div", { class: "dialog-actions" }, button(translateUI("Zrušit"), () => dialog.close()), submit),
