@@ -105,6 +105,7 @@ export function setProgress(id, percent, completed) {
 // Jiný účet / profil — překryv patří někomu jinému.
 export function resetUserState() {
   entries.clear();
+  artwork.clear();
   lastLocalChangeAt = 0;
 }
 // Změna z jiného zařízení: server je autorita, čerstvé vlastní akce zůstanou.

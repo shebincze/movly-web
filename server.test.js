@@ -1191,3 +1191,23 @@ test('TV lite: vstupní stránka a soubory mají správné typy a nezměněné C
     assert.equal((await request(server, 'GET', '/app/tv/missing.js')).status, 404);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+test('Static public allowlist rejects normalized server aliases and symlinks for GET/HEAD', async () => {
+  const server=createServer(); server.listen(0,'127.0.0.1'); await once(server,'listening');
+  const name=`qa-private-${crypto.randomUUID()}.js`;
+  const alias=path.join(__dirname,'app',name);
+  const outside=path.join(testStorageRoot,'private-fixture.js'); fs.writeFileSync(outside,'synthetic-private-fixture');
+  try {
+    for(const route of ['/app/%2f..%2fserver.js','/assets/%2e%2e%2fpackage.json','/http-request.js','/scripts/check-es5.js','/.git/config','/app/%2e%2e%2f.env'])
+      for(const method of ['GET','HEAD']) assert.equal((await request(server,method,route)).status,404,`${method} ${route}`);
+    for(const target of [path.join(__dirname,'server.js'),outside]){
+      fs.symlinkSync(target,alias);
+      for(const method of ['GET','HEAD']) assert.equal((await request(server,method,`/app/${name}`)).status,404);
+      fs.unlinkSync(alias);
+    }
+    for(const route of ['/app/main.js','/assets/movly-mark.svg','/activate.js','/devices.js','/.well-known/apple-app-site-association','/app/vendor/hls-LICENSE.txt','/app/vendor/hls-0.14.17-LICENSE.txt','/app/vendor/feedback-icons/LICENSE']){
+      assert.equal((await request(server,'GET',route)).status,200,route);
+      assert.equal((await request(server,'HEAD',route)).status,200,route);
+    }
+  }finally{if(fs.existsSync(alias)||fs.lstatSync(path.dirname(alias)).isDirectory()){try{fs.unlinkSync(alias);}catch(error){if(error.code!=='ENOENT')throw error;}}await new Promise(resolve=>server.close(resolve));}
+});

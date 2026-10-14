@@ -169,13 +169,14 @@ test("wrong PIN preserves login; valid PIN obtains selected grant", async () => 
   assert.equal(good.body.profile.id, 2);
   assert.ok(!JSON.stringify(good.body).includes("grant"));
 });
-test("session revocation blocks catalog and clears cookie", async () => {
+test("session revocation clears cookie once and stale requests cannot overwrite a later login", async () => {
   const h = harness(),
     s = await h.selected();
-  await h.request("logout", { method: "POST", cookie: s.cookie });
+  const logout = await h.request("logout", { method: "POST", cookie: s.cookie });
+  assert.match(logout.headers["Set-Cookie"], /Max-Age=0/);
   const r = await h.request("main", { cookie: s.cookie });
   assert.equal(r.status, 401);
-  assert.match(r.headers["Set-Cookie"], /Max-Age=0/);
+  assert.equal(r.headers["Set-Cookie"], undefined);
 });
 test("closed routes reject arbitrary proxies, filters and mutation paths", async () => {
   const h = harness(),

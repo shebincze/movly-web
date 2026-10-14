@@ -402,7 +402,13 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
         const isPlaylist =
           /mpegurl/i.test(upstream.headers["content-type"] || "") ||
           /\.m3u8(?:[?#]|$)/i.test(resourceURL);
-        if (isPlaylist && upstream.statusCode === 200) {
+        if (isPlaylist) {
+          // Never hand a recognized playlist to FFmpeg without validating and
+          // rewriting its URLs, including partial/other successful responses.
+          if (upstream.statusCode !== 200) {
+            upstream.destroy();
+            throw fail(502, "Poskytovatel nevrátil úplný playlist.");
+          }
           let bytes = 0,
             chunks = [];
           for await (const chunk of upstream) {

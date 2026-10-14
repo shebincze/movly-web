@@ -41,9 +41,31 @@ function createAppHandler({
     32,
   );
   const lifetime = 12 * 60 * 60;
-  function writeSession(res, session) {
+  // Cookie responses can finish out of order. Only the current revision may
+  // change the session; retain no provider credentials in this registry.
+  const sessionRevisions = new Map();
+  let pruneRevisionsAt = 0;
+  function sessionKey(session) {
+    return crypto.createHash("sha256").update(`${session.token}:${session.device}`).digest("hex");
+  }
+  function writeSession(res, session, previous = session) {
+    const now = Date.now();
+    if (now >= pruneRevisionsAt) {
+      for (const [id, state] of sessionRevisions) if (state.expires <= now) sessionRevisions.delete(id);
+      pruneRevisionsAt = now + 60_000;
+    }
+    const id = previous ? sessionKey(previous) : null;
+    const revision = previous?.revision || 0;
+    const current = id ? sessionRevisions.get(id) : null;
+    if (session && previous?.expires <= now)
+      throw new HttpError(409, "Aktivní profil se změnil.", { code: "app_context_changed" });
+    if (current && (current.revision !== revision || current.revoked)) {
+      if (!session) return false; // A stale error/logout must not clear a newer cookie.
+      throw new HttpError(409, "Aktivní profil se změnil.", { code: "app_context_changed" });
+    }
     let value = "";
     if (session) {
+      session.revision = revision + 1;
       const iv = crypto.randomBytes(12);
       const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
       const data = Buffer.concat([
@@ -56,6 +78,7 @@ function createAppHandler({
       if (value.length > 3800)
         throw new HttpError(502, "Přihlašovací relace je příliš velká.");
     }
+    if (id) sessionRevisions.set(id, { revision: revision + 1, expires: previous.expires, revoked: !session });
     const ttl = session
       ? Math.max(0, Math.floor((session.expires - Date.now()) / 1000))
       : 0;
@@ -687,7 +710,7 @@ function createAppHandler({
         });
       if (target === "logout" && req.method === "POST") {
         await call(s, "auth/logout", "POST");
-        writeSession(res, null);
+        writeSession(res, null, s);
         json(res, 200, { ok: true });
         return true;
       }
@@ -843,7 +866,7 @@ function createAppHandler({
         };
         next.grant = selected.grant_token || null;
         next.grantExpiresAt = selected.grant_token ? selected.grant_expires_at : null;
-        writeSession(res, next);
+        writeSession(res, next, s);
         json(res, 200, { profile: next.profile });
         return true;
       }
@@ -1877,7 +1900,7 @@ function createAppHandler({
       // Invalid PIN is a profile error, not a logout. All other API diagnostics
       // retain their real status/code instead of masquerading as empty content.
       if (error.status === 401 && target !== "profile" && target !== "login")
-        writeSession(res, null);
+        writeSession(res, null, s);
       const status = Number.isInteger(error.status) ? error.status : 500;
       if (
         status === 409 &&

@@ -1,3 +1,4 @@
+import { invalidateApiContext } from "./api.js";
 import { openSettingsMenu } from "./settings-menu.js";
 import { startSystemNotifications } from "./notifications.js";
 import { translateShell, uiLanguage, setUILanguage } from "./i18n.js";
@@ -133,8 +134,14 @@ function chrome() {
     ready && session?.account?.canModerate
   );
 }
+function resetProfileContext() {
+  invalidateApiContext(session ? { accountId: session.account?.id, profile: session.profile } : null);
+  resetUserState();
+  resetCatalogCache();
+}
 function login(message = "") {
   session = null;
+  resetProfileContext();
   document.body.dataset.route = "login";
   chrome();
   controller?.abort();
@@ -173,6 +180,7 @@ function login(message = "") {
             method: "POST",
             body: { username: username.value, password: password.value },
           });
+          resetProfileContext();
           password.value = "";
           chrome();
           await profiles();
@@ -248,6 +256,7 @@ function login(message = "") {
 async function reloadProfiles() {
   try {
     session = await api("session");
+    resetProfileContext();
     chrome();
     await profiles();
   } catch (e) {
@@ -339,6 +348,8 @@ async function profiles() {
 }
 function chooseProfile(profile) {
   const status = el("p", { class: "form-status", role: "alert" });
+  const back = button(translateUI("Zpět na profily"), () => dialog.close(), "link");
+  const preventPendingClose = event => event.preventDefault();
   const pin = el("input", {
     type: "password",
     inputmode: "numeric",
@@ -361,6 +372,8 @@ function chooseProfile(profile) {
       onSubmit: async (e) => {
         e.preventDefault();
         submit.disabled = true;
+        back.disabled = true;
+        dialog.addEventListener("cancel", preventPendingClose);
         try {
           const result = await api("profile", {
             method: "POST",
@@ -370,6 +383,7 @@ function chooseProfile(profile) {
             },
           });
           session.profile = result.profile;
+          resetProfileContext();
           profileShortcuts = null;
           inboxItems = null;
           inboxRequested = false;
@@ -381,6 +395,9 @@ function chooseProfile(profile) {
           status.textContent = err.message;
           submit.disabled = false;
           pin.value = "";
+        } finally {
+          back.disabled = false;
+          dialog.removeEventListener("cancel", preventPendingClose);
         }
       },
     },
@@ -389,7 +406,7 @@ function chooseProfile(profile) {
       : el("p", {}, translateUI("Pokračovat jako {0}?", profile.name)),
     status,
     submit,
-    button(translateUI("Zpět na profily"), () => dialog.close(), "link"),
+    back,
   );
   if (profile.has_pin) form.classList.add("pin-form");
   showDialog(
@@ -710,6 +727,7 @@ window.addEventListener("online", () => {
 try {
   registerOffline().catch(() => {});
   session = await api("session");
+  resetProfileContext();
   if (session.profile) await synchronizeOfflineContext();
   chrome();
   await render();
