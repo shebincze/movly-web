@@ -1,5 +1,8 @@
 import { translateUI } from "./i18n.js";
 export const CHUNK_BYTES = 512 * 1024;
+export const OFFLINE_CACHE_NAME = "movly-offline-shell-v24-playback-stages";
+const OFFLINE_POLICY_MARKER_CACHE_NAME = "movly-offline-policy-markers-v1";
+const volatilePolicyBlocks = new Map();
 const request = (r) =>
   new Promise((resolve, reject) => {
     r.onsuccess = () => resolve(r.result);
@@ -110,6 +113,226 @@ export async function put(store, value, key) {
     db.close();
   }
 }
+const policyTuple = (policy) => ({
+  schema_version: policy.schema_version,
+  user_id: policy.user_id,
+  profile_id: policy.profile_id,
+  revision: policy.revision,
+  is_kids: policy.is_kids,
+  age_controls_active: policy.age_controls_active,
+  max_age: policy.max_age,
+  allow_unrated: policy.allow_unrated,
+  exclude_adult: policy.exclude_adult,
+  catalog_excludes_adult: policy.catalog_excludes_adult,
+});
+function validStoredPolicy(value, owner) {
+  return value?.schema_version === 1 &&
+    value.user_id === owner.accountId && value.profile_id === owner.profileId &&
+    typeof value.revision === "string" && /^ep1\.[a-f0-9]{64}$/.test(value.revision);
+}
+export async function offlineReceiptDigest(receipt) {
+  const value = JSON.stringify({ payload: receipt?.payload, signature: receipt?.signature, publicKey: receipt?.publicKey });
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+}
+function policyMarkerKey(digest) {
+  return new Request(new URL(`/app/offline-policy-markers/${digest}`, self.location.origin));
+}
+export function rememberVolatilePolicyBlock(digest, grant) {
+  if (!/^[a-f0-9]{64}$/.test(digest || "")) return false;
+  if (!Number.isSafeInteger(grant?.accountId) || !Number.isSafeInteger(grant?.profileId) ||
+      !Number.isFinite(grant?.expiresAt) || grant.expiresAt <= Date.now()) return false;
+  for (const [key, expiry] of volatilePolicyBlocks) if (expiry <= Date.now()) volatilePolicyBlocks.delete(key);
+  volatilePolicyBlocks.set(digest, grant.expiresAt);
+  return true;
+}
+async function notifyWorkerPolicyBlock(digest, grant) {
+  const controller = globalThis.navigator?.serviceWorker?.controller;
+  if (!controller || typeof MessageChannel === "undefined") return false;
+  return new Promise(resolve => {
+    const channel = new MessageChannel();
+    const timeout = setTimeout(() => { channel.port1.close(); resolve(false); }, 1000);
+    channel.port1.onmessage = event => {
+      clearTimeout(timeout);
+      channel.port1.close();
+      resolve(event.data?.ok === true);
+    };
+    try {
+      controller.postMessage({ type: "offline-policy-block", digest, user_id: grant.accountId,
+        profile_id: grant.profileId, expires_at: grant.expiresAt }, [channel.port2]);
+    } catch {
+      clearTimeout(timeout);
+      channel.port1.close();
+      resolve(false);
+    }
+  });
+}
+async function writePolicyMarkerFallback(receipt, marker) {
+  const digest = await offlineReceiptDigest(receipt);
+  const grant = await verifiedGrant(receipt, Date.now(), { ownershipOnly: true });
+  if (!grant || !Number.isFinite(grant.expiresAt)) return false;
+  const bound = { ...marker, reason: marker.reason || "known_policy_change", grant_digest: digest, expires_at: grant.expiresAt };
+  volatilePolicyBlocks.set(digest, grant.expiresAt);
+  try {
+    if (!globalThis.caches) throw new Error("CacheStorage is unavailable");
+    const cache = await caches.open(OFFLINE_POLICY_MARKER_CACHE_NAME);
+    for (const request of await cache.keys()) {
+      try {
+        const existing = await cache.match(request), value = existing && await existing.json();
+        if (Number.isFinite(value?.expires_at) && value.expires_at <= Date.now()) await cache.delete(request);
+      } catch { /* Preserve entries whose expiry cannot be established. */ }
+    }
+    await cache.put(policyMarkerKey(digest), new Response(JSON.stringify(bound), {
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    }));
+    return true;
+  } catch {
+    // The page-local block remains active; the controlled worker must also
+    // acknowledge the same verified receipt before this is considered covered.
+    return notifyWorkerPolicyBlock(digest, grant);
+  }
+}
+async function readPolicyMarkerFallback(active, grant) {
+  const digest = await offlineReceiptDigest(active);
+  const volatileExpiry = volatilePolicyBlocks.get(digest);
+  if (volatileExpiry > Date.now()) return true;
+  if (volatileExpiry) volatilePolicyBlocks.delete(digest);
+  try {
+    if (!globalThis.caches) return false;
+    const cache = await caches.open(OFFLINE_POLICY_MARKER_CACHE_NAME), response = await cache.match(policyMarkerKey(digest));
+    if (!response) return false;
+    const marker = await response.json();
+    return marker.grant_digest === digest && Number.isFinite(marker.expires_at) && marker.expires_at > Date.now() &&
+      marker.user_id === grant.accountId &&
+      marker.profile_id === grant.profileId && (
+        (marker.reason === "known_policy_change" && /^ep1\.[a-f0-9]{64}$/.test(marker.current_revision || "")) ||
+        marker.reason === "authoritative_server_denial"
+      );
+  } catch {
+    // A fallback marker may be the only durable record of a known denial.
+    return true;
+  }
+}
+async function clearPolicyMarkerFallback(receipt) {
+  try {
+    const digest = await offlineReceiptDigest(receipt);
+    volatilePolicyBlocks.delete(digest);
+    if (globalThis.caches) await (await caches.open(OFFLINE_POLICY_MARKER_CACHE_NAME)).delete(policyMarkerKey(digest));
+  } catch { /* A different newly issued receipt has a distinct digest. */ }
+}
+export function effectivePolicySupersedesGrant(previous, policy, grant) {
+  if (!policy || policy.user_id !== grant?.accountId || policy.profile_id !== grant?.profileId) return null;
+  const sameOwnerKnown = validStoredPolicy(previous, grant);
+  const changed = (sameOwnerKnown && previous.revision !== policy.revision) ||
+    (!sameOwnerKnown && policy.is_kids === true);
+  return changed ? {
+    user_id: grant.accountId,
+    profile_id: grant.profileId,
+    previous_revision: sameOwnerKnown ? previous.revision : null,
+    current_revision: policy.revision,
+  } : null;
+}
+async function updateActiveGrant(receipt, change) {
+  const db = await database();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction("settings", "readwrite"), store = tx.objectStore("settings");
+      const request = store.get("active");
+      let updated = false;
+      request.onsuccess = () => {
+        const active = request.result;
+        if (active?.payload !== receipt.payload || active?.signature !== receipt.signature) return;
+        const next = change(active);
+        if (next) { store.put(next, "active"); updated = true; }
+      };
+      tx.oncomplete = () => resolve(updated);
+      tx.onabort = () => reject(tx.error || new Error("Offline oprávnění se nepodařilo aktualizovat."));
+    });
+  } finally { db.close(); }
+}
+export async function clearActiveGrantIfMatches(receipt) {
+  if (!receipt?.payload || !receipt?.signature) return false;
+  const db = await database();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction("settings", "readwrite"), store = tx.objectStore("settings");
+      const request = store.get("active");
+      let cleared = false;
+      request.onsuccess = () => {
+        const active = request.result;
+        if (active?.payload === receipt.payload && active?.signature === receipt.signature) {
+          store.put(null, "active");
+          cleared = true;
+        }
+      };
+      tx.oncomplete = () => resolve(cleared);
+      tx.onabort = () => reject(tx.error || new Error("Offline oprávnění se nepodařilo odebrat."));
+    });
+  } finally { db.close(); }
+}
+export async function denyOfflineGrant(receipt) {
+  if (await clearActiveGrantIfMatches(receipt).catch(() => false)) return true;
+  const grant = await verifiedGrant(receipt, Date.now(), { ownershipOnly: true });
+  if (!grant) return false;
+  return writePolicyMarkerFallback(receipt, {
+    user_id: grant.accountId,
+    profile_id: grant.profileId,
+    reason: "authoritative_server_denial",
+  });
+}
+// Policy metadata is local to the existing grant record; the signed receipt stays byte-for-byte intact.
+export async function observeEffectivePolicy(policy) {
+  let active;
+  try { active = await get("settings", "active"); }
+  catch { return typeof indexedDB === "undefined"; }
+  const grant = await verifiedGrant(active, Date.now(), { ownershipOnly: true });
+  if (!grant || policy?.user_id !== grant.accountId || policy?.profile_id !== grant.profileId ||
+      !/^ep1\.[a-f0-9]{64}$/.test(policy.revision || "")) return true;
+  const next = policyTuple(policy);
+  const change = current => {
+    const previous = current.effectivePolicy;
+    const marker = effectivePolicySupersedesGrant(previous, next, grant);
+    const oldMarker = current.supersededPolicy;
+    const retainedMarker = marker || (oldMarker?.user_id === grant.accountId && oldMarker?.profile_id === grant.profileId
+      ? oldMarker : null);
+    return {
+      ...current,
+      effectivePolicy: next,
+      ...(retainedMarker ? { supersededPolicy: retainedMarker } : {}),
+    };
+  };
+  try {
+    await updateActiveGrant(active, change);
+    return true;
+  } catch {
+    const marker = effectivePolicySupersedesGrant(active.effectivePolicy, next, grant);
+    if (!marker) return true;
+    return writePolicyMarkerFallback(active, marker);
+  }
+}
+export async function storeFreshOfflineGrant(receipt, policy) {
+  const grant = await verifiedGrant(receipt);
+  if (!grant) return false;
+  const previous = await get("settings", "active"), previousGrant = await verifiedGrant(previous, Date.now(), { ownershipOnly: true });
+  const sameOwner = previousGrant?.accountId === grant.accountId && previousGrant?.profileId === grant.profileId;
+  const validPolicy = policy?.user_id === grant.accountId && policy?.profile_id === grant.profileId &&
+    /^ep1\.[a-f0-9]{64}$/.test(policy.revision || "");
+  const matchingPolicy = policy?.user_id === grant.accountId && policy?.profile_id === grant.profileId &&
+    policy.is_kids === false && policy.age_controls_active === false && policy.max_age === null &&
+    policy.allow_unrated === true && policy.exclude_adult === false && policy.catalog_excludes_adult === true &&
+    /^ep1\.[a-f0-9]{64}$/.test(policy.revision || "");
+  const superseded = !matchingPolicy && validPolicy
+    ? effectivePolicySupersedesGrant(sameOwner ? previous.effectivePolicy : null, policy, grant)
+    : null;
+  await put("settings", {
+    ...receipt,
+    ...(validPolicy ? { effectivePolicy: policyTuple(policy) } : sameOwner && previous.effectivePolicy ? { effectivePolicy: previous.effectivePolicy } : {}),
+    ...(superseded ? { supersededPolicy: superseded } :
+      !matchingPolicy && sameOwner && previous.supersededPolicy ? { supersededPolicy: previous.supersededPolicy } : {}),
+  }, "active");
+  if (matchingPolicy) await clearPolicyMarkerFallback(receipt);
+  return true;
+}
 export async function removeFile(id) {
   const db = await database();
   try {
@@ -181,9 +404,18 @@ export async function verifiedGrant(
     return null;
   }
 }
+export async function hasSupersededPolicyMarker(active) {
+  const grant = await verifiedGrant(active, Date.now(), { ownershipOnly: true });
+  if (grant && await readPolicyMarkerFallback(active, grant)) return true;
+  const marker = active?.supersededPolicy;
+  return Boolean(grant && marker?.user_id === grant.accountId && marker?.profile_id === grant.profileId &&
+    /^ep1\.[a-f0-9]{64}$/.test(marker.current_revision || "") &&
+    validStoredPolicy(active.effectivePolicy, grant) && active.effectivePolicy.revision === marker.current_revision);
+}
 export async function mayRead(file, active) {
   if (!file?.complete || !active) return false;
   const selected = await verifiedGrant(active);
+  if (await hasSupersededPolicyMarker(active)) return false;
   if (!selected || file.receipt?.publicKey?.x !== active.publicKey?.x)
     return false;
   const grant = await verifiedGrant(file.receipt, Date.now(), {
