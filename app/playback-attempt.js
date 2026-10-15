@@ -50,6 +50,6 @@ export function createPlaybackAttempt({owner, supported=false, eligible=()=>true
     closed=true;
   }
   send("start","success",0,startedAt);
-  return {sampled:!!id,stage:(name,duration)=>["source_discovery","resume_lookup","session_prepare","media_opened"].includes(name)&&send(name,"success",duration),
+  return {sampled:!!id,correlation:()=>current() ? id : null,stage:(name,duration)=>["source_discovery","resume_lookup","session_prepare","media_opened"].includes(name)&&send(name,"success",duration),
     finish,failure,dispose,setEngine:value=>{if(engines.has(value))engine=value;},setProvider:value=>{provider=typeof value==="string"?value.toLowerCase():"";}};
 }

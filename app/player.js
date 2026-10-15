@@ -599,7 +599,7 @@ export async function sources(
       `sources/${t.id}/native${ep}`,
     ].map(async (path, i) => {
       try {
-        const data = await api(path);
+        const data = await api(path, {expectedOwner: sourceOwner, playbackAttempt: sourceTelemetry});
         if (revision !== sourceRevision || !dialog.open) return;
         const streams = array(data.streams);
         results.set(i, streams);
@@ -724,6 +724,7 @@ async function play(
       try {
         const position = await api(
           `watch-history/position/${t.id}${episode ? `?season_number=${episode.season_number}&episode_number=${episode.episode_number}` : ""}`,
+          {expectedOwner: scope, playbackAttempt: handle.telemetry},
         );
         offset =
           position.watch_status === "completed"
@@ -737,7 +738,7 @@ async function play(
     }
     const prepareStartedAt = performance.now();
     const session = await api("playback", {
-      method: "POST", expectedOwner: scope,
+      method: "POST", expectedOwner: scope, playbackAttempt: handle.telemetry,
       body: {
         ...selection,
         offset,

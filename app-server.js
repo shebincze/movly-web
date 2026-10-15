@@ -1,4 +1,5 @@
 "use strict";
+const { createWorkTiming } = require("./playback-work-timing");
 const validPlaybackAttempt = require("./playback-attempt-policy");
 const tvDiagnosticPolicy = require("./app/tv/diagnostics.js");
 
@@ -146,13 +147,15 @@ function createAppHandler({
   });
   async function upstreamCall(s, target, method = "GET", body = null, extra = {}, options = {}) {
     const identityOnly = (target.startsWith("auth/") && !/^auth\/(?:devices|sessions|device\/push-id)(?:[/?]|$)/.test(target)) || (target === "profiles" && method === "GET");
-    return (
-      await api(`v1/${target}`, method, body, s?.token, s?.device, {
+    const {workTiming, ...requestOptions} = options;
+    let response;
+    try { response = await api(`v1/${target}`, method, body, s?.token, s?.device, {
         ...headersFor(identityOnly ? { ...s, profile: null } : s),
         ...(/^(?:admin\/)?feedback(?:\/|$)/.test(target) ? { "X-Movly-Feedback-Diagnostics": "1" } : {}),
         ...extra,
-      }, options)
-    ).payload;
+      }, requestOptions); } catch(error) { workTiming?.merge(error.headers); throw error; }
+    workTiming?.merge(response.headers);
+    return response.payload;
   }
   const call = upstreamCall;
   const integer = (value) =>
@@ -630,7 +633,13 @@ function createAppHandler({
     const abortUpstream = () => { if (!res.writableEnded) upstreamController?.abort(); };
     if (upstreamController) { res.once?.("close", abortUpstream); req.once?.("aborted", abortUpstream); if (req.aborted) abortUpstream(); }
     const upstreamDeadline = upstreamController ? setTimeout(() => upstreamController.abort(), target === "home" ? 8000 : 3000) : null;
-    const call = (session, path, method = "GET", body = null, extra = {}) => upstreamCall(session, path, method, body, extra, upstreamController ? { signal: upstreamController.signal } : {});
+    let workTiming = null;
+    const call = (session, path, method = "GET", body = null, extra = {}) => {
+      const controlled = /^(?:streaming2?\/titles\/[^/]+\/streams(?:\?|$)|watch-history\/position\/|titles\/|video\/analyze$)/.test(path);
+      return upstreamCall(session, path, method, body,
+        {...extra, ...(controlled && workTiming ? {"X-Movly-Playback-Attempt":workTiming.id} : {})},
+        {...(upstreamController ? {signal:upstreamController.signal}:{}), ...(controlled && workTiming ? {workTiming}: {})});
+    };
     let s = sessionFrom(req);
     const language = ["cs", "sk", "en"].includes(
       req.headers["x-movly-language"],
@@ -777,6 +786,9 @@ function createAppHandler({
         throw new HttpError(409, "Aktivní profil se změnil.", {
           code: "offline_owner_changed",
         });
+      if (/^(?:streaming2?\/titles\/[^/]+\/streams(?:\?|$)|sources\/[^/]+\/(?:webshare|hellspy|native)(?:\?|$)|watch-history\/position\/|playback$)/.test(target))
+        workTiming = createWorkTiming(req.headers["x-movly-playback-attempt"], res);
+      const timed = (name, work) => workTiming ? workTiming.measure(name, work) : work();
       if (target === "telemetry/playback-attempts" && req.method === "POST") {
         const body = objectBody(await readBody(req, 2048));
         if (!validPlaybackAttempt(body)) throw new HttpError(400, "Neplatná diagnostická událost.");
@@ -1276,7 +1288,7 @@ function createAppHandler({
         }
         let result;
         try {
-          result = await entry.promise;
+          result = await timed("bff_source_discovery", () => entry.promise);
         } catch (e) {
           sourceSearches.delete(cacheKey);
           throw e;
@@ -1474,7 +1486,7 @@ function createAppHandler({
               409,
               "Nejdřív připoj účet Webshare v nastavení.",
             );
-          try { link = await providerClient.resolve(s.webshare.token, ident); }
+          try { link = await timed("bff_source_resolve", () => providerClient.resolve(s.webshare.token, ident)); }
           catch (error) { error.diagnosticStage = "source_resolve"; throw error; }
         } else if (
           provider === "hellspy" &&
@@ -1484,7 +1496,7 @@ function createAppHandler({
         } else {
           if (!nativeProviders.supported.test(provider))
             throw new HttpError(422, "Neznámý poskytovatel zdroje.");
-          const resolved = await nativeResolver({
+          const resolved = await timed("bff_source_resolve", () => nativeResolver({
             action: "resolve",
             source: {
               provider,
@@ -1496,7 +1508,7 @@ function createAppHandler({
             fastshare: s.fastshare,
             sosac: s.sosac,
             addons: s.addons,
-          }).catch(error => { error.diagnosticStage = "source_resolve"; throw error; });
+          })).catch(error => { error.diagnosticStage = "source_resolve"; throw error; });
           link = resolved.url;
           resolvedHeaders = resolved.headers;
           trustedProvider = true;
@@ -1616,7 +1628,8 @@ function createAppHandler({
         json(
           res,
           200,
-          await playback.start(s, link, {
+          await timed("bff_session_prepare", () => playback.start(s, link, {
+            workTiming,
             ...mediaOptions,
             offset: body.offset,
             audio: body.audio,
@@ -1650,7 +1663,7 @@ function createAppHandler({
                 (key) => [key, body.capabilities?.[key] === true],
               ),
             ),
-          }),
+          })),
         );
         return true;
       }
