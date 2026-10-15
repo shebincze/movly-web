@@ -137,9 +137,11 @@ export async function sources(
   if (!skipResume && !autoDownload && !partyState()?.title_id) {
     const saved = recalledPlayback(t.id, episode);
     if (saved) {
+      const resumeStartedAt = performance.now();
       try {
         const position = await api(`watch-history/position/${t.id}${episode ? `?season_number=${episode.season_number}&episode_number=${episode.episode_number}` : ""}`);
         if (revision !== sourceRevision || sourceOwner?.generation !== playbackOwner()?.generation) return;
+        sourceTelemetry?.stage("resume_lookup", performance.now()-resumeStartedAt);
         if (position.watch_status !== "completed" && position.progress_seconds > 5) {
           if (saved.selection.source === "lookup") savedLookup = { ...saved, offset: position.progress_seconds };
           else if (await startPlay(t, episode, saved.selection, position.progress_seconds)) return;
