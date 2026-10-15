@@ -1,6 +1,7 @@
 import { streamPickerSections } from "./stream-recommendations.js";
 import { createDialog as createFeedbackDialog } from "./feedback.js";
 import { playbackDiagnostics } from "./playback-diagnostics.js";
+import { createPlaybackFailureReporter } from "./playback-telemetry.js";
 import { translateUI } from "./i18n.js";
 import { openProviderSettings } from "./provider-settings.js";
 import { reportStream, uploadStream } from "./stream-feedback.js";
@@ -681,7 +682,7 @@ async function play(
   const restoreTracks = audio === null && subtitle === null && samePlaybackSource(selection, saved?.selection);
   audio = audio ?? (restoreTracks ? saved.audio.index : 0);
   subtitle = subtitle ?? (restoreTracks ? saved.subtitle.index : -1);
-  const handle = { cancelled: false };
+  const handle = { cancelled: false, reportTelemetry: createPlaybackFailureReporter(scope) };
   current = handle;
   try {
     const inParty = partyState()?.title_id === t.id;
@@ -726,6 +727,7 @@ async function play(
     function captureFailure(stage, error, code) {
       if (handle.cancelled) return;
       failureDiagnostics = playbackDiagnostics(stage, selection.diagnostic_provider, error, code);
+      void handle.reportTelemetry(failureDiagnostics);
       reportFailure.hidden = false;
       reportFailure.parentElement?.classList.add("is-error");
     }
@@ -1472,7 +1474,8 @@ async function play(
     prepare();
     return true;
   } catch (e) {
-    if (!handle.cancelled && current === handle && dialog.open)
+    if (!handle.cancelled && current === handle && dialog.open) {
+      void handle.reportTelemetry(playbackDiagnostics(e.body?.diagnostic_stage || "source_resolve", selection.diagnostic_provider, e));
       showDialog(
         el(
           "div",
@@ -1490,6 +1493,7 @@ async function play(
           ),
         ),
       );
+    }
   }
 }
 export async function stop() {
