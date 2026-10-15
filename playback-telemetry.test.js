@@ -103,7 +103,7 @@ function fakeVideo(frameAPI = true) {
 test('submitted first frame uses monotonic presentation time once; a later real failure remains independent', async () => {
  const {memory,createPlaybackTelemetryReporter:reporter}=await modules();
  memory.setPlaybackOwner({id:1},{id:2});let now=100;const calls=[];
- const report=reporter(memory.playbackOwner(),{startedAt:100,now:()=>now,diagnosticProvider:'webshare',fetcher:async(_path,options)=>{calls.push(JSON.parse(options.body));return {ok:true};}});
+ const report=reporter(memory.playbackOwner(),{startedAt:100,now:()=>now,diagnosticProvider:'Webshare',fetcher:async(_path,options)=>{calls.push(JSON.parse(options.body));return {ok:true};}});
  const video=fakeVideo();report.observe(video);
  video.dispatchEvent(new Event('playing'));video.dispatchEvent(new Event('loadeddata'));
  assert.equal(calls.length,0,'media readiness is not a decoded/submitted frame');

@@ -2,7 +2,10 @@ import { playbackOwner } from "./playback-memory.js";
 
 const providers = new Set(["webshare", "hellspy", "fastshare", "sosac", "stremio"]);
 const duration = value => Number.isFinite(value) ? Math.min(3_600_000, Math.max(0, Math.round(value))) : 0;
-const provider = value => providers.has(value) ? value : "";
+const provider = value => {
+  const key = typeof value === "string" ? value.toLowerCase() : "";
+  return providers.has(key) ? key : "";
+};
 // Existing closed quality-counter contract; no raw crash/source metadata.
 export function playbackFailureEvent(diagnostic, elapsed = 0) {
   const event = diagnostic?.stage === "source_resolve" ? "stream_resolve"
