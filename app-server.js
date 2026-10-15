@@ -1,3 +1,4 @@
+const validPlaybackAttempt = require("./playback-attempt-policy");
 "use strict";
 const tvDiagnosticPolicy = require("./app/tv/diagnostics.js");
 
@@ -596,14 +597,14 @@ function createAppHandler({
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     const target = url.pathname.slice("/api/app/".length);
+    if (!["GET", "HEAD"].includes(req.method)) sameOrigin(req);
     // Response close means the consumer left only when the response did not
     // finish normally. IncomingMessage.close also fires on ordinary GETs.
-    const homeController = target === "home" && req.method === "GET" ? new AbortController() : null;
-    const abortHome = () => { if (!res.writableEnded) homeController?.abort(); };
-    if (homeController) { res.once?.("close", abortHome); req.once?.("aborted", abortHome); if (req.aborted) abortHome(); }
-    const homeDeadline = homeController ? setTimeout(() => homeController.abort(), 8000) : null;
-    const call = (session, path, method = "GET", body = null, extra = {}) => upstreamCall(session, path, method, body, extra, homeController ? { signal: homeController.signal } : {});
-    if (!["GET", "HEAD"].includes(req.method)) sameOrigin(req);
+    const upstreamController = (target === "home" && req.method === "GET") || (target === "telemetry/playback-attempts" && req.method === "POST") ? new AbortController() : null;
+    const abortUpstream = () => { if (!res.writableEnded) upstreamController?.abort(); };
+    if (upstreamController) { res.once?.("close", abortUpstream); req.once?.("aborted", abortUpstream); if (req.aborted) abortUpstream(); }
+    const upstreamDeadline = upstreamController ? setTimeout(() => upstreamController.abort(), target === "home" ? 8000 : 3000) : null;
+    const call = (session, path, method = "GET", body = null, extra = {}) => upstreamCall(session, path, method, body, extra, upstreamController ? { signal: upstreamController.signal } : {});
     let s = sessionFrom(req);
     const language = ["cs", "sk", "en"].includes(
       req.headers["x-movly-language"],
@@ -750,6 +751,12 @@ function createAppHandler({
         throw new HttpError(409, "Aktivní profil se změnil.", {
           code: "offline_owner_changed",
         });
+      if (target === "telemetry/playback-attempts" && req.method === "POST") {
+        const body = objectBody(await readBody(req, 2048));
+        if (!validPlaybackAttempt(body)) throw new HttpError(400, "Neplatná diagnostická událost.");
+        await call(s, "telemetry/playback-attempts", "POST", body);
+        res.statusCode = 204; res.end(); return true;
+      }
       if (target === "telemetry/client" && req.method === "POST") {
         const body = objectBody(await readBody(req, 2048));
         const keys = ["event", "outcome", "provider", "duration_ms"];
@@ -810,6 +817,11 @@ function createAppHandler({
         const result = await call(s, target + query, req.method, body);
         json(res, req.method === "POST" && (feedbackTarget === "feedback/items" || feedbackTarget === "feedback/handoffs") ? 201 : 200, result ?? {});
         return true;
+      }
+      if (target === "admin/telemetry/playback-attempts" && req.method === "GET") {
+        if (account.role !== "admin") throw new HttpError(403, "K této akci nemáš oprávnění.");
+        const query = cleanQuery(url, ["client_app", "hours"], language);
+        json(res, 200, await call(s, target + query)); return true;
       }
       if (target.startsWith("admin/"))
         return await handleAdmin(req, res, url, s, account, target);
@@ -1968,13 +1980,13 @@ function createAppHandler({
       }
       json(res, 200, result);
     } catch (error) {
-      if (homeController?.signal.aborted) {
-        if (!res.destroyed && !req.aborted) json(res, 504, { message: "Domů se nepodařilo načíst včas.", code: "home_unavailable" });
+      if (upstreamController?.signal.aborted) {
+        if (!res.destroyed && !req.aborted) json(res, 504, { message: target === "home" ? "Domů se nepodařilo načíst včas." : "Sběr diagnostiky není dostupný.", code: target === "home" ? "home_unavailable" : "telemetry_unavailable" });
         return true;
       }
       // Invalid PIN and optional telemetry must not mutate the login session.
       // Diagnostics still retain their real status/code instead of empty content.
-      if (error.status === 401 && target !== "profile" && target !== "login" && target !== "telemetry/client")
+      if (error.status === 401 && target !== "profile" && target !== "login" && target !== "telemetry/client" && target !== "telemetry/playback-attempts")
         writeSession(res, null, s);
       const status = Number.isInteger(error.status) ? error.status : 500;
       if (
@@ -2005,8 +2017,8 @@ function createAppHandler({
         ...(["source_resolve", "video_analysis", "playback"].includes(error.diagnosticStage) ? { diagnostic_stage: error.diagnosticStage } : {}),
       });
     } finally {
-      clearTimeout(homeDeadline);
-      if (homeController) { res.removeListener?.("close", abortHome); req.removeListener?.("aborted", abortHome); }
+      clearTimeout(upstreamDeadline);
+      if (upstreamController) { res.removeListener?.("close", abortUpstream); req.removeListener?.("aborted", abortUpstream); }
     }
     return true;
   };

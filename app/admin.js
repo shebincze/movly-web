@@ -1,3 +1,4 @@
+import { playbackQuality } from "./playback-quality.js";
 import { translateUI } from "./i18n.js";
 import { api } from "./api.js";
 import {
@@ -393,7 +394,11 @@ async function trustedView(signal, refresh) {
   );
 }
 
-export async function admin(params, signal, actions) {
+export async function admin(params, signal, actions, account) {
+  if (params.get("view") === "playback") {
+    if (account?.role !== "admin") throw new Error("Přehled vyžaduje správce.");
+    return playbackQuality(params, signal);
+  }
   const view = params.get("view") === "trusted" ? "trusted" : "reports";
   const status = ["pending", "approved", "rejected", "all"].includes(
     params.get("status"),
@@ -434,6 +439,7 @@ export async function admin(params, signal, actions) {
   );
   if (!data || !Array.isArray(data.requests))
     throw new Error(translateUI("Server vrátil neplatný seznam nahlášení."));
+  const qualityLink = account?.role === "admin" ? el("a", {href:"#admin?view=playback",class:"button secondary"}, "Start přehrávání") : null;
   const tabs = el(
     "nav",
     {
@@ -504,6 +510,7 @@ export async function admin(params, signal, actions) {
       : null,
   );
   const totals = data.totals || {};
+  if (qualityLink) tabs.append(qualityLink);
   return el(
     "div",
     { class: "page admin-page" },

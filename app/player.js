@@ -1,3 +1,4 @@
+import { playbackAttemptSupported } from "./playback-attempt-support.js";
 import { feedbackAllowed } from "./feedback-access.js";
 import { mountIntroSkip } from "./intro-skip.js";
 import { streamPickerSections } from "./stream-recommendations.js";
@@ -119,9 +120,19 @@ export async function sources(
 ) {
   if (episode && episodeReleaseState(episode.air_date) === "upcoming")
     throw new Error(translateUI("Epizoda ještě neměla premiéru."));
-  await stop();
+  const sourceStartedAt = performance.now();
+  await stop("source_switch");
   const revision = ++sourceRevision;
   const sourceOwner = playbackOwner();
+  let handedOff = false, sourceDialog = null;
+  const sourceClosed = () => { if (!handedOff) sourceTelemetry?.dispose(); };
+  const sourceTelemetry = !autoDownload && playbackAttemptSupported() ? createPlaybackTelemetryReporter(sourceOwner, {startedAt: sourceStartedAt,
+    isActive: () => revision === sourceRevision && (!handedOff || current?.telemetry === sourceTelemetry)}) : null;
+  const startPlay = (title, episode, selection, offset, audio, subtitle) => {
+    handedOff = true; sourceDialog?.removeEventListener("close", sourceClosed); sourceTelemetry?.setProvider(selection.diagnostic_provider);
+    return play(title, episode, selection, offset, audio, subtitle, undefined, sourceTelemetry);
+  };
+
   let savedLookup = null;
   if (!skipResume && !autoDownload && !partyState()?.title_id) {
     const saved = recalledPlayback(t.id, episode);
@@ -131,7 +142,7 @@ export async function sources(
         if (revision !== sourceRevision || sourceOwner?.generation !== playbackOwner()?.generation) return;
         if (position.watch_status !== "completed" && position.progress_seconds > 5) {
           if (saved.selection.source === "lookup") savedLookup = { ...saved, offset: position.progress_seconds };
-          else if (await play(t, episode, saved.selection, position.progress_seconds)) return;
+          else if (await startPlay(t, episode, saved.selection, position.progress_seconds)) return;
         }
       } catch (e) { if (e.status !== 404) toast(e.message); }
     }
@@ -242,6 +253,9 @@ export async function sources(
   );
   const dialog = showDialog(content),
     results = new Map();
+  sourceDialog = dialog;
+  dialog.addEventListener("close", sourceClosed, {once:true});
+  const discoveryStartedAt = performance.now();
   const providerConnections = await Promise.allSettled(
     ["webshare", "fastshare", "sosac", "stremio"].map((name) =>
       api(`providers/${name}`),
@@ -340,7 +354,7 @@ export async function sources(
         class: "pk-play",
         "aria-label": translateUI("Přehrát"),
         title: translateUI("Přehrát"),
-        onClick: () => play(t, episode, selection),
+        onClick: () => startPlay(t, episode, selection),
       },
       playGlyph(),
     );
@@ -546,7 +560,7 @@ export async function sources(
                 ),
                 best.file_name ? el("span", { class: "pk-hero-file" }, best.file_name) : null,
               ),
-              button(translateUI("Přehrát doporučený"), () => play(t, episode, selectionFor(best)), "primary pk-hero-play"),
+              button(translateUI("Přehrát doporučený"), () => startPlay(t, episode, selectionFor(best)), "primary pk-hero-play"),
             ),
           ]
         : []),
@@ -604,6 +618,7 @@ export async function sources(
       }
     }),
   );
+  sourceTelemetry?.stage("source_discovery", performance.now()-discoveryStartedAt);
   if (savedLookup && revision === sourceRevision && dialog.open) {
     const reference = savedLookup.selection;
     const matching = [...results].flatMap(([origin, streams]) => streams.map(stream => ({ ...stream, origin })))
@@ -612,7 +627,7 @@ export async function sources(
     if (matching.length === 1) {
       const stream = matching[0];
       const selection = { title_id: t.id, source: "live", ticket: stream.ticket, ...(episode ? { episode_id: episode.id } : {}), resume_selection: reference };
-      if (await play(t, episode, selection, savedLookup.offset)) return;
+      if (await startPlay(t, episode, selection, savedLookup.offset)) return;
     }
   }
   if (
@@ -651,7 +666,7 @@ export async function sources(
       if (autoDownload) {
         await saveOffline(t, episode, selection);
         dialog.close();
-      } else await play(t, episode, selection);
+      } else await startPlay(t, episode, selection);
     } else toast(translateUI("Další epizoda nemá dostupný podporovaný zdroj."));
   }
 }
@@ -663,11 +678,12 @@ async function play(
   audio = null,
   subtitle = null,
   introMachine = undefined,
+  startupTelemetry = null,
 ) {
   const attemptStartedAt = performance.now();
   const scope = selection.playback_owner || playbackOwner();
   const revision = ++playRevision;
-  await stop();
+  await stop("source_switch");
   if (revision !== playRevision) return false;
   if (scope?.generation !== playbackOwner()?.generation) return false;
   const dialog = showDialog(
@@ -691,7 +707,7 @@ async function play(
   audio = audio ?? (restoreTracks ? saved.audio.index : 0);
   subtitle = subtitle ?? (restoreTracks ? saved.subtitle.index : -1);
   const handle = { cancelled: false };
-  handle.telemetry = createPlaybackTelemetryReporter(scope, {
+  handle.telemetry = startupTelemetry || createPlaybackTelemetryReporter(scope, {
     startedAt: attemptStartedAt, diagnosticProvider: selection.diagnostic_provider,
     isActive: () => !handle.cancelled && current === handle && revision === playRevision,
   });
@@ -702,6 +718,7 @@ async function play(
     const inParty = partyPlaybackMatches(handle.partyPlayback);
     if (inParty) offset = 0;
     if (offset === null) {
+      const resumeStartedAt = performance.now();
       try {
         const position = await api(
           `watch-history/position/${t.id}${episode ? `?season_number=${episode.season_number}&episode_number=${episode.episode_number}` : ""}`,
@@ -714,7 +731,9 @@ async function play(
         if (e.status !== 404) throw e;
         offset = 0;
       }
+      handle.telemetry.stage("resume_lookup", performance.now()-resumeStartedAt);
     }
+    const prepareStartedAt = performance.now();
     const session = await api("playback", {
       method: "POST", expectedOwner: scope,
       body: {
@@ -728,6 +747,7 @@ async function play(
         capabilities: await browserMediaCapabilities(),
       },
     });
+    handle.telemetry.stage("session_prepare", performance.now()-prepareStartedAt);
     handle.session = session;
     audio = session.selected_audio ?? audio;
     subtitle = session.selected_subtitle ?? subtitle;
@@ -758,6 +778,8 @@ async function play(
     });
     handle.video = video;
     handle.telemetry.observe(video);
+    const mediaStartedAt = performance.now();
+    video.addEventListener("loadedmetadata", () => handle.telemetry.stage("media_opened", performance.now()-mediaStartedAt), {once:true});
     video.playbackRate = inParty ? 1 : mediaPreferences.playback_rate;
     if (inParty) {
       let applying = false,
@@ -1398,12 +1420,14 @@ async function play(
           video.canPlayType("application/vnd.apple.mpegurl") &&
           mediaPreferences.video_mode === "native"
         ) {
+          handle.telemetry.setEngine("native_hls");
           video.src = session.playlist;
           if (!inParty)
             video.play().catch(() => {
               status.textContent = translateUI("Stiskni přehrát.");
             });
         } else if (Hls.isSupported()) {
+          handle.telemetry.setEngine("hls_mse");
           const hls = new Hls({
             enableWorker: false,
             liveSyncDurationCount: 3,
@@ -1443,6 +1467,7 @@ async function play(
               });
           });
         } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          handle.telemetry.setEngine("native_hls");
           video.src = session.playlist;
           if (!inParty)
             video.play().catch(() => {
@@ -1494,12 +1519,12 @@ async function play(
     }
   }
 }
-export async function stop() {
+export async function stop(reason = "cancelled") {
   const handle = current;
   if (!handle) return;
+  handle.telemetry?.dispose(reason);
   current = null;
   handle.cancelled = true;
-  handle.telemetry?.dispose();
   handle.introCleanup?.();
   clearTimeout(handle.prepare);
   clearInterval(handle.timer);

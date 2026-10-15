@@ -2074,3 +2074,8 @@ footer a:hover {
   word-break: break-all;
   color: #c4b5fd;
 }
+
+.playback-quality-table { overflow-x: auto; }
+.playback-quality-table th, .playback-quality-table td { padding: .6rem; text-align: left; white-space: nowrap; }
+
+.playback-quality-controls { display: flex; gap: .5rem; margin: .75rem 0; }

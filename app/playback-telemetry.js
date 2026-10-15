@@ -1,3 +1,5 @@
+import { createPlaybackAttempt } from "./playback-attempt.js";
+import { playbackAttemptSupported } from "./playback-attempt-support.js";
 import { playbackOwner } from "./playback-memory.js";
 
 const providers = new Set(["webshare", "hellspy", "fastshare", "sosac", "stremio"]);
@@ -19,7 +21,7 @@ export function playbackFailureEvent(diagnostic, elapsed = 0) {
 // deduplicated: observing a frame must never hide a later playback failure.
 export function createPlaybackTelemetryReporter(owner, {
   fetcher = globalThis.fetch, now = () => performance.now(), startedAt = now(),
-  isActive = () => true, diagnosticProvider = "",
+  isActive = () => true, diagnosticProvider = "", attemptSupported = playbackAttemptSupported(),
 } = {}) {
   let successSent = false, failureSent = false, disposed = false, detach = null;
   const requests = new Set();
@@ -29,6 +31,8 @@ export function createPlaybackTelemetryReporter(owner, {
       && active.accountId === owner.accountId && active.profileId === owner.profileId;
   };
   const elapsed = at => duration(at - startedAt);
+  const ownerEligible = () => {const active = playbackOwner(); return owner && active && active.generation===owner.generation && active.accountId===owner.accountId && active.profileId===owner.profileId;};
+  const attempt = createPlaybackAttempt({owner, supported: attemptSupported, eligible, ownerEligible, fetcher, now, startedAt, provider: diagnosticProvider});
   async function send(payload) {
     if (!eligible()) return false;
     const controller = new AbortController();
@@ -46,12 +50,14 @@ export function createPlaybackTelemetryReporter(owner, {
   function failure(diagnostic) {
     if (!eligible() || failureSent) return Promise.resolve(false);
     failureSent = true;
+    if (attemptSupported) return Promise.resolve(attempt.failure(diagnostic?.error_code === "playback_prepare_timeout" ? "timeout" : "failure"));
     return send(playbackFailureEvent(diagnostic, elapsed(now())));
   }
   function success(event, at) {
     if (!eligible() || successSent) return;
     successSent = true;
     detach?.();
+    if (attemptSupported) { attempt.finish(event, at); return; }
     void send({ event, outcome: "success", duration_ms: elapsed(at), provider: provider(diagnosticProvider) });
   }
   function observe(video) {
@@ -86,13 +92,14 @@ export function createPlaybackTelemetryReporter(owner, {
     if (typeof video.requestVideoFrameCallback === "function") arm();
     else usePlaying();
   }
-  function dispose() {
+  function dispose(reason = "cancelled") {
+    attempt.dispose(reason);
     disposed = true;
     detach?.(); detach = null;
     for (const controller of requests) controller.abort();
     requests.clear();
   }
-  return { failure, observe, dispose };
+  return { failure, observe, dispose, stage: attempt.stage, setEngine: attempt.setEngine, setProvider: attempt.setProvider };
 }
 
 // Kept for existing callers that only need a best-effort failure counter.
