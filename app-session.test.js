@@ -1049,6 +1049,44 @@ test("offline BFF resolves the real managed device, honors owner boundaries and 
   );
   assert.match(h.calls.at(-1)[0], /lang=en/);
 });
+test("profile-data mirror routes forward only bounded pagination with the selected owner", async () => {
+  const managed = "00000000-0000-0000-0000-000000000007";
+  const user = { id: 7, username: "test", is_active: true, is_verified: true };
+  const h = harness({
+    override: (path) => {
+      if (path === "v1/auth/me") return { payload: user };
+      if (path === "v1/auth/bootstrap") return { payload: { user, session: { device_id: managed } } };
+      if (path.startsWith("v1/sync/v2/profile-data/")) return { payload: { results: [], has_more: false } };
+      return undefined;
+    },
+  });
+  const selected = await h.selected();
+  const headers = {
+    "x-movly-expected-account": "7",
+    "x-movly-expected-profile": "1",
+  };
+  const device = await h.request("sync/device", { cookie: selected.cookie, headers });
+  assert.equal(device.status, 200);
+  const result = await h.request(
+    "sync/v2/profile-data/changes?device_id=00000000-0000-0000-0000-000000000007&limit=250&cursor=opaque.cursor",
+    { cookie: device.cookie, headers },
+  );
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body, { results: [], has_more: false });
+  const call = h.calls.find(([path]) => path.startsWith("v1/sync/v2/profile-data/changes"));
+  assert.equal(call[0], "v1/sync/v2/profile-data/changes?device_id=00000000-0000-0000-0000-000000000007&limit=250&cursor=opaque.cursor");
+  assert.equal(call[5]["X-Profile-ID"], "1");
+  assert.ok(call[5]["X-Profile-Grant"]);
+  for (const query of [
+    "device_id=00000000-0000-0000-0000-000000000007&limit=0",
+    "device_id=00000000-0000-0000-0000-000000000007&limit=1001",
+    "device_id=00000000-0000-0000-0000-000000000007&limit=5&limit=6",
+    "device_id=00000000-0000-0000-0000-000000000007&limit=5&extra=1",
+  ]) {
+    assert.equal((await h.request(`sync/v2/profile-data/snapshot?${query}`, { cookie: device.cookie, headers })).status, 400);
+  }
+  assert.equal(h.calls.filter(([path]) => path.startsWith("v1/sync/v2/profile-data/snapshot")).length, 0);
+});
 test("hidden title mutations stay distinct from watch status and reject invalid scope", async () => {
   const h = harness({
       override: (path) =>
