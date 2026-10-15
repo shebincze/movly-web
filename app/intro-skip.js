@@ -50,6 +50,7 @@ export function mountIntroSkip({container,scope,title,episode,duration,position,
     const segments=local.length?local:remote;
     const target=machine.tick({position:Math.round(position()*1000),duration:Math.round(duration*1000),now:performance.now(),playing:playing(),canSeek:permitted(),mode,segments});
     skip.hidden=!machine.offer;skip.textContent=machine.countdown===null?translateUI("Přeskočit intro"):translateUI("Přeskočit intro za {0} s",machine.countdown);
+    skip.disabled=cancel.disabled=undo.disabled=!permitted();
     cancel.hidden=machine.countdown===null;undo.hidden=machine.undoPosition===null;container.hidden=skip.hidden&&undo.hidden;
     jump(target);
   };
