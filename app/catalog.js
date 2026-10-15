@@ -8,6 +8,7 @@ import {
   clearSearchHistory,
 } from "./search-history.js";
 import { api, apiContextKey, array, title, imageURL } from "./api.js";
+import { effectiveContentPolicy, assertEffectivePolicyUnchanged } from "./effective-policy.js";
 import {
   applyUserState,
   isWatched,
@@ -108,7 +109,10 @@ function feedRail(group, actions, source = "main") {
   return node;
 }
 export async function home(signal, actions) {
-  return serverHome(signal, actions, carousel);
+  const policy = await effectiveContentPolicy({ signal, refresh: true });
+  const node = await serverHome(signal, actions, carousel);
+  await assertEffectivePolicyUnchanged(policy, { signal });
+  return node;
 }
 // Stale-while-revalidate pro Filmy/Seriály: návrat na stránku vykreslí hned
 // poslední odpověď /main (do 5 min) a na pozadí ji tiše ověří. Osobní řady se
@@ -122,6 +126,7 @@ export function resetCatalogCache() {
   catalogCache.clear();
   resetHomeImpressions();
 }
+document.addEventListener("movly:effective-policy-changed", resetCatalogCache);
 function catalogKey(type) {
   return `${apiContextKey()}:main?type=${type}&limit=30`;
 }
@@ -151,7 +156,9 @@ function renderRails(page, data, actions) {
 async function revalidateCatalog(type, page, actions, signal) {
   const key = catalogKey(type), epoch = catalogEpoch;
   try {
+    const policy = await effectiveContentPolicy({ signal, refresh: true });
     const fresh = await api(`main?type=${type}&limit=30`, { signal });
+    await assertEffectivePolicyUnchanged(policy, { signal });
     if (epoch !== catalogEpoch || key !== catalogKey(type) || signal?.aborted) return;
     const cached = catalogCache.get(key);
     catalogCache.set(key, { data: fresh, at: Date.now() });
@@ -174,7 +181,9 @@ export async function refreshPersonalRails() {
     cached = catalogCache.get(key);
   if (!cached) return;
   const epoch = catalogEpoch;
+  const policy = await effectiveContentPolicy({ refresh: true });
   const personal = await api(`main/personal?type=${type}&limit=30`);
+  await assertEffectivePolicyUnchanged(policy);
   if (epoch !== catalogEpoch || key !== catalogKey(type)) return;
   const current = catalogCache.get(key);
   if (!current) return;
@@ -202,6 +211,7 @@ document.addEventListener("movly:personal-changed", () => {
 export async function catalog(route, params, signal, actions) {
   if (params.get("view") === "grid")
     return catalogGrid(route, params, signal, actions);
+  const policy = await effectiveContentPolicy({ signal, refresh: true });
   const type = route === "series" ? "tv" : "movie",
     key = catalogKey(type),
     cached = catalogCache.get(key),
@@ -211,6 +221,7 @@ export async function catalog(route, params, signal, actions) {
   else {
     const epoch = catalogEpoch;
     data = await api(`main?type=${type}&limit=30`, { signal });
+    await assertEffectivePolicyUnchanged(policy, { signal });
     if (epoch !== catalogEpoch || key !== catalogKey(type) || signal?.aborted) throw new DOMException("Context changed", "AbortError");
     catalogCache.set(key, { data, at: Date.now() });
   }
@@ -289,6 +300,8 @@ const FILTER_PARAM_KEYS = [
   "hdr",
   "audio",
   "orig",
+  "co",
+  "streams",
   "sort",
 ];
 function intParam(params, key, max) {
@@ -320,6 +333,8 @@ function paramsToDefinition(params, type) {
     hdr: !!params.get("hdr") || null,
     audio_language: params.get("audio") || null,
     original_language: params.get("orig") || null,
+    countries: (params.get("co") || "").split(",").map((code) => code.trim().toUpperCase()).filter((code) => /^[A-Z]{2}$/.test(code)),
+    has_streams: params.get("streams") === "1",
     sort_by: sort,
     sort_order: sort === "title" ? "asc" : "desc",
   };
@@ -340,6 +355,8 @@ function definitionToParams(d, { grid = true } = {}) {
   if (d.hdr) q.set("hdr", "1");
   if (d.audio_language) q.set("audio", d.audio_language);
   if (d.original_language) q.set("orig", d.original_language);
+  if (d.countries?.length) q.set("co", d.countries.join(","));
+  if (d.has_streams) q.set("streams", "1");
   if (d.sort_by && d.sort_by !== "popularity") q.set("sort", d.sort_by);
   return q;
 }
@@ -360,6 +377,8 @@ function definitionQuery(d) {
     "original_language",
   ])
     if (d[key] != null && d[key] !== "") query.set(key, String(d[key]));
+  if (d.countries?.length) query.set("countries", d.countries.join(","));
+  if (d.has_streams) query.set("has_streams", "true");
   if (d.hdr) query.set("hdr", "true");
   query.set("sort_by", d.sort_by || "popularity");
   query.set("sort_order", d.sort_order || "desc");
@@ -378,6 +397,8 @@ function hasCriteria(d) {
       d.hdr ||
       d.audio_language ||
       d.original_language ||
+      d.countries?.length ||
+      d.has_streams ||
       (d.sort_by && d.sort_by !== "popularity"),
   );
 }
@@ -416,6 +437,8 @@ function definitionChips(d, genreNames) {
     chips.push(translateUI("zvuk {0}", d.audio_language.toUpperCase()));
   if (d.original_language)
     chips.push(`orig. ${d.original_language.toUpperCase()}`);
+  if (d.countries?.length) chips.push(translateUI("Země: {0}", d.countries.join(", ")));
+  if (d.has_streams) chips.push(translateUI("Jen s dostupným zdrojem"));
   const sortLabel = SORT_OPTIONS.find(([v]) => v === d.sort_by)?.[1];
   if (d.sort_by && d.sort_by !== "popularity" && sortLabel)
     chips.push(sortLabel.toLowerCase());
@@ -549,6 +572,17 @@ function filterBuilder({
     [["", translateUI("Jakýkoli")], ...ORIGINAL_LANGUAGES],
     definition.original_language,
   );
+  const countries = el("input", {
+    type: "text",
+    name: "co",
+    maxlength: 100,
+    pattern: "[A-Za-z]{2}(,[A-Za-z]{2})*",
+    placeholder: "CZ,US",
+    value: (definition.countries || []).join(","),
+    "aria-label": translateUI("Kódy zemí původu oddělené čárkou"),
+  });
+  const hasStreams = el("input", { type: "checkbox", name: "streams", value: "1" });
+  hasStreams.checked = !!definition.has_streams;
   const sort = select("sort", SORT_OPTIONS, definition.sort_by);
   const range = (label, from, to) =>
     el(
@@ -588,6 +622,8 @@ function filterBuilder({
     el("label", { class: "field checkbox" }, hdr, translateUI(" Jen HDR")),
     formField(translateUI("Zvuk"), audio),
     formField(translateUI("Původní jazyk"), original),
+    formField(translateUI("Země původu (ISO kódy)"), countries),
+    el("label", { class: "field checkbox" }, hasStreams, translateUI(" Jen s dostupným zdrojem")),
     formField(translateUI("Řazení"), sort),
     el(
       "button",
@@ -703,6 +739,7 @@ function filterBuilder({
   return { filters, chipsRow, savedRow };
 }
 async function catalogGrid(route, params, signal, actions) {
+  const policy = await effectiveContentPolicy({ signal, refresh: true });
   const isSeries = route === "series",
     type = isSeries ? "tv" : "movie";
   const page = Math.max(1, Number(params.get("page")) || 1);
@@ -717,6 +754,7 @@ async function catalogGrid(route, params, signal, actions) {
     // Uložené filtry jen pro přihlášený profil; bez session prázdné.
     api("saved-filters", { signal }).catch(() => null),
   ]);
+  await assertEffectivePolicyUnchanged(policy, { signal });
   const items = array(data.results, translateUI("výsledky")).map(title),
     genres = array(genresResult.genres, translateUI("žánry")),
     savedFilters = savedResult
@@ -803,7 +841,9 @@ function filterPanel(form, active, open) {
 }
 export async function search(params, signal, actions) {
   const q = params.get("q") || "",
-    page = Math.max(1, Number(params.get("page")) || 1);
+    page = Math.max(1, Number(params.get("page")) || 1),
+    searchContext = apiContextKey();
+  const policy = await effectiveContentPolicy({ signal, refresh: true });
   const input = el("input", {
     id: "search-q",
     type: "search",
@@ -813,7 +853,34 @@ export async function search(params, signal, actions) {
     maxlength: 200,
     required: true,
     autocomplete: "off",
+    role: "combobox",
+    "aria-autocomplete": "list",
+    "aria-expanded": "false",
+    "aria-controls": "search-suggestions",
   });
+  const suggestionList = el("div", {
+    id: "search-suggestions",
+    class: "search-suggestions",
+    role: "listbox",
+    "aria-label": translateUI("Návrhy hledání"),
+    hidden: true,
+  });
+  let suggestionTimer = null,
+    suggestionController = null,
+    suggestionGeneration = 0,
+    activeSuggestion = -1;
+  const closeSuggestions = () => {
+    suggestionList.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+    activeSuggestion = -1;
+  };
+  const chooseSuggestion = (value) => {
+    input.value = value;
+    clear.hidden = false;
+    closeSuggestions();
+    location.hash = `search?q=${encodeURIComponent(value.trim())}`;
+  };
   const clear = el(
     "button",
     {
@@ -822,14 +889,73 @@ export async function search(params, signal, actions) {
       "aria-label": translateUI("Vymazat"),
       onClick: () => {
         input.value = "";
-        clear.hidden = true;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
         input.focus();
       },
     },
     icon("close"),
   );
   clear.hidden = !q;
-  input.addEventListener("input", () => (clear.hidden = !input.value));
+  input.addEventListener("input", () => {
+    clear.hidden = !input.value;
+    clearTimeout(suggestionTimer);
+    suggestionController?.abort();
+    closeSuggestions();
+    const value = input.value.trim();
+    if (value.length < 2) return;
+    const generation = ++suggestionGeneration,
+      context = apiContextKey(),
+      controller = new AbortController();
+    suggestionController = controller;
+    const cancel = () => {
+      clearTimeout(suggestionTimer);
+      controller.abort();
+    };
+    if (signal?.aborted) cancel();
+    else signal?.addEventListener("abort", cancel, { once: true });
+    suggestionTimer = setTimeout(async () => {
+      try {
+        const data = await api(`autocomplete?${new URLSearchParams({ q: value, limit: "8" })}`, { signal: controller.signal });
+        if (signal?.aborted || generation !== suggestionGeneration || context !== apiContextKey() || input.value.trim() !== value) return;
+        const terms = Array.isArray(data.suggestions) ? [...new Set(data.suggestions.filter((term) => typeof term === "string" && term.trim()).map((term) => term.trim()))].slice(0, 8) : [];
+        suggestionList.replaceChildren(...terms.map((term, index) => el("button", {
+          type: "button",
+          id: `search-suggestion-${index}`,
+          class: "search-suggestion",
+          role: "option",
+          "aria-selected": "false",
+          onMouseDown: (event) => event.preventDefault(),
+          onClick: () => chooseSuggestion(term),
+        }, term)));
+        suggestionList.hidden = !terms.length;
+        input.setAttribute("aria-expanded", String(terms.length > 0));
+      } catch (error) {
+        if (error?.name !== "AbortError") closeSuggestions();
+      } finally {
+        signal?.removeEventListener("abort", cancel);
+      }
+    }, 180);
+  });
+  input.addEventListener("keydown", (event) => {
+    const options = [...suggestionList.querySelectorAll('[role="option"]')];
+    if (event.key === "Escape") {
+      if (!suggestionList.hidden) { event.preventDefault(); closeSuggestions(); }
+      return;
+    }
+    if (suggestionList.hidden || !options.length) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      activeSuggestion = (activeSuggestion + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+      options.forEach((option, index) => {
+        option.setAttribute("aria-selected", String(index === activeSuggestion));
+        option.classList.toggle("active", index === activeSuggestion);
+      });
+      input.setAttribute("aria-activedescendant", options[activeSuggestion].id);
+    } else if (event.key === "Enter" && activeSuggestion >= 0) {
+      event.preventDefault();
+      chooseSuggestion(options[activeSuggestion].textContent);
+    }
+  });
   const form = el(
     "form",
     {
@@ -849,6 +975,7 @@ export async function search(params, signal, actions) {
       clear,
       el("button", { type: "submit", class: "button primary" }, translateUI("Hledat")),
     ),
+    suggestionList,
   );
   const node = el(
     "div",
@@ -969,6 +1096,28 @@ export async function search(params, signal, actions) {
           ),
         ),
       );
+      try {
+        const data = await api("trending-searches?limit=8", { signal });
+        if (!signal?.aborted && apiContextKey() === searchContext) {
+          const terms = Array.isArray(data.trending_searches)
+            ? [...new Set(data.trending_searches.map((item) => item?.query).filter((term) => typeof term === "string" && term.trim()))].slice(0, 8)
+            : [];
+          if (terms.length) node.append(el(
+            "section",
+            { class: "popular-searches", "aria-label": translateUI("Populární hledání") },
+            el("h2", { class: "results-heading" }, translateUI("Populární hledání")),
+            el("ul", { class: "popular-search-list" }, terms.map((term) => el(
+              "li", {}, el("button", {
+                type: "button",
+                class: "history-term",
+                onClick: () => { location.hash = "search?q=" + encodeURIComponent(term); },
+              }, term),
+            ))),
+          ));
+        }
+      } catch (error) {
+        if (error?.name !== "AbortError") console.warn("Popular searches are unavailable");
+      }
       return node;
     }
     const query = definitionQuery(definition);
@@ -976,6 +1125,7 @@ export async function search(params, signal, actions) {
     query.set("page", String(page));
     query.set("limit", "24");
     const data = await api(`titles/filter?${query}`, { signal });
+    await assertEffectivePolicyUnchanged(policy, { signal });
     const items = array(data.results, translateUI("výsledky")).map(title);
     results.append(
       ...[
@@ -1040,6 +1190,7 @@ export async function search(params, signal, actions) {
       signal,
     }).catch(() => null),
   ]);
+  await assertEffectivePolicyUnchanged(policy, { signal });
   const items = array(data.results, translateUI("výsledky hledání")).map(title);
   if (!Number.isInteger(data.total))
     throw new Error(translateUI("API nevrátilo počet výsledků."));
@@ -1122,8 +1273,10 @@ export async function collection(params, signal, actions) {
   const page = Math.max(1, Number(params.get("page")) || 1);
   const source = params.get("source");
   const fromHome = source === "home" || source === "home_collection";
+  const policy = await effectiveContentPolicy({ signal, refresh: true });
   const data = await api(fromHome ? homeQuery({ [source === "home" ? "section" : "collection"]: slug, page }) :
     `${source === "themed" ? "themed-lists" : "main/lists"}/${slug}?page=${page}&limit=30`, { signal });
+  await assertEffectivePolicyUnchanged(policy, { signal });
   const rows = fromHome ? homeSections(data) : null;
   if (fromHome && (rows.length !== 1 || rows[0].slug !== slug || rows[0].pagination?.page !== page)) throw new Error(translateUI("Neplatná řada Domů."));
   const list = fromHome ? rows[0] : data.list || data;

@@ -1,0 +1,788 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "ordinary_default",
+      "stored": {
+        "user_id": 1,
+        "profile_id": 10,
+        "is_kids": false,
+        "max_age": 18,
+        "allow_unrated": true
+      },
+      "effective": {
+        "schema_version": 1,
+        "user_id": 1,
+        "profile_id": 10,
+        "is_kids": false,
+        "age_controls_active": false,
+        "max_age": null,
+        "allow_unrated": true,
+        "exclude_adult": false,
+        "catalog_excludes_adult": true,
+        "revision": "ep1.9a9dafa4e56ca3a56f1bd88d518fe34a06263cd45a6d422ec1fcb7fa636bfb7a"
+      },
+      "titles": [
+        {
+          "title": "unrated",
+          "adult": false,
+          "min_age": null,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "age_zero",
+          "adult": false,
+          "min_age": 0,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "below_seven",
+          "adult": false,
+          "min_age": 6,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "seven_boundary",
+          "adult": false,
+          "min_age": 7,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "above_seven",
+          "adult": false,
+          "min_age": 8,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "twelve_boundary",
+          "adult": false,
+          "min_age": 12,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "eighteen_boundary",
+          "adult": false,
+          "min_age": 18,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "adult_low_age",
+          "adult": true,
+          "min_age": 6,
+          "profile_allowed": true,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_unrated",
+          "adult": true,
+          "min_age": null,
+          "profile_allowed": true,
+          "catalog_allowed": false
+        }
+      ]
+    },
+    {
+      "name": "ordinary_inactive_controls",
+      "stored": {
+        "user_id": 1,
+        "profile_id": 10,
+        "is_kids": false,
+        "max_age": 7,
+        "allow_unrated": false
+      },
+      "effective": {
+        "schema_version": 1,
+        "user_id": 1,
+        "profile_id": 10,
+        "is_kids": false,
+        "age_controls_active": false,
+        "max_age": null,
+        "allow_unrated": true,
+        "exclude_adult": false,
+        "catalog_excludes_adult": true,
+        "revision": "ep1.9a9dafa4e56ca3a56f1bd88d518fe34a06263cd45a6d422ec1fcb7fa636bfb7a"
+      },
+      "titles": [
+        {
+          "title": "unrated",
+          "adult": false,
+          "min_age": null,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "age_zero",
+          "adult": false,
+          "min_age": 0,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "below_seven",
+          "adult": false,
+          "min_age": 6,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "seven_boundary",
+          "adult": false,
+          "min_age": 7,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "above_seven",
+          "adult": false,
+          "min_age": 8,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "twelve_boundary",
+          "adult": false,
+          "min_age": 12,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "eighteen_boundary",
+          "adult": false,
+          "min_age": 18,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "adult_low_age",
+          "adult": true,
+          "min_age": 6,
+          "profile_allowed": true,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_unrated",
+          "adult": true,
+          "min_age": null,
+          "profile_allowed": true,
+          "catalog_allowed": false
+        }
+      ]
+    },
+    {
+      "name": "ordinary_other_account",
+      "stored": {
+        "user_id": 2,
+        "profile_id": 10,
+        "is_kids": false,
+        "max_age": 7,
+        "allow_unrated": false
+      },
+      "effective": {
+        "schema_version": 1,
+        "user_id": 2,
+        "profile_id": 10,
+        "is_kids": false,
+        "age_controls_active": false,
+        "max_age": null,
+        "allow_unrated": true,
+        "exclude_adult": false,
+        "catalog_excludes_adult": true,
+        "revision": "ep1.5b164f89f5781ed70bde6ce8c562a3bbf5436f01c80f198bab30f326b53a9a62"
+      },
+      "titles": [
+        {
+          "title": "unrated",
+          "adult": false,
+          "min_age": null,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "age_zero",
+          "adult": false,
+          "min_age": 0,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "below_seven",
+          "adult": false,
+          "min_age": 6,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "seven_boundary",
+          "adult": false,
+          "min_age": 7,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "above_seven",
+          "adult": false,
+          "min_age": 8,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "twelve_boundary",
+          "adult": false,
+          "min_age": 12,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "eighteen_boundary",
+          "adult": false,
+          "min_age": 18,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "adult_low_age",
+          "adult": true,
+          "min_age": 6,
+          "profile_allowed": true,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_unrated",
+          "adult": true,
+          "min_age": null,
+          "profile_allowed": true,
+          "catalog_allowed": false
+        }
+      ]
+    },
+    {
+      "name": "ordinary_other_profile",
+      "stored": {
+        "user_id": 1,
+        "profile_id": 11,
+        "is_kids": false,
+        "max_age": 7,
+        "allow_unrated": false
+      },
+      "effective": {
+        "schema_version": 1,
+        "user_id": 1,
+        "profile_id": 11,
+        "is_kids": false,
+        "age_controls_active": false,
+        "max_age": null,
+        "allow_unrated": true,
+        "exclude_adult": false,
+        "catalog_excludes_adult": true,
+        "revision": "ep1.e124322719286cfc70c40b4955c37a5ba4eea4fc93115842e039a937df5ece19"
+      },
+      "titles": [
+        {
+          "title": "unrated",
+          "adult": false,
+          "min_age": null,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "age_zero",
+          "adult": false,
+          "min_age": 0,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "below_seven",
+          "adult": false,
+          "min_age": 6,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "seven_boundary",
+          "adult": false,
+          "min_age": 7,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "above_seven",
+          "adult": false,
+          "min_age": 8,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "twelve_boundary",
+          "adult": false,
+          "min_age": 12,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "eighteen_boundary",
+          "adult": false,
+          "min_age": 18,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "adult_low_age",
+          "adult": true,
+          "min_age": 6,
+          "profile_allowed": true,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_unrated",
+          "adult": true,
+          "min_age": null,
+          "profile_allowed": true,
+          "catalog_allowed": false
+        }
+      ]
+    },
+    {
+      "name": "kids_7_rated_only",
+      "stored": {
+        "user_id": 1,
+        "profile_id": 20,
+        "is_kids": true,
+        "max_age": 7,
+        "allow_unrated": false
+      },
+      "effective": {
+        "schema_version": 1,
+        "user_id": 1,
+        "profile_id": 20,
+        "is_kids": true,
+        "age_controls_active": true,
+        "max_age": 7,
+        "allow_unrated": false,
+        "exclude_adult": true,
+        "catalog_excludes_adult": true,
+        "revision": "ep1.6625d297a46c80420000f62d36fd8cc49841ecfc3aca5ccc22af85b22e0b3bb3"
+      },
+      "titles": [
+        {
+          "title": "unrated",
+          "adult": false,
+          "min_age": null,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "age_zero",
+          "adult": false,
+          "min_age": 0,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "below_seven",
+          "adult": false,
+          "min_age": 6,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "seven_boundary",
+          "adult": false,
+          "min_age": 7,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "above_seven",
+          "adult": false,
+          "min_age": 8,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "twelve_boundary",
+          "adult": false,
+          "min_age": 12,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "eighteen_boundary",
+          "adult": false,
+          "min_age": 18,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_low_age",
+          "adult": true,
+          "min_age": 6,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_unrated",
+          "adult": true,
+          "min_age": null,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        }
+      ]
+    },
+    {
+      "name": "kids_7_unrated_allowed",
+      "stored": {
+        "user_id": 1,
+        "profile_id": 20,
+        "is_kids": true,
+        "max_age": 7,
+        "allow_unrated": true
+      },
+      "effective": {
+        "schema_version": 1,
+        "user_id": 1,
+        "profile_id": 20,
+        "is_kids": true,
+        "age_controls_active": true,
+        "max_age": 7,
+        "allow_unrated": true,
+        "exclude_adult": true,
+        "catalog_excludes_adult": true,
+        "revision": "ep1.4bc0d761b4547e00da6feb94db7c9c2f045e63e25c11dad4061979298780be68"
+      },
+      "titles": [
+        {
+          "title": "unrated",
+          "adult": false,
+          "min_age": null,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "age_zero",
+          "adult": false,
+          "min_age": 0,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "below_seven",
+          "adult": false,
+          "min_age": 6,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "seven_boundary",
+          "adult": false,
+          "min_age": 7,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "above_seven",
+          "adult": false,
+          "min_age": 8,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "twelve_boundary",
+          "adult": false,
+          "min_age": 12,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "eighteen_boundary",
+          "adult": false,
+          "min_age": 18,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_low_age",
+          "adult": true,
+          "min_age": 6,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_unrated",
+          "adult": true,
+          "min_age": null,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        }
+      ]
+    },
+    {
+      "name": "kids_12_rated_only",
+      "stored": {
+        "user_id": 1,
+        "profile_id": 20,
+        "is_kids": true,
+        "max_age": 12,
+        "allow_unrated": false
+      },
+      "effective": {
+        "schema_version": 1,
+        "user_id": 1,
+        "profile_id": 20,
+        "is_kids": true,
+        "age_controls_active": true,
+        "max_age": 12,
+        "allow_unrated": false,
+        "exclude_adult": true,
+        "catalog_excludes_adult": true,
+        "revision": "ep1.310dba42cff12d4671491f5061065e4f0e37038e76dafa508e8591469792b310"
+      },
+      "titles": [
+        {
+          "title": "unrated",
+          "adult": false,
+          "min_age": null,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "age_zero",
+          "adult": false,
+          "min_age": 0,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "below_seven",
+          "adult": false,
+          "min_age": 6,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "seven_boundary",
+          "adult": false,
+          "min_age": 7,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "above_seven",
+          "adult": false,
+          "min_age": 8,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "twelve_boundary",
+          "adult": false,
+          "min_age": 12,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "eighteen_boundary",
+          "adult": false,
+          "min_age": 18,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_low_age",
+          "adult": true,
+          "min_age": 6,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_unrated",
+          "adult": true,
+          "min_age": null,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        }
+      ]
+    },
+    {
+      "name": "kids_18_rated_only",
+      "stored": {
+        "user_id": 1,
+        "profile_id": 20,
+        "is_kids": true,
+        "max_age": 18,
+        "allow_unrated": false
+      },
+      "effective": {
+        "schema_version": 1,
+        "user_id": 1,
+        "profile_id": 20,
+        "is_kids": true,
+        "age_controls_active": true,
+        "max_age": 18,
+        "allow_unrated": false,
+        "exclude_adult": true,
+        "catalog_excludes_adult": true,
+        "revision": "ep1.a9573c6d9363947f33c32ff29efcc75ac5d0ce7394fa5a1e6cf6c0ef9b316492"
+      },
+      "titles": [
+        {
+          "title": "unrated",
+          "adult": false,
+          "min_age": null,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "age_zero",
+          "adult": false,
+          "min_age": 0,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "below_seven",
+          "adult": false,
+          "min_age": 6,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "seven_boundary",
+          "adult": false,
+          "min_age": 7,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "above_seven",
+          "adult": false,
+          "min_age": 8,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "twelve_boundary",
+          "adult": false,
+          "min_age": 12,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "eighteen_boundary",
+          "adult": false,
+          "min_age": 18,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "adult_low_age",
+          "adult": true,
+          "min_age": 6,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_unrated",
+          "adult": true,
+          "min_age": null,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        }
+      ]
+    },
+    {
+      "name": "kids_zero_boundary",
+      "stored": {
+        "user_id": 1,
+        "profile_id": 20,
+        "is_kids": true,
+        "max_age": 0,
+        "allow_unrated": false
+      },
+      "effective": {
+        "schema_version": 1,
+        "user_id": 1,
+        "profile_id": 20,
+        "is_kids": true,
+        "age_controls_active": true,
+        "max_age": 0,
+        "allow_unrated": false,
+        "exclude_adult": true,
+        "catalog_excludes_adult": true,
+        "revision": "ep1.de97ac4f1f001405944edfabca2b25485fbe738ba18b4277de199846bb020695"
+      },
+      "titles": [
+        {
+          "title": "unrated",
+          "adult": false,
+          "min_age": null,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "age_zero",
+          "adult": false,
+          "min_age": 0,
+          "profile_allowed": true,
+          "catalog_allowed": true
+        },
+        {
+          "title": "below_seven",
+          "adult": false,
+          "min_age": 6,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "seven_boundary",
+          "adult": false,
+          "min_age": 7,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "above_seven",
+          "adult": false,
+          "min_age": 8,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "twelve_boundary",
+          "adult": false,
+          "min_age": 12,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "eighteen_boundary",
+          "adult": false,
+          "min_age": 18,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_low_age",
+          "adult": true,
+          "min_age": 6,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        },
+        {
+          "title": "adult_unrated",
+          "adult": true,
+          "min_age": null,
+          "profile_allowed": false,
+          "catalog_allowed": false
+        }
+      ]
+    }
+  ]
+}

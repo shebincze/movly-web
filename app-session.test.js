@@ -1126,6 +1126,55 @@ test("search discovery marks user queries but not additional result pages", asyn
   }
 });
 
+test("autocomplete and trending searches use only validated current-language reads", async () => {
+  const h = harness();
+  const s = await h.selected();
+  for (const [path, target, expected] of [
+    ["autocomplete?q=duna&limit=7", "v1/autocomplete", { q: "duna", limit: "7", lang: "cs" }],
+    ["trending-searches?limit=12", "v1/trending-searches", { limit: "12", lang: "cs" }],
+  ]) {
+    const r = await h.request(path, {
+      cookie: s.cookie,
+      headers: path.startsWith("autocomplete") ? { "x-movly-language": "en" } : {},
+    });
+    assert.equal(r.status, 200);
+    const [actual] = h.calls.at(-1);
+    assert.equal(actual.split("?")[0], target);
+    assert.deepEqual(Object.fromEntries(new URLSearchParams(actual.split("?")[1])), {
+      ...expected,
+      lang: path.startsWith("autocomplete") ? "en" : "cs",
+    });
+  }
+  for (const path of ["autocomplete?limit=7", "autocomplete?q=x&unexpected=1", "trending-searches?q=ignored"]) {
+    const rejected = await h.request(path, { cookie: s.cookie });
+    assert.equal(rejected.status, 400, path);
+  }
+});
+
+test("catalog filter BFF forwards supported country and source filters and rejects malformed codes", async () => {
+  const h = harness();
+  const s = await h.selected();
+  const r = await h.request("titles/filter?countries=CZ,US&has_streams=true", { cookie: s.cookie });
+  assert.equal(r.status, 200);
+  assert.match(h.calls.at(-1)[0], /countries=CZ%2CUS/);
+  assert.match(h.calls.at(-1)[0], /has_streams=true/);
+  for (const query of ["countries=CZE", "countries=CZ,,US", "has_streams=maybe"]) {
+    assert.equal((await h.request(`titles/filter?${query}`, { cookie: s.cookie })).status, 400, query);
+  }
+});
+
+test("effective policy BFF is read-only, selected-profile scoped and closed to arbitrary query", async () => {
+  const h = harness();
+  const s = await h.selected();
+  const r = await h.request("profiles/effective-content-policy", { cookie: s.cookie });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.profile_id, 1);
+  const call = h.calls.at(-1);
+  assert.equal(call[0].split("?")[0], "v1/profiles/effective-content-policy");
+  assert.equal(call[5]["X-Profile-ID"], "1");
+  assert.equal((await h.request("profiles/effective-content-policy?profile_id=2", { cookie: s.cookie })).status, 400);
+});
+
 test("search clicks pin the selected profile and accept only validated click payloads", async () => {
   const h = harness({ override: (path) => path.split("?")[0] === "v1/track-search" ? { payload: { status: "success" } } : undefined });
   const s = await h.selected();
