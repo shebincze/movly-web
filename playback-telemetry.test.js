@@ -6,7 +6,7 @@ async function modules() {
  const url = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
  const memoryURL = url(await fs.readFile('app/playback-memory.js', 'utf8'));
  const memory = await import(memoryURL);
- const source = (await fs.readFile('app/playback-telemetry.js', 'utf8')).replace('"./playback-attempt.js"',JSON.stringify(url((await fs.readFile('app/playback-attempt.js','utf8')).replace('"./build-info.js"',JSON.stringify(url(await fs.readFile('app/build-info.js','utf8'))))))).replace('"./playback-attempt-support.js"',JSON.stringify(url(await fs.readFile('app/playback-attempt-support.js','utf8')))).replace('"./playback-memory.js"', JSON.stringify(memoryURL));
+ const source = (await fs.readFile('app/playback-telemetry.js', 'utf8')).replace('"./playback-attempt.js"',JSON.stringify(url((await fs.readFile('app/playback-attempt.js','utf8')).replace('"./build-info.js"',JSON.stringify(url(await fs.readFile('app/build-info.js','utf8'))))))).replace('"./playback-attempt-support.js"',JSON.stringify(url('export function playbackAttemptSupported(){return false}'))).replace('"./playback-memory.js"', JSON.stringify(memoryURL));
  return {memory, ...await import(url(source))};
 }
 test('playback diagnostics only emit bounded event fields, never raw source or error metadata', async () => {

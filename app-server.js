@@ -848,7 +848,7 @@ function createAppHandler({
       }
       if (target === "admin/telemetry/playback-attempts" && req.method === "GET") {
         if (account.role !== "admin") throw new HttpError(403, "K této akci nemáš oprávnění.");
-        const query = cleanQuery(url, ["client_app", "hours"], language);
+        const query = cleanQuery(url, ["client_app", "platform", "hours"], language);
         json(res, 200, await call(s, target + query)); return true;
       }
       if (target.startsWith("admin/"))

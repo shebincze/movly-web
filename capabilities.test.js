@@ -94,3 +94,9 @@ test('origin and owner context partition cache, stale replies cannot publish, an
   assert.equal(calls, before + 1);
   resetCapabilityCacheForTests();
 });
+
+test('playback protocol is opt-in independently of catalog; cross-feature cache does not enable it', async()=>{
+ const {supportsCatalogBatch,supportsPlaybackAttempt,cachedPlaybackAttempt,resetCapabilityCacheForTests,invalidateCapabilityCache}=await import('./app/capabilities.js');resetCapabilityCacheForTests();
+ const calls=[];const request=async(_path,options)=>{calls.push(options.body);const id=options.body.client_capabilities[0].id;return {schema_version:1,revision:'cap1.'+'a'.repeat(64),cache_ttl_seconds:60,server_capabilities:[{id,versions:[1],enabled:true}],negotiated:[{id,version:1}]};};
+ assert.equal(await supportsCatalogBatch(request,undefined,'fixture',undefined,()=>true),true);assert.equal(cachedPlaybackAttempt('fixture'),false);assert.equal(await supportsPlaybackAttempt(request,undefined,'fixture',undefined,()=>true),true);assert.equal(cachedPlaybackAttempt('fixture'),true);assert.equal(calls.length,2);assert.deepEqual(calls[1].client_capabilities,[{id:'playback_attempt',versions:[1]}]);invalidateCapabilityCache('fixture');assert.equal(cachedPlaybackAttempt('fixture'),false);assert.equal(await supportsPlaybackAttempt(async()=>({schema_version:1,revision:'cap1.'+'b'.repeat(64),cache_ttl_seconds:60,server_capabilities:[{id:'catalog_batch',versions:[1],enabled:true}],negotiated:[{id:'catalog_batch',version:1}]}),undefined,'old',undefined,()=>true),false);
+});

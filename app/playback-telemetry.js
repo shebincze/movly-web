@@ -50,7 +50,15 @@ export function createPlaybackTelemetryReporter(owner, {
   function failure(diagnostic) {
     if (!eligible() || failureSent) return Promise.resolve(false);
     failureSent = true;
-    if (attemptSupported) return Promise.resolve(attempt.failure(diagnostic?.error_code === "playback_prepare_timeout" ? "timeout" : "failure"));
+    if (attemptSupported) {
+      const code = diagnostic?.error_code;
+      const errorClass = diagnostic?.stage === "source_resolve" ? "source_resolve"
+        : ["playback_prepare_timeout", "playback_prepare_failed"].includes(code) ? "media_prepare"
+        : code === "browser_hls_unsupported" ? "unsupported"
+        : code === "hls_network_failed" ? "media_network" : code === "hls_media_failed" ? "media_decode"
+        : diagnostic?.stage === "video_analysis" ? "session_prepare" : "unknown";
+      return Promise.resolve(attempt.failure(code === "playback_prepare_timeout" ? "timeout" : "failure", errorClass));
+    }
     return send(playbackFailureEvent(diagnostic, elapsed(now())));
   }
   function success(event, at) {

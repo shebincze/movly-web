@@ -121,9 +121,9 @@ export async function sources(
   if (episode && episodeReleaseState(episode.air_date) === "upcoming")
     throw new Error(translateUI("Epizoda ještě neměla premiéru."));
   const sourceStartedAt = performance.now();
+  const revision = ++sourceRevision, sourceOwner = playbackOwner();
   await stop("source_switch");
-  const revision = ++sourceRevision;
-  const sourceOwner = playbackOwner();
+  if (revision !== sourceRevision || sourceOwner?.generation !== playbackOwner()?.generation) return;
   let handedOff = false, sourceDialog = null;
   const sourceClosed = () => { if (!handedOff) sourceTelemetry?.dispose(); };
   const sourceTelemetry = !autoDownload && playbackAttemptSupported() ? createPlaybackTelemetryReporter(sourceOwner, {startedAt: sourceStartedAt,

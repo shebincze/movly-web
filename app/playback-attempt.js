@@ -13,14 +13,15 @@ export function createPlaybackAttempt({owner, supported=false, eligible=()=>true
   const observed=new Set(), requests=new Set();
   if(sampled){try{id=Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,"0")).join("");}catch{}}
   const current=()=>!!id&&!closed&&eligible();
-  function send(stage,outcome,stageDuration=0,at=now()){
+  function send(stage,outcome,stageDuration=0,at=now(),errorClass="none"){
     if(!current()||observed.has(stage)||!stages.has(stage)||!owner?.accountId||!owner?.profileId)return false;
+    if(stage!=="start"&&!observed.has("start"))send("start","success",0,startedAt);
     observed.add(stage);
     const time=now();if(time-windowAt>=1000||time<windowAt){windowAt=time;sent=0;}
     if(active>=maxActive||sent>=maxPerSecond)return false;
     const elapsed=bounded(at-startedAt);
     const payload={attempt_id:id,sequence:stages.get(stage),stage,outcome,elapsed_ms:elapsed,duration_ms:Math.min(elapsed,bounded(stageDuration)),
-      provider:providers.has(String(provider).toLowerCase())?String(provider).toLowerCase():"none",client_version:version,build_unknown:buildUnknown!==false,engine:engines.has(engine)?engine:"unknown",sample_rate:1000};
+      provider:providers.has(String(provider).toLowerCase())?String(provider).toLowerCase():"none",client_version:version,error_class:["failure","timeout"].includes(outcome) && ["source_resolve","session_prepare","media_prepare","media_network","media_decode","unsupported","unknown"].includes(errorClass)?errorClass:(["failure","timeout"].includes(outcome)?"unknown":"none"),build_unknown:buildUnknown!==false,engine:engines.has(engine)?engine:"unknown",sample_rate:1000};
     const controller=new AbortController();requests.add(controller);active++;sent++;
     const timeout=setTimeout(()=>controller.abort(),3000);
     Promise.resolve().then(()=>{
@@ -30,14 +31,14 @@ export function createPlaybackAttempt({owner, supported=false, eligible=()=>true
     }).catch(()=>{}).finally(()=>{clearTimeout(timeout);requests.delete(controller);active--;});
     return true;
   }
-  function finish(outcome,at=now()){
+  function finish(outcome,at=now(),errorClass="none"){
     if(terminal||!current())return false;
     if(!["first_frame","playing","failure","timeout","cancelled","source_switch"].includes(outcome))return false;
-    terminal=outcome;return send("terminal",outcome,at-startedAt,at);
+    terminal=outcome;return send("terminal",outcome,at-startedAt,at,errorClass);
   }
-  function failure(outcome="failure"){
+  function failure(outcome="failure",errorClass="unknown"){
     if(!["failure","timeout"].includes(outcome))return false;
-    return terminal?send("playback_failure",outcome,now()-startedAt):finish(outcome);
+    return terminal?send("playback_failure",outcome,now()-startedAt,now(),errorClass):finish(outcome,now(),errorClass);
   }
   function dispose(reason="cancelled"){
     if(closed)return;
