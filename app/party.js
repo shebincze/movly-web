@@ -1,6 +1,6 @@
 import { translateUI } from "./i18n.js";
 import { waitingForParty, effectivePartyPosition } from "./party-clock.js";
-import { api, imageURL } from "./api.js";
+import { api, apiContextKey, imageURL } from "./api.js";
 import { el, button, showDialog, toast } from "./ui.js";
 let state = null,
   host = false,
@@ -12,28 +12,67 @@ let generation = 0,
   timer = null,
   opening = false,
   presented = null;
-let playback = null, playbackSequence = 0;
+let playback = null, playbackSequence = 0, protocol = null;
 const key = "movly.party.device";
 let deviceId = sessionStorage.getItem(key);
 if (!deviceId) {
   deviceId = crypto.randomUUID();
   sessionStorage.setItem(key, deviceId);
 }
-export const partyState = () => state;
-export const partyIsHost = () => host;
-export const partyWaiting = () => waitingForParty(state, Date.now(), offset);
-export const partyPosition = () =>
-  effectivePartyPosition(state, Date.now(), offset);
-function episodeID(value) { return value ?? null; }
-function roundOf(value) {
-  const round = value?.preparation?.round;
-  return round === undefined ? 0 : round;
+function contextKey() { return JSON.stringify([location.origin, apiContextKey()]); }
+function protocolError() { return new Error(translateUI("Server vrátil neplatný protokol přípravných kol party.")); }
+function discardParty() {
+  generation++;
+  events?.close(); events = null;
+  clearInterval(timer); timer = null;
+  state = null; ready = null; protocol = null;
+  if (playback) playback.stopped = true;
+  playback = null;
 }
+function activeContext() {
+  if (protocol && protocol.context !== contextKey()) { discardParty(); return false; }
+  return true;
+}
+function assertContext(mode) {
+  if (!mode || mode.context !== contextKey()) {
+    if (protocol === mode) discardParty();
+    throw new DOMException("Party context changed", "AbortError");
+  }
+}
+async function negotiateParty() {
+  const context = contextKey();
+  try {
+    const capabilities = await api("party/v2/capabilities");
+    if (context !== contextKey()) throw new DOMException("Party context changed", "AbortError");
+    if (!capabilities || capabilities.preparation_rounds !== true) throw protocolError();
+    return Object.freeze({ context, prefix: "party/v2", modern: true });
+  } catch (error) {
+    if (context !== contextKey()) throw new DOMException("Party context changed", "AbortError");
+    if (error.status !== 404) throw error;
+    return Object.freeze({ context, prefix: "party", modern: false });
+  }
+}
+async function partyAPI(mode, suffix, options) {
+  assertContext(mode);
+  const result = await api(mode.prefix + (suffix ? `/${suffix}` : ""), options);
+  assertContext(mode);
+  return result;
+}
+function validateState(value, mode = protocol) {
+  if (mode?.modern && value?.preparation != null && (!Number.isSafeInteger(value.preparation.round) || value.preparation.round < 0)) throw protocolError();
+}
+export const partyState = () => activeContext() ? state : null;
+export const partyIsHost = () => activeContext() && state !== null && host;
+export const partyWaiting = () => waitingForParty(partyState(), Date.now(), offset);
+export const partyPosition = () =>
+  effectivePartyPosition(partyState(), Date.now(), offset);
+function episodeID(value) { return value ?? null; }
+function roundOf(value) { return protocol?.modern ? value?.preparation?.round : 0; }
 function mediaKey(value) {
   return JSON.stringify([value?.party_id, value?.title_id, episodeID(value?.episode_id)]);
 }
 export function partyPlaybackMatches(attempt) {
-  return Boolean(attempt && attempt === playback && !attempt.stopped
+  return Boolean(activeContext() && attempt && attempt === playback && !attempt.stopped
     && attempt.generation === generation && mediaKey(attempt) === mediaKey(state));
 }
 // Each sample belongs to one actual player attempt. A new round needs a new
@@ -49,7 +88,7 @@ export function beginPartyPlayback(titleID, episode = null) {
 export function reportPartyReady(value, attempt) {
   if (!partyPlaybackMatches(attempt) || typeof value !== "boolean") return false;
   const round = roundOf(state);
-  if (round !== undefined && (!Number.isSafeInteger(round) || round < 0)) return false;
+  if (!Number.isSafeInteger(round) || round < 0) return false;
   ready = { attempt, round, value };
   return true;
 }
@@ -59,7 +98,7 @@ export function endPartyPlayback(attempt) {
   attempt.stopped = true;
 }
 function currentReadiness(sample) {
-  return Boolean(sample && sample.attempt === playback && sample.attempt.generation === generation
+  return Boolean(activeContext() && sample && sample.attempt === playback && sample.attempt.generation === generation
     && mediaKey(sample.attempt) === mediaKey(state) && sample.round === roundOf(state)
     && (!sample.attempt.stopped || sample.value === false));
 }
@@ -68,11 +107,13 @@ function readinessKey(sample) {
 }
 function apply(fresh, expected) {
   if (
+    !activeContext() ||
     expected !== generation ||
     (state && fresh.party_id !== state.party_id) ||
     (state && fresh.version < state.version)
   )
     return false;
+  validateState(fresh);
   if (mediaKey(fresh) !== mediaKey(state) || roundOf(fresh) !== roundOf(state)) ready = null;
   state = fresh;
   return true;
@@ -80,20 +121,21 @@ function apply(fresh, expected) {
 async function preparation(action, sample = null) {
   if (action === "ready" && !currentReadiness(sample)) return false;
   const expected = generation,
+    mode = protocol,
     id = state.party_id,
     sent = Date.now();
   let fresh;
   try {
-    fresh = await api(`party/${id}/preparation`, {
+    fresh = await partyAPI(mode, `${id}/preparation`, {
       method: "POST",
       body: { device_id: deviceId, action, is_host: host, ready: sample?.value ?? false,
-        ...(action === "ready" && sample.round !== undefined ? { expected_round: sample.round } : {}) },
+        ...(action === "ready" && mode.modern ? { expected_round: sample.round } : {}) },
     });
   } catch (error) {
     if (action !== "ready" || error.status !== 409 || error.code !== "party_preparation_round_mismatch") throw error;
     if (expected === generation && state?.party_id === id) {
       if (ready === sample && playback === sample.attempt) ready = null;
-      const reconciled = await api(`party/${id}`);
+      const reconciled = await partyAPI(mode, id);
       // apply invalidates samples only when their media/round changes. A new
       // player decision made while this GET was pending must survive.
       if (expected === generation && state?.party_id === id) {
@@ -116,6 +158,7 @@ async function preparation(action, sample = null) {
 }
 async function openSources() {
   if (
+    !activeContext() ||
     !state?.preparation?.started_at ||
     presented === mediaKey(state) ||
     opening
@@ -142,18 +185,22 @@ async function openSources() {
           translateUI("Epizoda společného sledování není dostupná."),
         );
     }
-    if (expected !== generation || state?.party_id !== id || mediaKey(state) !== media) return;
+    if (!activeContext() || expected !== generation || state?.party_id !== id || mediaKey(state) !== media) return;
     const { sources } = await import("./player.js");
-    if (expected !== generation || mediaKey(state) !== media) return;
+    if (!activeContext() || expected !== generation || mediaKey(state) !== media) return;
     presented = media;
     await sources(title, selectedEpisode);
   } finally {
     opening = false;
   }
 }
-async function activate(fresh, isHost) {
+async function activate(fresh, isHost, mode = null) {
+  if (!mode) mode = await negotiateParty();
   await leaveParty();
+  assertContext(mode);
+  validateState(fresh, mode);
   generation++;
+  protocol = mode;
   state = fresh;
   host = isHost;
   ready = null;
@@ -161,7 +208,8 @@ async function activate(fresh, isHost) {
   bestRTT = Infinity;
   await preparation("register");
   const eventGeneration = generation;
-  events = new EventSource(`/api/app/party/${state.party_id}/events`);
+  assertContext(mode);
+  events = new EventSource(`/api/app/${mode.prefix}/${state.party_id}/events`);
   events.addEventListener("party", (event) => {
     try {
       if (apply(JSON.parse(event.data), eventGeneration))
@@ -175,7 +223,7 @@ async function activate(fresh, isHost) {
     busy = false;
   const expected = generation;
   timer = setInterval(async () => {
-    if (busy || expected !== generation || !state) return;
+    if (busy || !activeContext() || expected !== generation || !state) return;
     busy = true;
     try {
       const sample = ready,
@@ -189,7 +237,7 @@ async function activate(fresh, isHost) {
         lastHeartbeat = Date.now();
       }
       if (expected === generation && state && events?.readyState !== EventSource.OPEN) {
-        const fresh = await api(`party/${state.party_id}`);
+        const fresh = await partyAPI(mode, state.party_id);
         apply(fresh, expected);
       }
       await openSources();
@@ -205,19 +253,12 @@ async function activate(fresh, isHost) {
 }
 export async function leaveParty() {
   const previous = state,
-    wasHost = host;
-  generation++;
-  events?.close();
-  events = null;
-  clearInterval(timer);
-  timer = null;
-  state = null;
-  ready = null;
-  if (playback) playback.stopped = true;
-  playback = null;
-  if (previous)
-    await api(
-      `party/${previous.party_id}/${wasHost ? "leave" : "preparation"}`,
+    wasHost = host,
+    mode = protocol;
+  discardParty();
+  if (previous && mode?.context === contextKey())
+    await partyAPI(
+      mode, `${previous.party_id}/${wasHost ? "leave" : "preparation"}`,
       {
         method: "POST",
         body: wasHost
@@ -231,17 +272,18 @@ export async function leaveParty() {
       },
     );
 }
+async function enterParty(action, body) {
+  const mode = await negotiateParty();
+  await leaveParty();
+  const fresh = await partyAPI(mode, action, { method: "POST", body });
+  await activate(fresh, action !== "join", mode);
+}
 export async function hostParty(title, episode) {
   try {
-    await leaveParty();
-    const fresh = await api("party", {
-      method: "POST",
-      body: {
-        title_id: title.id,
-        ...(episode ? { episode_id: episode.id } : {}),
-      },
+    await enterParty("", {
+      title_id: title.id,
+      ...(episode ? { episode_id: episode.id } : {}),
     });
-    await activate(fresh, true);
     const partyId = state.party_id;
     const members = el("ul", { class: "pk-party-members" });
     const count = el("h3", {}, translateUI("Účastníci"));
@@ -358,14 +400,7 @@ export function partyJoinForm() {
       code,
       button(translateUI("Připojit k party"), async () => {
         try {
-          await leaveParty();
-          await activate(
-            await api("party/join", {
-              method: "POST",
-              body: { code: code.value.trim().toUpperCase() },
-            }),
-            false,
-          );
+          await enterParty("join", { code: code.value.trim().toUpperCase() });
           status.textContent = translateUI("Připojeno. Čekám na hostitele.");
           toast(translateUI("Připojeno. Čekám na hostitele."));
         } catch (e) {
@@ -386,10 +421,10 @@ export function partyJoinForm() {
   );
 }
 export async function partyTransport(playing, position) {
-  if (!state || partyWaiting()) return;
-  const expected = generation;
+  if (!activeContext() || !state || partyWaiting()) return;
+  const expected = generation, mode = protocol;
   apply(
-    await api(`party/${state.party_id}/state`, {
+    await partyAPI(mode, `${state.party_id}/state`, {
       method: "PUT",
       body: {
         status: playing ? "playing" : "paused",

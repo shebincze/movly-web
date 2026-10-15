@@ -17,6 +17,7 @@ function harness({
   providerClient,
   playbackEngine,
   nativeResolver,
+  partyStream,
 } = {}) {
   const calls = [];
   const fixture = createFixture();
@@ -25,6 +26,7 @@ function harness({
     providerClient,
     playbackEngine,
     nativeResolver,
+    partyStream,
     secret: "test-secret-for-isolated-app-only",
     HttpError,
     json: (res, status, body) => {
@@ -546,9 +548,9 @@ test("party preparation forwards only through an authenticated profile session",
   assert.equal(forwarded[1], "POST");
   assert.equal(forwarded[2].ready, true);
 });
-test("party readiness preserves optional round zero and rejects lossy or malformed rounds", async () => {
+test("v2 party readiness preserves optional round zero and rejects lossy or malformed rounds", async () => {
   const h = harness({ override: path => path.startsWith("v1/party/") ? { payload: { party_id: "a".repeat(32), version: 1 } } : undefined });
-  const selected = await h.selected(), path = `party/${"a".repeat(32)}/preparation`;
+  const selected = await h.selected(), path = `party/v2/${"a".repeat(32)}/preparation`;
   const base = { action: "ready", device_id: "00000000-0000-0000-0000-000000000001", ready: false, is_host: false };
   for (const round of [undefined, null, 0, 7, Number.MAX_SAFE_INTEGER]) {
     const response = await h.request(path, { method: "POST", cookie: selected.cookie, body: { ...base, ...(round === undefined ? {} : { expected_round: round }) } });
@@ -559,6 +561,66 @@ test("party readiness preserves optional round zero and rejects lossy or malform
   for (const round of [-1, 0.5, "1", Number.MAX_SAFE_INTEGER + 1]) {
     assert.equal((await h.request(path, { method: "POST", cookie: selected.cookie, body: { ...base, expected_round: round } })).status, 400);
   }
+});
+
+test("party capabilities is an authenticated read and preserves old-route absence", async () => {
+  let absent = false;
+  const h = harness({ override: path => {
+    if (path === "v1/party/v2/capabilities") {
+      if (absent) throw Object.assign(new Error("absent"), { status: 404 });
+      return { payload: { preparation_rounds: true } };
+    }
+  } });
+  assert.equal((await h.request("party/v2/capabilities")).status, 401);
+  const login = await h.login();
+  const response = await h.request("party/v2/capabilities", { cookie: login.cookie });
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body, { preparation_rounds: true });
+  assert.equal(h.calls.at(-1)[1], "GET");
+  assert.equal((await h.request("party/v2/capabilities?url=https://other.invalid", { cookie: login.cookie })).status, 400);
+  absent = true;
+  assert.equal((await h.request("party/v2/capabilities", { cookie: login.cookie })).status, 404);
+});
+
+test("old and v2 party HTTP and SSE use explicit authenticated prefixes and closed bodies", async () => {
+  const streams = [], h = harness({ override: path => /^v1\/party(?:\/v2)?(?:[/?]|$)/.test(path) ? { payload: { ok: true } } : undefined,
+    partyStream: async (target, token, device, headers, res) => { streams.push({ target, token, device, headers }); res.status = 200; } });
+  const selected = await h.selected(), id = "a".repeat(32);
+  for (const prefix of ["party", "party/v2"]) {
+    for (const [suffix, method, body] of [["", "POST", { title_id: 42 }], ["join", "POST", { code: "ABCDEF" }], [id, "GET"],
+      [`${id}/preparation`, "POST", { device_id: "00000000-0000-0000-0000-000000000001", action: "ready", ready: true, is_host: false, expected_round: 3 }],
+      [`${id}/state`, "PUT", { status: "paused", position_sec: 2 }], [`${id}/leave`, "POST", {}]]) {
+      const target = prefix + (suffix ? `/${suffix}` : "");
+      const response = await h.request(target, { method, cookie: selected.cookie, ...(body ? { body: { ...body, url: "https://other.invalid" } } : {}) });
+      assert.equal(response.status, 200, target);
+      const sent = h.calls.at(-1);
+      assert.equal(sent[0], `v1/${target}?lang=cs`); assert.equal(sent[1], method);
+      assert.equal(sent[2]?.url, undefined);
+      assert.equal(sent[5]["X-Profile-ID"], "1");
+      if (suffix.endsWith("preparation")) assert.equal(sent[2].expected_round, prefix === "party/v2" ? 3 : undefined);
+    }
+    assert.equal((await h.request(`${prefix}/${id}/events`, { cookie: selected.cookie })).status, 200);
+    assert.equal(streams.at(-1).target, `${prefix}/${id}/events`);
+    assert.equal(streams.at(-1).token, "fixture-token-only");
+    assert.equal(streams.at(-1).headers["X-Profile-ID"], "1");
+  }
+  for (const target of ["party/v3", `party/v2x/${id}`, "party/v2/capabilities/extra", `party/v2/${id}/arbitrary`])
+    assert.equal((await h.request(target, { cookie: selected.cookie })).status, 404, target);
+  for (const expected_round of ["ignored", -1, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal((await h.request(`party/${id}/preparation`, { method: "POST", cookie: selected.cookie,
+      body: { device_id: "00000000-0000-0000-0000-000000000001", action: "ready", ready: false, is_host: false, expected_round } })).status, 200);
+    assert.equal(Object.hasOwn(h.calls.at(-1)[2], "expected_round"), false);
+  }
+});
+
+test("v2 readiness forwards typed round mismatch without cookie mutation or replay", async () => {
+  const h = harness({ override: path => { if (/^v1\/party\/v2\/.+\/preparation/.test(path)) throw Object.assign(new Error("stale round"), { status: 409, code: "party_preparation_round_mismatch" }); } });
+  const selected = await h.selected();
+  const response = await h.request(`party/v2/${"a".repeat(32)}/preparation`, { method: "POST", cookie: selected.cookie,
+    body: { device_id: "00000000-0000-0000-0000-000000000001", action: "ready", ready: true, is_host: false, expected_round: 1 } });
+  assert.equal(response.status, 409); assert.equal(response.body.code, "party_preparation_round_mismatch");
+  assert.equal(response.cookie, undefined);
+  assert.equal(h.calls.filter(call => /^v1\/party/.test(call[0])).length, 1);
 });
 
 test("native provider tickets keep URLs/credentials server-side and reports bind the canonical table", async () => {

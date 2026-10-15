@@ -485,6 +485,10 @@ function createAppHandler({
     ["GET", /^party\/[a-f0-9]{32}$/, []],
     ["POST", /^party\/[a-f0-9]{32}\/(?:preparation|leave)$/, []],
     ["PUT", /^party\/[a-f0-9]{32}\/state$/, []],
+    ["POST", /^party\/v2(?:\/join)?$/, []],
+    ["GET", /^party\/v2\/[a-f0-9]{32}$/, []],
+    ["POST", /^party\/v2\/[a-f0-9]{32}\/(?:preparation|leave)$/, []],
+    ["PUT", /^party\/v2\/[a-f0-9]{32}\/state$/, []],
     ["GET", /^home$/, ["section", "collection", "page", "include_highlights"]],
     ["POST", /^recommendations\/action$/, []],
     ["GET", /^themed-lists$/, []],
@@ -892,6 +896,11 @@ function createAppHandler({
         const body=req.method==="PUT"?objectBody(await readBody(req,4096)):null;
         const result=await call(s,target+cleanQuery(url,rule[2],language),req.method,body);
         json(res,200,result??{});return true;
+      }
+      if (target === "party/v2/capabilities" && req.method === "GET") {
+        cleanQuery(url, []);
+        json(res, 200, await call({ ...s, profile: null }, "party/v2/capabilities"));
+        return true;
       }
       if (!s.profile)
         throw new HttpError(409, "Nejdřív vyber profil.", {
@@ -1580,7 +1589,7 @@ function createAppHandler({
         return true;
       }
       if (
-        /^party\/[a-f0-9]{32}\/events$/.test(target) &&
+        /^party(?:\/v2)?\/[a-f0-9]{32}\/events$/.test(target) &&
         req.method === "GET"
       ) {
         await call(s, "watchlists?lang=cs");
@@ -1755,7 +1764,7 @@ function createAppHandler({
           body = { id: body.id };
         } else if (target.startsWith("integrations/")) {
           body = {};
-        } else if (target === "party") {
+        } else if (target === "party" || target === "party/v2") {
           if (
             !integer(body.title_id) ||
             (body.episode_id != null && !integer(body.episode_id))
@@ -1765,11 +1774,11 @@ function createAppHandler({
             title_id: body.title_id,
             ...(body.episode_id != null ? { episode_id: body.episode_id } : {}),
           };
-        } else if (target === "party/join") {
+        } else if (target === "party/join" || target === "party/v2/join") {
           if (typeof body.code !== "string" || !/^[A-Z0-9]{6}$/.test(body.code))
             throw new HttpError(400, "Neplatný kód party.");
           body = { code: body.code };
-        } else if (/^party\/[a-f0-9]{32}\/preparation$/.test(target)) {
+        } else if (/^party(?:\/v2)?\/[a-f0-9]{32}\/preparation$/.test(target)) {
           if (
             !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(
               body.device_id || "",
@@ -1777,7 +1786,7 @@ function createAppHandler({
             !["register", "start", "ready", "leave"].includes(body.action) ||
             typeof body.is_host !== "boolean" ||
             typeof body.ready !== "boolean" ||
-            (body.expected_round != null && (!Number.isSafeInteger(body.expected_round) || body.expected_round < 0))
+            (target.startsWith("party/v2/") && body.expected_round != null && (!Number.isSafeInteger(body.expected_round) || body.expected_round < 0))
           )
             throw new HttpError(400, "Neplatná příprava party.");
           body = {
@@ -1785,9 +1794,9 @@ function createAppHandler({
             action: body.action,
             is_host: body.is_host,
             ready: body.ready,
-            ...(body.expected_round !== undefined ? { expected_round: body.expected_round } : {}),
+            ...(target.startsWith("party/v2/") && body.expected_round !== undefined ? { expected_round: body.expected_round } : {}),
           };
-        } else if (/^party\/[a-f0-9]{32}\/state$/.test(target)) {
+        } else if (/^party(?:\/v2)?\/[a-f0-9]{32}\/state$/.test(target)) {
           if (
             !["playing", "paused"].includes(body.status) ||
             !Number.isFinite(body.position_sec) ||
@@ -1795,7 +1804,7 @@ function createAppHandler({
           )
             throw new HttpError(400, "Neplatná pozice party.");
           body = { status: body.status, position_sec: body.position_sec };
-        } else if (/^party\/[a-f0-9]{32}\/leave$/.test(target)) {
+        } else if (/^party(?:\/v2)?\/[a-f0-9]{32}\/leave$/.test(target)) {
           body = {};
         } else if (target === "friends/privacy") {
           const raw = body;
