@@ -69,6 +69,7 @@ function createFixture() {
   let next = 2,
     revoked = false;
   const notificationProfiles=new Map();
+  const introModes=new Map();
   const notificationSeries=new Map();
   return async function fixture(path, method, body, token, device, headers) {
     const u = new URL(path, "http://fixture/"),
@@ -158,6 +159,12 @@ function createFixture() {
     }
     if (!headers["X-Profile-ID"] || !headers["X-Profile-Grant"])
       fail(403, "Chybí profil.", "profile_grant_required");
+    if (p === "v1/playback/preferences") {
+      const key = headers["X-Profile-ID"];
+      if (method === "PUT") introModes.set(key, body.intro_skip_mode);
+      return {payload:{intro_skip_mode:introModes.get(key) || "manual"}};
+    }
+    if (p === "v1/playback/segments") return {payload:{duration_ms:Number(u.searchParams.get("duration_ms")),expires_at:Math.floor(Date.now()/1000)+86400,stale:false,segments:[{id:"intro:10000:70000",kind:"intro",start_ms:10000,end_ms:70000,source:"theintrodb",auto_eligible:true}]}};
     const type = u.searchParams.get("type"),
       all = type === "tv" ? series : films;
     if (p === "v1/recommendations/action") return { payload: { status: "ok" } };

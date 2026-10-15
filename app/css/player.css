@@ -329,3 +329,6 @@
   .pk-party-body { padding: 16px 16px 4px; }
   .pk-party-actions { padding: 16px; }
 }
+
+.pk-intro-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.pk-intro-controls[hidden] { display:none; }

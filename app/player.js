@@ -1,3 +1,4 @@
+import { mountIntroSkip } from "./intro-skip.js";
 import { streamPickerSections } from "./stream-recommendations.js";
 import { createDialog as createFeedbackDialog } from "./feedback.js";
 import { playbackDiagnostics } from "./playback-diagnostics.js";
@@ -7,6 +8,7 @@ import { openProviderSettings } from "./provider-settings.js";
 import { reportStream, uploadStream } from "./stream-feedback.js";
 import {
   partyState,
+  partyIsHost,
   partyWaiting,
   partyPosition,
   reportPartyReady,
@@ -656,6 +658,7 @@ async function play(
   offset = null,
   audio = null,
   subtitle = null,
+  introMachine = undefined,
 ) {
   const scope = selection.playback_owner || playbackOwner();
   const revision = ++playRevision;
@@ -1148,33 +1151,13 @@ async function play(
         );
       else void play(t, episode, selection, target, audio, subtitle);
     });
-    const skipIntro = button(
-      translateUI("Přeskočit úvod"),
-      () => {
-        const chapter = session.chapters?.find(
-          (c) =>
-            positionNow() >= c.start &&
-            positionNow() < c.end &&
-            /(?:^|\W)(intro|opening|úvod|znelka|znělka)(?:$|\W)/i.test(c.name),
-        );
-        if (!chapter) return;
-        if (inParty)
-          partyTransport(partyState().status === "playing", chapter.end).catch(
-            (e) => toast(e.message),
-          );
-        else void play(t, episode, selection, chapter.end, audio, subtitle);
-      },
-      "small",
-    );
-    video.addEventListener("timeupdate", () => {
-      skipIntro.hidden = !session.chapters?.some(
-        (c) =>
-          positionNow() >= c.start &&
-          positionNow() < c.end &&
-          /(?:^|\W)(intro|opening|úvod|znelka|znělka)(?:$|\W)/i.test(c.name),
-      );
-    });
-    skipIntro.hidden = true;
+    const skipIntro = el("div", {class:"pk-intro-controls"});
+    handle.introCleanup = mountIntroSkip({container:skipIntro,scope,title:t.id,episode,duration:session.duration,
+      position:positionNow,playing:()=>!video.paused,canSeek:()=>video.readyState>=2&&!partyWaiting()&&(!inParty||partyIsHost()),
+      chapters:session.chapters,current:()=>current===handle&&!handle.cancelled,
+      machine:introMachine,seek:(target,machine)=>inParty
+        ? partyTransport(partyState().status==="playing",target)
+        : play(t,episode,selection,target,audio,subtitle,machine)});
     video.addEventListener("ended", async () => {
       try {
         await history();
@@ -1501,6 +1484,7 @@ export async function stop() {
   if (!handle) return;
   current = null;
   handle.cancelled = true;
+  handle.introCleanup?.();
   clearTimeout(handle.prepare);
   clearInterval(handle.timer);
   clearInterval(handle.subtitleTimer);
