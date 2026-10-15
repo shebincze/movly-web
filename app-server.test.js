@@ -27,7 +27,7 @@ function json(res, status, payload) {
   res.body = payload;
 }
 
-function makeHandler(role, calls, premiumUntil = null) {
+function makeHandler(role, calls, premiumUntil = null, capabilityResult = null) {
   const user = {
     username: "mod",
     display_name: "Mod",
@@ -75,6 +75,11 @@ function makeHandler(role, calls, premiumUntil = null) {
     calls.push({ path, method, body });
     if (path === "v1/auth/login") return { payload: { token: "tok-1", user } };
     if (path === "v1/auth/me") return { payload: user };
+    if (path === "v1/capabilities/negotiate" && method === "POST") {
+      if (capabilityResult instanceof Error) throw capabilityResult;
+      return { payload: capabilityResult || { schema_version: 1, revision: `cap1.${"a".repeat(64)}`, cache_ttl_seconds: 300,
+        server_capabilities: [{ id: "catalog_batch", versions: [1], enabled: true }], negotiated: [{ id: "catalog_batch", version: 1 }] } };
+    }
     if (path.startsWith("v1/stream-deletion-requests2/?"))
       return { payload: listPayload("stream-deletion-requests2") };
     if (path.startsWith("v1/stream-deletion-requests/?"))
@@ -137,6 +142,39 @@ function makeHandler(role, calls, premiumUntil = null) {
     production: false,
   });
 }
+
+test("capability negotiation accepts only the bounded schema and forwards the request unchanged", async () => {
+  const calls = [];
+  const handle = makeHandler("vip", calls);
+  const cookie = await login(handle);
+  const body = { schema_version: 1, client_capabilities: [{ id: "catalog_batch", versions: [1] }] };
+  const res = fakeResponse();
+  await handle(requestFor(cookie, "POST", "capabilities/negotiate", body), res,
+    new URL("http://localhost/api/app/capabilities/negotiate"));
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(calls.find(call => call.path === "v1/capabilities/negotiate").body, body);
+  for (const invalid of [
+    { ...body, extra: true },
+    { schema_version: 1, client_capabilities: [{ id: "catalog_batch", versions: [1, 1] }] },
+    { schema_version: 1, client_capabilities: Array.from({ length: 17 }, (_, i) => ({ id: `cap_${i}`, versions: [1] })) },
+  ]) {
+    const rejected = fakeResponse();
+    await handle(requestFor(cookie, "POST", "capabilities/negotiate", invalid), rejected,
+      new URL("http://localhost/api/app/capabilities/negotiate"));
+    assert.equal(rejected.statusCode, 400);
+  }
+});
+
+test("optional capability 401 preserves the app session cookie", async () => {
+  const calls = [];
+  const handle = makeHandler("vip", calls, null, new HttpError(401, "old server"));
+  const cookie = await login(handle);
+  const res = fakeResponse();
+  await handle(requestFor(cookie, "POST", "capabilities/negotiate", { schema_version: 1, client_capabilities: [] }), res,
+    new URL("http://localhost/api/app/capabilities/negotiate"));
+  assert.equal(res.statusCode, 401);
+  assert.equal(res.headers["set-cookie"], undefined);
+});
 
 async function login(handle) {
   const res = fakeResponse();

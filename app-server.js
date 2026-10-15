@@ -759,6 +759,25 @@ function createAppHandler({
         throw new HttpError(409, "Aktivní profil se změnil.", {
           code: "offline_owner_changed",
         });
+      if (target === "capabilities/negotiate" && req.method === "POST") {
+        const input = objectBody(await readBody(req, 8192));
+        if (Object.keys(input).length !== 2 || input.schema_version !== 1 ||
+            !Array.isArray(input.client_capabilities) || input.client_capabilities.length > 16)
+          throw new HttpError(400, "Neplatná žádost o vyjednání schopností.");
+        const ids = new Set();
+        for (const capability of input.client_capabilities) {
+          if (!capability || typeof capability !== "object" || Array.isArray(capability) ||
+              Object.keys(capability).length !== 2 || typeof capability.id !== "string" ||
+              !/^[a-z][a-z0-9_]{0,63}$/.test(capability.id) || ids.has(capability.id) ||
+              !Array.isArray(capability.versions) || capability.versions.length < 1 || capability.versions.length > 8 ||
+              capability.versions.some(version => !Number.isSafeInteger(version) || version < 1 || version > 1000) ||
+              new Set(capability.versions).size !== capability.versions.length)
+            throw new HttpError(400, "Neplatná žádost o vyjednání schopností.");
+          ids.add(capability.id);
+        }
+        json(res, 200, await call(s, target, "POST", input));
+        return true;
+      }
       if (target === "telemetry/client" && req.method === "POST") {
         const body = objectBody(await readBody(req, 2048));
         const keys = ["event", "outcome", "provider", "duration_ms"];
@@ -1985,7 +2004,7 @@ function createAppHandler({
       }
       // Invalid PIN and optional telemetry must not mutate the login session.
       // Diagnostics still retain their real status/code instead of empty content.
-      if (error.status === 401 && target !== "profile" && target !== "login" && target !== "telemetry/client")
+      if (error.status === 401 && target !== "profile" && target !== "login" && target !== "telemetry/client" && !(req.method === "POST" && target === "capabilities/negotiate"))
         writeSession(res, null, s);
       const status = Number.isInteger(error.status) ? error.status : 500;
       if (

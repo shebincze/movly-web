@@ -2,6 +2,7 @@ import { api, apiContextKey, title } from './api.js';
 import { translateUI, uiLanguage } from './i18n.js';
 import { el, poster, button, toast, countLabel } from './ui.js';
 import { listCard, libraryThumb } from './personal.js';
+import { supportsCatalogBatch, invalidateCapabilityCache } from './capabilities.js';
 
 export function localizedExternalTitle(raw, item, language = uiLanguage()) {
   const mapped = title(raw);
@@ -17,7 +18,43 @@ function validIdentity(item) {
 function assertCurrent(signal, context) {
   if (signal?.aborted || apiContextKey() !== context) throw new DOMException('Context changed', 'AbortError');
 }
-export async function resolveExternalPage(items, request, signal, provider, language = uiLanguage()) {
+let fallbackActive = 0;
+const fallbackWaiters = [];
+function fallbackRequest(signal, run) {
+  return new Promise((resolve, reject) => {
+    const job = async () => {
+      signal?.removeEventListener('abort', onAbort);
+      if (signal?.aborted) { reject(new DOMException('Request aborted', 'AbortError')); return; }
+      fallbackActive++;
+      try { resolve(await run()); } catch (error) { reject(error); }
+      finally {
+        fallbackActive--;
+        const next = fallbackWaiters.shift();
+        if (next) next();
+      }
+    };
+    const onAbort = () => {
+      const index = fallbackWaiters.indexOf(job);
+      if (index >= 0) fallbackWaiters.splice(index, 1);
+      reject(new DOMException('Request aborted', 'AbortError'));
+    };
+    if (signal?.aborted) { reject(new DOMException('Request aborted', 'AbortError')); return; }
+    signal?.addEventListener('abort', onAbort, { once: true });
+    if (fallbackActive < 4) void job(); else fallbackWaiters.push(job);
+  });
+}
+async function resolveLegacy(valid, request, signal, provider, language) {
+  return Promise.all(valid.map(async ({ item }) => {
+    try {
+      const raw = await fallbackRequest(signal, () => request(`tmdb/${item.tmdb_id}?type=${item.kind}`));
+      return localizedExternalTitle(raw, item, language);
+    } catch (error) {
+      if (signal?.aborted || error?.name === 'AbortError') throw error;
+      return placeholder(item, provider);
+    }
+  }));
+}
+export async function resolveExternalPage(items, request, signal, provider, language = uiLanguage(), capabilityResolver = supportsCatalogBatch) {
   const context = apiContextKey();
   const cards = new Array(items.length);
   const valid = [];
@@ -27,6 +64,19 @@ export async function resolveExternalPage(items, request, signal, provider, lang
   });
   if (!valid.length) { assertCurrent(signal, context); return cards; }
 
+  let batchSupported;
+  try { batchSupported = await capabilityResolver(request, signal, context); }
+  catch (error) {
+    if (signal?.aborted || error?.name === 'AbortError' || apiContextKey() !== context) throw error;
+    batchSupported = false;
+  }
+  assertCurrent(signal, context);
+  if (!batchSupported) {
+    const resolved = await resolveLegacy(valid, request, signal, provider, language);
+    assertCurrent(signal, context);
+    valid.forEach(({ pageIndex }, index) => { cards[pageIndex] = resolved[index]; });
+    return cards;
+  }
   try {
     const response = await request('titles/batch', {
       method: 'POST',
@@ -48,6 +98,13 @@ export async function resolveExternalPage(items, request, signal, provider, lang
     return cards;
   } catch (error) {
     if (signal?.aborted || error?.name === 'AbortError' || apiContextKey() !== context) throw error;
+    if (error?.status === 404 || error?.status === 501) {
+      invalidateCapabilityCache(context);
+      const resolved = await resolveLegacy(valid, request, signal, provider, language);
+      assertCurrent(signal, context);
+      valid.forEach(({ pageIndex }, index) => { cards[pageIndex] = resolved[index]; });
+      return cards;
+    }
     return items.map(item => placeholder(item, provider));
   }
 }
@@ -118,7 +175,7 @@ function openCard(actions, card) {
 export async function externalListCards(signal, actions) {
   const owner = actions.owner;
   const context = apiContextKey();
-  const request = (path, options = {}) => api(path, { ...options, signal, expectedOwner: owner });
+  const request = (path, options = {}) => api(path, { ...options, signal: options.signal || signal, expectedOwner: owner });
   const results = await loadExternalOverview(request, signal, context);
   const cards = [], messages = [], previews = [];
   for (const result of results) {
@@ -149,7 +206,7 @@ export async function externalListDetail(params, signal, actions) {
   if (!['trakt', 'simkl'].includes(provider)) throw new Error(translateUI('Neplatná služba.'));
   const owner = actions.owner;
   const context = apiContextKey();
-  const request = (path, options = {}) => api(path, { ...options, signal, expectedOwner: owner });
+  const request = (path, options = {}) => api(path, { ...options, signal: options.signal || signal, expectedOwner: owner });
   const result = await fetchLists(provider, request, signal);
   assertCurrent(signal, context);
   const list = result.lists.find(value => value.id === params.get('external'));

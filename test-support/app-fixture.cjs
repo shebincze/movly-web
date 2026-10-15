@@ -436,7 +436,7 @@ function createFixture({ externalListCount = 0 } = {}) {
     if (/^v1\/tmdb\/\d+$/.test(p)) {
       const id=Number(p.split("/").at(-1)); const tv=u.searchParams.get("type")==="tv";
       const name=tv?"Teorie velkého třesku":id===693134?"Duna: Část druhá":"Český titul "+id;
-      return {payload:{...films[0],id:10000+id+(tv?1000:0),tmdb_id:id,type:tv?"tv":"movie",title:name,all_titles:{cs:name,en:tv?"The Big Bang Theory":"Dune: Part Two"}}};
+      return {payload:{...films[0],id:10000+id+(tv?1000:0),tmdb_id:id,type:tv?"tv":"movie",title:name,original_title:tv?"The Big Bang Theory":"Dune: Part Two",all_titles:{cs:name,en:tv?"The Big Bang Theory":"Dune: Part Two"}}};
     }
     if (p === "v1/watchlists/overview")
       return {
