@@ -73,7 +73,8 @@ function feedbackForm({ kind, view, initialPlatform = "web", diagnostics = null,
   let requestId = crypto.randomUUID(), attempted = null;
   const title = el("input", { required: true, minlength: 3, maxlength: 120, value: diagnostics ? `${diagnostics.provider || "Movly"}: ${diagnostics.stage || "chyba"}` : "" });
   const description = el("textarea", { required: true, minlength: 10, maxlength: 5000, rows: 5 });
-  const platform = el("select", {}, ...Object.entries(platforms).map(([value, label]) => el("option", { value, selected: value === initialPlatform }, label)));
+  const generalPlatform = el("option", { value: "" }, t("Obecný návrh (bez platformy)"));
+  const platform = el("select", {}, generalPlatform, ...Object.entries(platforms).map(([value, label]) => el("option", { value, selected: value === initialPlatform }, label)));
   const message = el("p", { role: "alert", class: "fb-form-error" });
   const submit = el("button", { type: "submit", class: "button primary" });
   const descriptionField = formField("", description);
@@ -86,6 +87,9 @@ function feedbackForm({ kind, view, initialPlatform = "web", diagnostics = null,
   } }, ...types) : null;
   function setKind(next) {
     kind = next;
+    generalPlatform.hidden = generalPlatform.disabled = kind !== "idea";
+    platform.required = kind === "bug";
+    if (kind === "bug" && !platform.value) platform.value = Object.hasOwn(platforms, initialPlatform) ? initialPlatform : "web";
     for (const b of types) { const on = b.dataset.kind === kind; b.setAttribute("aria-checked", String(on)); b.tabIndex = on ? 0 : -1; }
     descriptionField.querySelector("span").textContent = t(kind === "bug" ? "Co se stalo a co jsi očekával/a?" : "Co bys chtěl/a vylepšit a proč?");
     note.textContent = t(kind === "idea" ? "Návrh bude veřejný. Screenshoty a diagnostika zůstávají soukromé." : "Hlášení a odpovědi uvidíš jen ty a tým Movly. Screenshot můžeš přidat po odeslání.");
@@ -112,7 +116,7 @@ function feedbackForm({ kind, view, initialPlatform = "web", diagnostics = null,
   const form = el("form", { class: "dialog-form fb-form", onSubmit: async (e) => {
     e.preventDefault(); submit.disabled = true; message.textContent = "";
     try {
-      const input = { kind, title: title.value, description: description.value, platforms: [platform.value], diagnostics: diagnostics || { app_version: "web-v1", os_version: "", screen: "feedback" } };
+      const input = { kind, title: title.value, description: description.value, platforms: platform.value ? [platform.value] : [], diagnostics: diagnostics || { app_version: "web-v1", os_version: "", screen: "feedback" } };
       const encoded = JSON.stringify(input); if (attempted !== null && attempted !== encoded) requestId = crypto.randomUUID(); attempted = encoded;
       const result = await api("feedback/items", { method: "POST", body: { request_id: requestId, ...input } });
       diagnosticDraft = null;
