@@ -560,7 +560,8 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
       allowedURL(url, options.trustedProvider === true);
       for (const previous of sessions.values())
         if (!previous.analyzing) await stop(previous);
-      await init();
+      if (options.workTiming) await options.workTiming.measure("bff_init", () => init());
+      else await init();
       p = {
         id: crypto.randomBytes(24).toString("hex"),
         owner: who,
@@ -581,7 +582,7 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
       sessions.set(p.id, p);
       const input = `http://127.0.0.1:${port}/${p.id}`;
       let info;
-      try { info = await probe(input); }
+      try { info = options.workTiming ? await options.workTiming.measure("bff_probe", () => probe(input)) : await probe(input); }
       catch (error) { error.diagnosticStage = "video_analysis"; throw error; }
       if (!info.streams?.some((t) => t.codec_type === "video"))
         throw Object.assign(fail(422, "Soubor neobsahuje video."), { diagnosticStage: "video_analysis" });

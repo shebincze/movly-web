@@ -29,13 +29,22 @@ function assertCurrentContext(revision, signal) {
 }
 export async function api(
   path,
-  { method = "GET", body, signal, expectedOwner, optionalProbe = false } = {},
+  { method = "GET", body, signal, expectedOwner, playbackAttempt, optionalProbe = false } = {},
 ) {
   const isOptionalCapabilityProbe = optionalProbe === true && method === "POST" && path === "capabilities/negotiate";
   if (/^(?:admin\/)?feedback(?:\/|$)/.test(path)) requireFeedback();
   const revision = contextRevision;
   const owner = expectedOwner || (contextOwner?.accountId && contextOwner?.profile?.id
     ? {accountId: contextOwner.accountId, profileId: contextOwner.profile.id} : null);
+  const correlatedPath = /^(?:streaming2?\/titles\/[^/]+\/streams(?:\?|$)|sources\/[^/]+\/(?:webshare|hellspy|native)(?:\?|$)|watch-history\/position\/|playback$)/.test(path);
+  const correlation = correlatedPath && typeof playbackAttempt?.correlation === "function" ? playbackAttempt.correlation() : null;
+  const attemptHeader = typeof correlation === "string" && /^[0-9a-f]{32}$/.test(correlation) ? correlation : null;
+  const assertAttempt = () => {
+    assertCurrentContext(revision, signal);
+    if (attemptHeader && playbackAttempt.correlation() !== attemptHeader)
+      throw new DOMException("Playback attempt changed", "AbortError");
+  };
+  assertAttempt();
   let response;
   try {
     response = await fetch(`/api/app/${path}`, {
@@ -45,6 +54,7 @@ export async function api(
       signal,
       headers: {
         Accept: "application/json",
+        ...(attemptHeader ? {"X-Movly-Playback-Attempt": attemptHeader} : {}),
         "X-Movly-App": "1",
         "X-Movly-Language": uiLanguage(),
         ...(owner
@@ -58,24 +68,24 @@ export async function api(
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
   } catch (error) {
-    assertCurrentContext(revision, signal);
+    assertAttempt();
     // Síťová chyba: srozumitelná hláška, ale stále TypeError kvůli offline režimu.
     if (error?.name === "AbortError" || signal?.aborted) throw error;
     throw new TypeError(
       translateUI("Nepodařilo se spojit se serverem Movly. Zkontroluj připojení a zkus to znovu."),
     );
   }
-  assertCurrentContext(revision, signal);
+  assertAttempt();
   let data;
   try {
     data = await response.json();
   } catch {
-    assertCurrentContext(revision, signal);
+    assertAttempt();
     throw new RequestError(502, {
       message: translateUI("Server vrátil nečitelnou odpověď."),
     });
   }
-  assertCurrentContext(revision, signal);
+  assertAttempt();
   if (!response.ok) {
     if (!isOptionalCapabilityProbe && (response.status === 401 || data?.code === "feedback_premium_required")) setFeedbackAccount(null);
     if (!isOptionalCapabilityProbe && (

@@ -107,7 +107,7 @@ export function createPlaybackTelemetryReporter(owner, {
     for (const controller of requests) controller.abort();
     requests.clear();
   }
-  return { failure, observe, dispose, stage: attempt.stage, setEngine: attempt.setEngine, setProvider: attempt.setProvider };
+  return { failure, observe, dispose, correlation: attempt.correlation, stage: attempt.stage, setEngine: attempt.setEngine, setProvider: attempt.setProvider };
 }
 
 // Kept for existing callers that only need a best-effort failure counter.
