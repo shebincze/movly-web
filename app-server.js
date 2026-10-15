@@ -436,6 +436,10 @@ function createAppHandler({
         throw new HttpError(400, "Neplatná řada Domů.");
       if (k === "include_highlights" && !["true", "false"].includes(v))
         throw new HttpError(400, "Neplatný filtr katalogu.");
+      if (k === "has_streams" && !["true", "false", "1", "0"].includes(v))
+        throw new HttpError(400, "Neplatný filtr dostupného zdroje.");
+      if (k === "countries" && !/^[A-Za-z]{2}(,[A-Za-z]{2})*$/.test(v))
+        throw new HttpError(400, "Neplatné kódy zemí původu.");
       if (k === "type" && !["movie", "tv", "both"].includes(v))
         throw new HttpError(400, "Neplatný typ titulu.");
       if (
@@ -486,6 +490,7 @@ function createAppHandler({
     ["GET", /^integrations$/, []],
     ["GET", /^integrations\/(?:trakt|simkl)\/lists$/, []],
     ["GET", /^tmdb\/[1-9]\d*$/, ["type"]],
+    ["GET", /^profiles\/effective-content-policy$/, []],
     ["POST", /^titles\/batch$/, []],
     [
       "POST",
@@ -561,9 +566,13 @@ function createAppHandler({
         "runtime_from",
         "runtime_to",
         "original_language",
+        "has_streams",
+        "countries",
       ],
     ],
     ["GET", /^search\/filters$/, ["q", "type", "page", "limit"]],
+    ["GET", /^autocomplete$/, ["q", "limit"]],
+    ["GET", /^trending-searches$/, ["limit"]],
     ["GET", /^titles\/genres$/, []],
     // Uložené filtry katalogu profilu (skládač filtrů, stejné na všech zařízeních).
     ["GET", /^saved-filters$/, []],
@@ -1641,6 +1650,8 @@ function createAppHandler({
           "Tato funkce není ve webové aplikaci dostupná.",
         );
       let query = target === "titles/batch" ? "" : cleanQuery(url, rule[2], language);
+      if (target === "autocomplete" && (!url.searchParams.get("q")?.trim() || url.searchParams.get("q").length > 100))
+        throw new HttpError(400, "Zadej hledaný výraz o délce 1 až 100 znaků.");
       if (target === "home") {
         if (!Number.isSafeInteger(account.id) || account.id < 1) throw new HttpError(502, "API vrátilo neplatný účet.");
         const currentScope = async () => {

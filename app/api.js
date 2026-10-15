@@ -17,6 +17,13 @@ let contextRevision = 0;
 let contextOwner = null;
 export function invalidateApiContext(owner = null) { contextRevision++; contextOwner = owner; }
 export function apiContextKey() { return `${contextRevision}:${JSON.stringify(contextOwner)}:${uiLanguage()}`; }
+export function apiContextOwner() {
+  const accountId = contextOwner?.accountId,
+    profileId = contextOwner?.profile?.id;
+  return Number.isSafeInteger(accountId) && Number.isSafeInteger(profileId)
+    ? { accountId, profileId }
+    : null;
+}
 function assertCurrentContext(revision, signal) {
   if (revision !== contextRevision || signal?.aborted) throw new DOMException("Context changed", "AbortError");
 }
