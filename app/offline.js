@@ -2,6 +2,7 @@ import { mountIntroSkip } from "./intro-skip.js";
 import { translateUI } from "./i18n.js";
 import { nextReleasedEpisode, episodeReleaseState } from "./episode-policy.js";
 import { api } from "./api.js";
+import { effectiveContentPolicy } from "./effective-policy.js";
 import { el, button, loading, toast } from "./ui.js";
 import {
   allFiles,
@@ -11,6 +12,9 @@ import {
   removeFile,
   verifiedGrant,
   mayRead,
+  hasSupersededPolicyMarker,
+  storeFreshOfflineGrant,
+  denyOfflineGrant,
 } from "./offline-store.js";
 import {
   sameOfflineOwner,
@@ -26,6 +30,9 @@ import {
 } from "./offline-downloads.js";
 window.addEventListener("movly-offline-revoked", () =>
   put("settings", null, "active").catch(() => {}),
+);
+window.addEventListener("movly:offline-policy-protection-failed", () =>
+  toast(translateUI("Změna profilu se uplatnila online, ale offline knihovnu se nepodařilo bezpečně uzamknout. Zůstaň online a obnov stránku.")),
 );
 export async function revokeOfflineContext() {
   window.dispatchEvent(new Event("movly-offline-revoked"));
@@ -70,17 +77,20 @@ export async function registerOffline() {
   return true;
 }
 export async function synchronizeOfflineContext() {
+  const activeBefore = await get("settings", "active").catch(() => null);
   try {
-    await put(
-      "settings",
-      await api("offline-grant", { method: "POST", body: {} }),
-      "active",
-    );
+    let policy = null;
+    try { policy = await effectiveContentPolicy({ refresh: true }); } catch { /* Policy observation must not block online profile use. */ }
+    const receipt = await api("offline-grant", { method: "POST", body: {} });
+    await storeFreshOfflineGrant(receipt, policy);
     await flushOfflineHistory(api);
     void runDownloads();
   } catch (error) {
-    if ([401, 403, 409].includes(error.status))
-      await put("settings", null, "active");
+    if ([401, 403, 409].includes(error.status)) {
+      const retainedKnownMismatch = error.status === 403 &&
+        await hasSupersededPolicyMarker(activeBefore).catch(() => false);
+      if (!retainedKnownMismatch) await denyOfflineGrant(activeBefore).catch(() => false);
+    }
   }
 }
 export async function saveOffline(title, episode, selection) {
