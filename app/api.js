@@ -17,13 +17,21 @@ let contextRevision = 0;
 let contextOwner = null;
 export function invalidateApiContext(owner = null) { contextRevision++; contextOwner = owner; }
 export function apiContextKey() { return `${contextRevision}:${JSON.stringify(contextOwner)}:${uiLanguage()}`; }
+export function apiContextOwner() {
+  const accountId = contextOwner?.accountId,
+    profileId = contextOwner?.profile?.id;
+  return Number.isSafeInteger(accountId) && Number.isSafeInteger(profileId)
+    ? { accountId, profileId }
+    : null;
+}
 function assertCurrentContext(revision, signal) {
   if (revision !== contextRevision || signal?.aborted) throw new DOMException("Context changed", "AbortError");
 }
 export async function api(
   path,
-  { method = "GET", body, signal, expectedOwner } = {},
+  { method = "GET", body, signal, expectedOwner, optionalProbe = false } = {},
 ) {
+  const isOptionalCapabilityProbe = optionalProbe === true && method === "POST" && path === "capabilities/negotiate";
   if (/^(?:admin\/)?feedback(?:\/|$)/.test(path)) requireFeedback();
   const revision = contextRevision;
   const owner = expectedOwner || (contextOwner?.accountId && contextOwner?.profile?.id
@@ -69,8 +77,8 @@ export async function api(
   }
   assertCurrentContext(revision, signal);
   if (!response.ok) {
-    if (response.status === 401 || data?.code === "feedback_premium_required") setFeedbackAccount(null);
-    if (
+    if (!isOptionalCapabilityProbe && (response.status === 401 || data?.code === "feedback_premium_required")) setFeedbackAccount(null);
+    if (!isOptionalCapabilityProbe && (
       response.status === 401 ||
       [
         "profile_grant_required",
@@ -80,7 +88,7 @@ export async function api(
         "session_revoked",
         "account_inactive",
       ].includes(data?.code)
-    )
+    ))
       window.dispatchEvent(new CustomEvent("movly-offline-revoked"));
     throw new RequestError(response.status, data);
   }

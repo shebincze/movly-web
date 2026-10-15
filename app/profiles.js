@@ -1,5 +1,7 @@
 import { translateUI } from "./i18n.js";
 import { api, array } from "./api.js";
+import { apiContextOwner } from "./api.js";
+import { effectiveContentPolicy } from "./effective-policy.js";
 import {
   el,
   button,
@@ -26,6 +28,16 @@ export async function editProfile(profile, done) {
   try {
     const avatars = array(await api("profiles/avatars"));
     if (!dialog.open) return;
+    let effectivePolicy = null;
+    const owner = apiContextOwner();
+    if (profile && owner?.profileId === profile.id) {
+      try {
+        effectivePolicy = await effectiveContentPolicy();
+      } catch (error) {
+        if (error?.status === 401 || error?.status === 403) throw error;
+      }
+      if (!dialog.open) return;
+    }
     let selected = profile?.avatar_url;
     const name = el("input", {
       value: profile?.name || "",
@@ -73,6 +85,23 @@ export async function editProfile(profile, done) {
       el("label", { class: "switch-row" }, el("span", {}, el("strong", {}, title), hint ? el("small", {}, hint) : null), input);
     const policyHint = el("p", { id: "profile-age-policy-hint", class: "muted" },
       translateUI("Věková omezení a tituly bez hodnocení se používají pouze u dětského profilu."));
+    const effectivePolicyStatus = el("p", {
+      class: "muted effective-policy-status",
+      role: "status",
+      "aria-live": "polite",
+    }, effectivePolicy
+      ? translateUI(
+          "Účinná pravidla: {0}; tituly bez hodnocení {1}. Obsah pro dospělé je v katalogu vždy vyloučen.",
+          effectivePolicy.age_controls_active
+            ? translateUI("nejvýše {0} let", effectivePolicy.max_age)
+            : translateUI("věkové omezení neaktivní"),
+          effectivePolicy.allow_unrated ? translateUI("povolené") : translateUI("vyloučené"),
+        )
+      : profile && owner?.profileId === profile.id
+        ? translateUI("Účinná pravidla nejsou ověřená; server dál rozhoduje o dostupném obsahu.")
+        : translateUI("Účinná pravidla zobrazíš po výběru tohoto profilu."));
+    if (effectivePolicy?.verification_source === "verified_legacy_profile")
+      effectivePolicyStatus.append(" ", translateUI("Ověřeno z nastavení vybraného profilu."));
     const policyFields = el("fieldset", { class: "plain-fieldset", "aria-describedby": "profile-age-policy-hint" },
       el("legend", {}, translateUI("Věkové omezení")), ages,
       switchRow(unrated, translateUI("Tituly bez hodnocení"), translateUI("Povolit tituly bez věkového hodnocení")));
@@ -145,6 +174,7 @@ export async function editProfile(profile, done) {
       el("fieldset", { class: "plain-fieldset" }, el("legend", {}, translateUI("Avatar")), grid),
       switchRow(kids, translateUI("Dětský profil")),
       policyHint,
+      effectivePolicyStatus,
       policyFields,
       formField(translateUI("PIN profilu"), pin),
       status,

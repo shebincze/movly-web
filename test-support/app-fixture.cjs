@@ -120,12 +120,35 @@ function createFixture({ externalListCount = 0 } = {}) {
       return {
         payload: require("./default-avatars.json"),
       };
+    if (p === "v1/profiles/effective-content-policy") {
+      const profileId = Number(headers?.["X-Profile-ID"]),
+        isKids = profileId === 2,
+        policy = {
+          schema_version: 1,
+          user_id: 1,
+          profile_id: profileId,
+          is_kids: isKids,
+          age_controls_active: isKids,
+          max_age: isKids ? 7 : null,
+          allow_unrated: !isKids,
+          exclude_adult: isKids,
+          catalog_excludes_adult: true,
+        },
+        hashInput = JSON.stringify([
+          policy.schema_version, policy.user_id, policy.profile_id, policy.is_kids,
+          policy.age_controls_active, policy.max_age, policy.allow_unrated,
+          policy.exclude_adult, policy.catalog_excludes_adult,
+        ]);
+      policy.revision = `ep1.${require("node:crypto").createHash("sha256").update(hashInput).digest("hex")}`;
+      return { payload: policy };
+    }
     if (p === "v1/profiles")
       return {
         payload: [
           {
             id: 1,
             name: "Testovací profil",
+            is_kids: false, max_certification: 18, allow_unrated: true,
             has_pin: false,
             avatar_url:
               "https://res.cloudinary.com/dsnzqq6kh/image/upload/v1768089385/avatar_wolf_jrxa0y.jpg",
@@ -327,6 +350,12 @@ function createFixture({ externalListCount = 0 } = {}) {
         },
       };
     }
+    if (p === "v1/autocomplete") {
+      const q = (u.searchParams.get("q") || "").toLowerCase();
+      return { payload: { suggestions: q ? ["Duna", "Duna: Část druhá"].filter((term) => term.toLowerCase().includes(q) || q.startsWith("dun")) : [] } };
+    }
+    if (p === "v1/trending-searches")
+      return { payload: { trending_searches: [{ query: "Duna", search_count: 12 }, { query: "Oppenheimer", search_count: 9 }] } };
     if (p === "v1/search") {
       const q = u.searchParams.get("q")?.toLowerCase();
       const results = [...films, ...series].filter((t) =>
@@ -407,7 +436,7 @@ function createFixture({ externalListCount = 0 } = {}) {
     if (/^v1\/tmdb\/\d+$/.test(p)) {
       const id=Number(p.split("/").at(-1)); const tv=u.searchParams.get("type")==="tv";
       const name=tv?"Teorie velkého třesku":id===693134?"Duna: Část druhá":"Český titul "+id;
-      return {payload:{...films[0],id:10000+id+(tv?1000:0),tmdb_id:id,type:tv?"tv":"movie",title:name,all_titles:{cs:name,en:tv?"The Big Bang Theory":"Dune: Part Two"}}};
+      return {payload:{...films[0],id:10000+id+(tv?1000:0),tmdb_id:id,type:tv?"tv":"movie",title:name,original_title:tv?"The Big Bang Theory":"Dune: Part Two",all_titles:{cs:name,en:tv?"The Big Bang Theory":"Dune: Part Two"}}};
     }
     if (p === "v1/watchlists/overview")
       return {
