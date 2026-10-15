@@ -1,3 +1,4 @@
+import { preparePlaybackAttemptSupport } from "./playback-attempt-support.js";
 import { setFeedbackAccount } from "./feedback-access.js";
 import { invalidateApiContext } from "./api.js";
 import { openSettingsMenu } from "./settings-menu.js";
@@ -139,6 +140,7 @@ function chrome() {
 }
 function resetProfileContext() {
   invalidateApiContext(session ? { accountId: session.account?.id, profile: session.profile } : null);
+  if (session?.account && session?.profile) void preparePlaybackAttemptSupport();
   resetUserState();
   resetCatalogCache();
 }
@@ -513,7 +515,7 @@ async function render() {
                     : route === "collection"
                       ? collection(params, signal, actions)
                       : route === "admin"
-                        ? admin(params, signal, actions)
+                        ? admin(params, signal, actions, session.account)
                         : library(params, signal, actions));
     if (signal.aborted || revision !== renderRevision) return;
     content.replaceChildren(result);

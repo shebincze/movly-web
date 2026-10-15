@@ -1924,6 +1924,15 @@ function pipeReadableFileStream(stream, res, label) {
 }
 
 function serveStatic(req, res, pathname) {
+  if (pathname === '/app/build-info.js') {
+    const configured = process.env.MOVLY_BUILD_VERSION;
+    const known = typeof configured === 'string' && /^[0-9]{1,7}(\.[0-9]{1,7}){0,3}$/.test(configured);
+    const version = known ? configured : require('./package.json').version;
+    const source = `export const CLIENT_VERSION = ${JSON.stringify(version)};\nexport const BUILD_UNKNOWN = ${!known};\n`;
+    res.writeHead(200, {'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'no-cache'});
+    res.end(req.method === 'HEAD' ? '' : source); return;
+  }
+
   let relativePath = pathname === '/app' || pathname === '/app/'
     ? '/app/index.html'
     : pathname === '/app/tv' || pathname === '/app/tv/'
