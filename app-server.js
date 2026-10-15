@@ -485,6 +485,7 @@ function createAppHandler({
     ["GET", /^integrations$/, []],
     ["GET", /^integrations\/(?:trakt|simkl)\/lists$/, []],
     ["GET", /^tmdb\/[1-9]\d*$/, ["type"]],
+    ["POST", /^titles\/batch$/, []],
     [
       "POST",
       /^integrations\/(?:trakt|simkl)\/(?:authorization(?:\/poll)?|sync|import)$/,
@@ -1629,7 +1630,7 @@ function createAppHandler({
           404,
           "Tato funkce není ve webové aplikaci dostupná.",
         );
-      let query = cleanQuery(url, rule[2], language);
+      let query = target === "titles/batch" ? "" : cleanQuery(url, rule[2], language);
       if (target === "home") {
         if (!Number.isSafeInteger(account.id) || account.id < 1) throw new HttpError(502, "API vrátilo neplatný účet.");
         const currentScope = async () => {
@@ -1702,6 +1703,10 @@ function createAppHandler({
           }
           body = { query: body.query.trim(), title_id: Number(body.title_id), interaction_type: "click",
             position_in_results: body.position_in_results, language };
+        } else if (target === "titles/batch") {
+          if (!Array.isArray(body.items) || body.items.length > 50 || !["cs", "sk", "en"].includes(language))
+            throw new HttpError(400, "Neplatná dávka katalogových titulů.");
+          body = { items: body.items, language };
         } else if (target === "user/hidden-titles") {
           if (!integer(body.title_id) || body.source !== "continue_watching")
             throw new HttpError(400, "Neplatné skrytí titulu.");
