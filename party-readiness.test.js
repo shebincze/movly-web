@@ -149,6 +149,34 @@ test("a reconciliation completing after rejoin cannot clear a new-party sample",
   assert.equal(h.readyCalls()[0].body.ready, true);
 });
 
+test("old 409 reconciliation preserves a new player attempt sampled while GET is pending", async () => {
+  const h = harness(); await h.start(); const old = h.beginPartyPlayback(42, 101);
+  h.reportPartyReady(true, old); let finish, reading;
+  const readStarted = new Promise(resolve => { reading = resolve; });
+  h.intercept((path, options) => {
+    if (options.body?.action === "ready") throw Object.assign(new Error("stale"), { status: 409, code: "party_preparation_round_mismatch" });
+    if (path === `party/${"a".repeat(32)}`) return new Promise(resolve => { finish = resolve; reading(); });
+  });
+  const pending = h.tick(); await readStarted;
+  h.event(snapshot(1));
+  const fresh = h.beginPartyPlayback(42, 101); h.reportPartyReady(true, fresh);
+  finish(snapshot(1)); await pending;
+  h.intercept(null); await h.tick();
+  assert.deepEqual(h.readyCalls().map(call => [call.body.expected_round, call.body.ready]), [[0, true], [1, true]]);
+});
+
+test("a delayed 409 cannot clear a newer decision already sampled before the error arrives", async () => {
+  const h = harness(); await h.start(); const old = h.beginPartyPlayback(42, 101);
+  h.reportPartyReady(true, old); let reject;
+  h.intercept((_path, options) => options.body?.action === "ready" ? new Promise((_resolve, fail) => { reject = fail; }) : undefined);
+  const pending = h.tick();
+  h.event(snapshot(1));
+  const fresh = h.beginPartyPlayback(42, 101); h.reportPartyReady(true, fresh);
+  reject(Object.assign(new Error("stale"), { status: 409, code: "party_preparation_round_mismatch" }));
+  await pending; h.intercept(null); await h.tick();
+  assert.deepEqual(h.readyCalls().map(call => [call.body.expected_round, call.body.ready]), [[0, true], [1, true]]);
+});
+
 test("leaving and rejoining invalidates callbacks even for the same party and episode", async () => {
   const h = harness(); await h.start(); const old = h.beginPartyPlayback(42, 101);
   await h.start();

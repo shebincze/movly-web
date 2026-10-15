@@ -92,12 +92,12 @@ async function preparation(action, sample = null) {
   } catch (error) {
     if (action !== "ready" || error.status !== 409 || error.code !== "party_preparation_round_mismatch") throw error;
     if (expected === generation && state?.party_id === id) {
-      ready = null;
+      if (ready === sample && playback === sample.attempt) ready = null;
       const reconciled = await api(`party/${id}`);
-      // Let the player sample readiness again after reconciliation finishes.
+      // apply invalidates samples only when their media/round changes. A new
+      // player decision made while this GET was pending must survive.
       if (expected === generation && state?.party_id === id) {
         apply(reconciled, expected);
-        ready = null;
       }
     }
     return false;
