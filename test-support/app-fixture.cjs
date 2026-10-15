@@ -60,7 +60,7 @@ const series = [
   type: "tv",
   year: 2023,
 }));
-function createFixture() {
+function createFixture({ externalListCount = 0 } = {}) {
   const feedbackFixture = require("./feedback-fixture.cjs").createFeedbackFixture();
   const lists = [
       { id: 1, name: "Na víkend", item_count: 0, is_default: false },
@@ -389,16 +389,20 @@ function createFixture() {
         },
       };
     }
-    if (p === "v1/integrations/trakt/lists") return { payload: {provider:"trakt", status:"ready", notice:"", retry_at:null, lists:[
-      {id:"watchlist",name:"Watchlist",description:"",items:[{id:"a",name:"Dune: Part Two",kind:"movie",year:2024,tmdb_id:693134,imdb_id:""},{id:"b",name:"The Big Bang Theory",kind:"tv",year:2007,tmdb_id:1418,imdb_id:""}]},
-      {id:"fixture-large",name:"Testovací seznam",description:"Izolovaná testovací data",items:Array.from({length:25},(_,i)=>({id:String(i),name:"English title "+i,kind:"movie",year:2024,tmdb_id:693134+i,imdb_id:""}))}
-    ]}};
-    if (p === "v1/integrations/simkl/lists") return { payload:{provider:"simkl",status:"rate_limited",notice:"",retry_at:"2026-10-12T04:00:00Z",lists:[]} };
+    if (p === "v1/integrations/trakt/lists") {
+      const lists = [
+        {id:"watchlist",name:"Watchlist",description:"",items:[{id:"a",name:"Dune: Part Two",kind:"movie",year:2024,tmdb_id:693134,imdb_id:""},{id:"b",name:"The Big Bang Theory",kind:"tv",year:2007,tmdb_id:1418,imdb_id:""}]},
+        {id:"fixture-large",name:"Testovací seznam",description:"Izolovaná testovací data",items:Array.from({length:25},(_,i)=>({id:String(i),name:"English title "+i,kind:"movie",year:2024,tmdb_id:693134+i,imdb_id:""}))},
+      ];
+      for (let list = 0; list < externalListCount; list++) lists.push({id:`fixture-preview-${list}`,name:`Preview ${list+1}`,description:"Synthetic preview",items:Array.from({length:3},(_,item)=>({id:`${list}-${item}`,name:`Preview title ${list+1}-${item+1}`,kind:"movie",year:2024,tmdb_id:700000+list*3+item,imdb_id:""}))});
+      return { payload: {provider:"trakt", status:"ready", notice:"", retry_at:null, lists} };
+    }
+    if (p === "v1/integrations/simkl/lists") return { payload:{provider:"simkl",status:externalListCount ? "ready" : "rate_limited",notice:"",retry_at:externalListCount ? null : "2026-10-12T04:00:00Z",lists:Array.from({length:externalListCount},(_,list)=>({id:`custom:${list+1}`,name:`Simkl Preview ${list+1}`,description:"Synthetic preview",items:Array.from({length:3},(_,item)=>({id:`${list}-${item}`,name:`Preview title ${list+1}-${item+1}`,kind:"movie",year:2024,tmdb_id:800000+list*3+item,imdb_id:""}))}))} };
     if (p === "v1/titles/batch" && method === "POST") return {payload:{results:(body.items || []).map((identity,index)=>{
       const tv=identity.type==="tv", tmdbID=identity.tmdb_id;
       const name=tv?"Teorie velkého třesku":tmdbID===693134?"Duna: Část druhá":"Český titul "+tmdbID;
       const english=tv?"The Big Bang Theory":tmdbID===693134?"Dune: Part Two":"English title "+tmdbID;
-      return {index,type:identity.type,tmdb_id:tmdbID,status:"found",title:{id:10000+tmdbID+(tv?1000:0),tmdb_id:tmdbID,type:identity.type,title:body.language==="en"?english:name,original_title:english,all_titles:{cs:name,en:english}}};
+      return {index,type:identity.type,tmdb_id:tmdbID,status:"found",title:{id:10000+tmdbID+(tv?1000:0),tmdb_id:tmdbID,type:identity.type,title:body.language==="en"?english:name,original_title:english,all_titles:{cs:name,en:english},...(tmdbID>=700000?{poster_path:"/assets/movly-icon-512.png"}:{})}};
     })}};
     if (/^v1\/tmdb\/\d+$/.test(p)) {
       const id=Number(p.split("/").at(-1)); const tv=u.searchParams.get("type")==="tv";
@@ -483,7 +487,7 @@ if (require.main === module) {
   process.env.DOWNLOAD_TOKEN_SECRET = "fixture-session-secret-not-production";
   process.env.NODE_ENV = "development";
   process.env.MOVLY_API_BASE = `http://127.0.0.1:${process.env.MOVLY_FIXTURE_UPSTREAM_PORT||8087}`;
-  const fixture = createFixture();
+  const fixture = createFixture({externalListCount:Number(process.env.MOVLY_FIXTURE_EXTERNAL_LIST_COUNT)||0});
   const upstream = http.createServer(async (req, res) => {
     let raw = "";
     for await (const chunk of req) raw += chunk;
