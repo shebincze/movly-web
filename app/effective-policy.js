@@ -79,9 +79,12 @@ export async function verifiedLegacyProfilePolicy(profile, expected = apiContext
 }
 
 function unsupportedPolicyEndpoint(error) {
+  return error?.status === 404 || error?.status === 405;
+}
+
+function policyProbeUnavailable(error) {
   if (error?.status === 401 || error?.status === 403) return false;
-  return error instanceof TypeError || error?.status === 404 || error?.status === 405 ||
-    error?.status === 502 || error?.status === 503 || error?.status === 504;
+  return error instanceof TypeError || error?.status === 502 || error?.status === 503 || error?.status === 504;
 }
 
 async function loadLegacyPolicy(signal) {
@@ -92,7 +95,7 @@ async function loadLegacyPolicy(signal) {
     if (!Array.isArray(profiles)) return null;
     return await verifiedLegacyProfilePolicy(profiles.find((profile) => profile?.id === expected.profileId), expected);
   } catch (error) {
-    if (error instanceof EffectivePolicyError || error instanceof TypeError) return null;
+    if (error instanceof EffectivePolicyError) return null;
     throw error;
   }
 }
@@ -115,9 +118,28 @@ export async function effectiveContentPolicy({ signal, refresh = false } = {}) {
         await api("profiles/effective-content-policy", { signal }),
       );
     } catch (error) {
-      if (!unsupportedPolicyEndpoint(error)) throw error;
-      if (cached?.context === context) return cached.policy;
-      policy = await loadLegacyPolicy(signal);
+      if (unsupportedPolicyEndpoint(error)) {
+        // An older server may have changed the stored profile since our last
+        // read. Refresh its complete, selected legacy profile before trusting
+        // a fallback revision.
+        try {
+          policy = await loadLegacyPolicy(signal);
+        } catch (legacyError) {
+          if (!policyProbeUnavailable(legacyError)) throw legacyError;
+          if (signal?.aborted || context !== `${location.origin}:${apiContextKey()}` || requestGeneration !== generation)
+            throw new DOMException("Profile policy context changed", "AbortError");
+          if (cached?.context === context) return cached.policy;
+          return null;
+        }
+      } else if (policyProbeUnavailable(error)) {
+        // A transient outage may reuse only this owner's last verified policy.
+        if (signal?.aborted || context !== `${location.origin}:${apiContextKey()}` || requestGeneration !== generation)
+          throw new DOMException("Profile policy context changed", "AbortError");
+        if (cached?.context === context) return cached.policy;
+        return null;
+      } else {
+        throw error;
+      }
     }
     if (signal?.aborted || context !== `${location.origin}:${apiContextKey()}` || requestGeneration !== generation)
       throw new DOMException("Profile policy context changed", "AbortError");

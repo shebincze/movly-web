@@ -164,3 +164,48 @@ test("unsupported policy endpoint uses only a complete selected legacy profile a
     globalThis.location = oldLocation;
   }
 });
+
+test("unsupported endpoint refreshes legacy settings and ignores a late same-owner profile snapshot", async () => {
+  const { invalidateApiContext } = await import("./app/api.js");
+  const { effectiveContentPolicy, clearEffectivePolicyCache } = await import(moduleURL.href);
+  const oldFetch = globalThis.fetch,
+    oldLocation = globalThis.location;
+  globalThis.location = { origin: "https://fixture.test" };
+  try {
+    clearEffectivePolicyCache();
+    invalidateApiContext({ accountId: 1, profile: { id: 10 } });
+    let releaseOldProfile;
+    let profileReads = 0;
+    globalThis.fetch = async (url) => {
+      if (String(url).endsWith("effective-content-policy"))
+        return { ok: false, status: 404, json: async () => ({ message: "not supported" }) };
+      assert.ok(String(url).endsWith("/profiles"));
+      profileReads++;
+      if (profileReads === 1)
+        return new Promise((resolve) => { releaseOldProfile = () => resolve({
+          ok: true,
+          status: 200,
+          json: async () => [{ id: 10, is_kids: false, max_certification: 7, allow_unrated: false }],
+        }); });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => [{ id: 10, is_kids: true, max_certification: 12, allow_unrated: false }],
+      };
+    };
+    const stale = effectiveContentPolicy({ refresh: true });
+    while (!releaseOldProfile) await new Promise((resolve) => setImmediate(resolve));
+    clearEffectivePolicyCache();
+    const current = await effectiveContentPolicy({ refresh: true });
+    assert.equal(current.is_kids, true);
+    assert.equal(current.max_age, 12);
+    releaseOldProfile();
+    await assert.rejects(stale, { name: "AbortError" });
+    assert.equal((await effectiveContentPolicy()).revision, current.revision);
+    assert.equal(profileReads, 2);
+  } finally {
+    clearEffectivePolicyCache();
+    globalThis.fetch = oldFetch;
+    globalThis.location = oldLocation;
+  }
+});

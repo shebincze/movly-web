@@ -868,12 +868,26 @@ export async function search(params, signal, actions) {
   let suggestionTimer = null,
     suggestionController = null,
     suggestionGeneration = 0,
-    activeSuggestion = -1;
+    activeSuggestion = -1,
+    detachSuggestionAbort = null;
   const closeSuggestions = () => {
     suggestionList.hidden = true;
     input.setAttribute("aria-expanded", "false");
     input.removeAttribute("aria-activedescendant");
     activeSuggestion = -1;
+  };
+  const cancelPendingSuggestions = () => {
+    clearTimeout(suggestionTimer);
+    suggestionTimer = null;
+    suggestionController?.abort();
+    suggestionController = null;
+    detachSuggestionAbort?.();
+    detachSuggestionAbort = null;
+    suggestionGeneration++;
+  };
+  const cancelSuggestions = () => {
+    cancelPendingSuggestions();
+    closeSuggestions();
   };
   const chooseSuggestion = (value) => {
     input.value = value;
@@ -898,8 +912,7 @@ export async function search(params, signal, actions) {
   clear.hidden = !q;
   input.addEventListener("input", () => {
     clear.hidden = !input.value;
-    clearTimeout(suggestionTimer);
-    suggestionController?.abort();
+    cancelPendingSuggestions();
     closeSuggestions();
     const value = input.value.trim();
     if (value.length < 2) return;
@@ -907,13 +920,22 @@ export async function search(params, signal, actions) {
       context = apiContextKey(),
       controller = new AbortController();
     suggestionController = controller;
-    const cancel = () => {
-      clearTimeout(suggestionTimer);
-      controller.abort();
+    const detachAbort = () => {
+      signal?.removeEventListener("abort", cancel);
+      if (detachSuggestionAbort === detachAbort) detachSuggestionAbort = null;
     };
-    if (signal?.aborted) cancel();
-    else signal?.addEventListener("abort", cancel, { once: true });
+    const cancel = () => {
+      if (generation !== suggestionGeneration) return;
+      cancelPendingSuggestions();
+    };
+    detachSuggestionAbort = detachAbort;
+    if (signal?.aborted) {
+      cancel();
+      return;
+    }
+    signal?.addEventListener("abort", cancel, { once: true });
     suggestionTimer = setTimeout(async () => {
+      suggestionTimer = null;
       try {
         const data = await api(`autocomplete?${new URLSearchParams({ q: value, limit: "8" })}`, { signal: controller.signal });
         if (signal?.aborted || generation !== suggestionGeneration || context !== apiContextKey() || input.value.trim() !== value) return;
@@ -932,20 +954,26 @@ export async function search(params, signal, actions) {
       } catch (error) {
         if (error?.name !== "AbortError") closeSuggestions();
       } finally {
-        signal?.removeEventListener("abort", cancel);
+        detachAbort();
+        if (suggestionController === controller) suggestionController = null;
       }
     }, 180);
   });
   input.addEventListener("keydown", (event) => {
     const options = [...suggestionList.querySelectorAll('[role="option"]')];
     if (event.key === "Escape") {
-      if (!suggestionList.hidden) { event.preventDefault(); closeSuggestions(); }
+      if (!suggestionList.hidden || suggestionTimer || suggestionController) {
+        event.preventDefault();
+        cancelSuggestions();
+      }
       return;
     }
     if (suggestionList.hidden || !options.length) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
-      activeSuggestion = (activeSuggestion + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+      activeSuggestion = event.key === "ArrowDown"
+        ? (activeSuggestion + 1) % options.length
+        : activeSuggestion < 0 ? options.length - 1 : (activeSuggestion - 1 + options.length) % options.length;
       options.forEach((option, index) => {
         option.setAttribute("aria-selected", String(index === activeSuggestion));
         option.classList.toggle("active", index === activeSuggestion);
