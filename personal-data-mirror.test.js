@@ -300,6 +300,37 @@ test("snapshot pages still reject repeated entity keys without publishing or adv
   assert.deepEqual(stored.entities, {});
 });
 
+test("a snapshot continuation can extend its 30-minute cursor into the final 30-day cursor", async () => {
+  const { syncPersonalDataMirror } = await import("./app/personal-data-mirror.js");
+  const h = harness();
+  const continuationExpiry = "2026-10-15T12:30:00Z";
+  const finalExpiry = "2026-11-14T12:00:00Z";
+  const request = async (path) => {
+    if (path === "sync/device") return { device_id: deviceId };
+    if (!path.includes("cursor="))
+      return {
+        ...page([entity("rating", 3, "1", "upsert", rating(3))], {
+          more: true, cursor: "snapshot-next", highwater: "1",
+        }),
+        expires_at: continuationExpiry,
+      };
+    assert.ok(path.includes("cursor=snapshot-next"));
+    const staged = [...h.storage.records.values()][0];
+    assert.equal(staged.staging.expiresAt, continuationExpiry);
+    return {
+      ...page([entity("hidden_title", 4, "2", "upsert", hidden(4))], {
+        cursor: "final-30-day-cursor", highwater: "1",
+      }),
+      expires_at: finalExpiry,
+    };
+  };
+  assert.deepEqual(await syncPersonalDataMirror(request, h.options), { status: "complete", pages: 2 });
+  const stored = [...h.storage.records.values()][0];
+  assert.equal(stored.cursor, "final-30-day-cursor");
+  assert.equal(stored.expiresAt, finalExpiry);
+  assert.equal(stored.complete, true);
+});
+
 test("conflicting same-version changes leave the prior mirror and cursor intact", async () => {
   const { syncPersonalDataMirror } = await import("./app/personal-data-mirror.js");
   const h = harness();
