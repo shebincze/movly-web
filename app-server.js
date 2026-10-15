@@ -746,13 +746,15 @@ function createAppHandler({
         const body = objectBody(await readBody(req, 2048));
         const keys = ["event", "outcome", "provider", "duration_ms"];
         if (Object.keys(body).some(key => !keys.includes(key))
-          || !["stream_resolve", "media_opened", "playing"].includes(body.event)
-          || !["failure", "timeout"].includes(body.outcome)
+          || !["stream_resolve", "media_opened", "playing", "first_frame"].includes(body.event)
+          || !["failure", "timeout", "success"].includes(body.outcome)
           || !["", "webshare", "hellspy", "fastshare", "sosac", "stremio"].includes(body.provider)
-          || body.duration_ms !== 0)
+          || (body.outcome === "success" && !["first_frame", "playing"].includes(body.event))
+          || (body.event === "first_frame" && body.outcome !== "success")
+          || !Number.isSafeInteger(body.duration_ms) || body.duration_ms < 0 || body.duration_ms > 3_600_000)
           throw new HttpError(400, "Neplatná diagnostická událost.");
         await call(s, "telemetry/client", "POST", { event: body.event, outcome: body.outcome,
-          provider: body.provider, duration_ms: 0 });
+          provider: body.provider, duration_ms: body.duration_ms });
         res.statusCode = 204;
         res.end();
         return true;

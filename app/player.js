@@ -3,7 +3,7 @@ import { mountIntroSkip } from "./intro-skip.js";
 import { streamPickerSections } from "./stream-recommendations.js";
 import { createDialog as createFeedbackDialog } from "./feedback.js";
 import { playbackDiagnostics } from "./playback-diagnostics.js";
-import { createPlaybackFailureReporter } from "./playback-telemetry.js";
+import { createPlaybackTelemetryReporter } from "./playback-telemetry.js";
 import { translateUI } from "./i18n.js";
 import { openProviderSettings } from "./provider-settings.js";
 import { reportStream, uploadStream } from "./stream-feedback.js";
@@ -664,6 +664,7 @@ async function play(
   subtitle = null,
   introMachine = undefined,
 ) {
+  const attemptStartedAt = performance.now();
   const scope = selection.playback_owner || playbackOwner();
   const revision = ++playRevision;
   await stop();
@@ -689,7 +690,12 @@ async function play(
   const restoreTracks = audio === null && subtitle === null && samePlaybackSource(selection, saved?.selection);
   audio = audio ?? (restoreTracks ? saved.audio.index : 0);
   subtitle = subtitle ?? (restoreTracks ? saved.subtitle.index : -1);
-  const handle = { cancelled: false, reportTelemetry: createPlaybackFailureReporter(scope) };
+  const handle = { cancelled: false };
+  handle.telemetry = createPlaybackTelemetryReporter(scope, {
+    startedAt: attemptStartedAt, diagnosticProvider: selection.diagnostic_provider,
+    isActive: () => !handle.cancelled && current === handle && revision === playRevision,
+  });
+  handle.reportTelemetry = handle.telemetry.failure;
   handle.partyPlayback = beginPartyPlayback(t.id, episode?.id);
   current = handle;
   try {
@@ -751,6 +757,7 @@ async function play(
       class: "video-player",
     });
     handle.video = video;
+    handle.telemetry.observe(video);
     video.playbackRate = inParty ? 1 : mediaPreferences.playback_rate;
     if (inParty) {
       let applying = false,
@@ -1492,6 +1499,7 @@ export async function stop() {
   if (!handle) return;
   current = null;
   handle.cancelled = true;
+  handle.telemetry?.dispose();
   handle.introCleanup?.();
   clearTimeout(handle.prepare);
   clearInterval(handle.timer);
