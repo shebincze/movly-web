@@ -5,11 +5,14 @@ import { listCard, libraryThumb } from './personal.js';
 
 export function localizedExternalTitle(raw, item, language = uiLanguage()) {
   const mapped = title(raw);
+  if (Number.isSafeInteger(item?.tmdb_id) && item.tmdb_id > 0 &&
+      (mapped.tmdb_id !== item.tmdb_id || mapped.type !== item.kind || typeof mapped.original_title !== 'string'))
+    throw new Error('Catalog batch title identity does not match request');
   const name = mapped.all_titles?.[language]?.trim() || mapped.title?.trim() || item.name;
   return { ...mapped, title: name };
 }
 function validIdentity(item) {
-  return Number.isSafeInteger(item?.tmdb_id) && item.tmdb_id > 0 && ['movie', 'tv'].includes(item.kind);
+  return Number.isSafeInteger(item?.tmdb_id) && item.tmdb_id > 0 && item.tmdb_id <= 2147483647 && ['movie', 'tv'].includes(item.kind);
 }
 function assertCurrent(signal, context) {
   if (signal?.aborted || apiContextKey() !== context) throw new DOMException('Context changed', 'AbortError');
@@ -44,7 +47,7 @@ export async function resolveExternalPage(items, request, signal, provider, lang
     valid.forEach(({ pageIndex }, index) => { cards[pageIndex] = resolved[index]; });
     return cards;
   } catch (error) {
-    if (signal.aborted || error?.name === 'AbortError' || apiContextKey() !== context) throw error;
+    if (signal?.aborted || error?.name === 'AbortError' || apiContextKey() !== context) throw error;
     return items.map(item => placeholder(item, provider));
   }
 }
@@ -109,11 +112,11 @@ export async function externalListCards(signal, actions) {
         meta: countLabel(list.items.length, translateUI('položka'), translateUI('položky'), translateUI('položek')),
         tag: translateUI('Externí seznam'), tone: 'external' });
       cards.push(card);
-      Promise.all(list.items.slice(0, 3).map(item => resolve(item).catch(() => null))).then(found => {
+      resolveExternalPage(list.items.slice(0, 3), request, signal, result.provider, uiLanguage()).then(found => {
         const art = found.map(t => t?.poster_path).filter(Boolean);
         if (signal.aborted || !art.length) return;
         card.querySelector('.lib-stack').replaceChildren(...[0, 1, 2].map(i => libraryThumb(art[i], 'lib-stack-art')));
-      });
+      }).catch(() => {});
     }
   }
   return { cards, notices: messages };

@@ -5,8 +5,9 @@ const modulePromise = import('./app/external-lists.js');
 
 function item(kind, tmdb_id, name = `Remote ${tmdb_id}`) { return { kind, tmdb_id, name, id: `list-${tmdb_id}` }; }
 function found(index, identity, id = index + 1, name = `Title ${identity.tmdb_id}`) {
-  return { index, type: identity.kind, tmdb_id: identity.tmdb_id, status: 'found',
-    title: { id, title: name, type: identity.kind, tmdb_id: identity.tmdb_id } };
+  const type = identity.kind || identity.type;
+  return { index, type, tmdb_id: identity.tmdb_id, status: 'found',
+    title: { id, title: name, original_title: name, type, tmdb_id: identity.tmdb_id } };
 }
 
 test('external title uses the selected catalog language with the server title as fallback', async () => {
@@ -34,15 +35,16 @@ test('one batch preserves mixed types, duplicate TMDB identities, and duplicate 
 
 test('invalid or missing IDs stay in place and are omitted from the batch request', async () => {
   const { resolveExternalPage } = await modulePromise;
-  const items = [item('movie', 9), item('movie', 0), {kind:'tv',name:'No ID'}, item('person', 10)];
+  const items = [item('movie', 9), item('tv', 2147483647), item('movie', 2147483648),
+    item('movie', Number.MAX_SAFE_INTEGER), item('movie', 0), {kind:'tv',name:'No ID'}, item('person', 10)];
   let body;
   const cards = await resolveExternalPage(items, async (path, options) => {
     body = options.body;
-    return {results:[found(0, items[0], 91)]};
+    return {results:[found(0, items[0], 91), found(1, items[1], 92)]};
   }, new AbortController().signal, 'simkl', 'cs');
-  assert.deepEqual(body.items, [{type:'movie',tmdb_id:9}]);
-  assert.deepEqual(cards.map(card => card.unresolved === true), [false, true, true, true]);
-  assert.match(cards[2].title, /No ID/);
+  assert.deepEqual(body.items, [{type:'movie',tmdb_id:9},{type:'tv',tmdb_id:2147483647}]);
+  assert.deepEqual(cards.map(card => card.unresolved === true), [false, false, true, true, true, true, true]);
+  assert.match(cards[5].title, /No ID/);
 });
 
 test('an empty page is valid and makes no request', async () => {
@@ -79,6 +81,18 @@ test('failed and malformed batch responses fail closed to ordered placeholders',
   assert.match(failed[1].id, /tv:8/);
 });
 
+test('nested title identity must match the echoed batch identity', async () => {
+  const { resolveExternalPage } = await modulePromise;
+  const source = [item('movie', 8)];
+  const wrongType = found(0, source[0]); wrongType.title.type = 'tv';
+  const wrongTmdb = found(0, source[0]); wrongTmdb.title.tmdb_id = 9;
+  const missingCoreIdentity = found(0, source[0]); delete missingCoreIdentity.title.original_title;
+  for (const entry of [wrongType, wrongTmdb, missingCoreIdentity]) {
+    const cards = await resolveExternalPage(source, async () => ({results:[entry]}), new AbortController().signal, 'simkl', 'en');
+    assert.deepEqual(cards.map(card => card.unresolved), [true]);
+  }
+});
+
 test('a 20-item page and its next page each make exactly one batch request', async () => {
   const { resolveExternalPage } = await modulePromise;
   const all = Array.from({length:21}, (_, i) => item(i % 2 ? 'tv' : 'movie', i + 1));
@@ -87,10 +101,18 @@ test('a 20-item page and its next page each make exactly one batch request', asy
     calls++;
     return {results: options.body.items.map((identity, index) => found(index, identity, calls * 100 + index))};
   };
-  await resolveExternalPage(all.slice(0, 20), request, new AbortController().signal, 'trakt', 'cs');
+  const first = await resolveExternalPage(all.slice(0, 20), request, new AbortController().signal, 'trakt', 'cs');
   assert.equal(calls, 1);
-  await resolveExternalPage(all.slice(20), request, new AbortController().signal, 'trakt', 'cs');
+  assert.equal(first.length, 20);
+  assert.ok(first.every(card => !card.unresolved));
+  assert.deepEqual(first.map(card => card.id), Array.from({length:20}, (_,i)=>100+i));
+  assert.deepEqual(first.map(card => card.type), all.slice(0,20).map(value=>value.kind));
+  const second = await resolveExternalPage(all.slice(20), request, new AbortController().signal, 'trakt', 'cs');
   assert.equal(calls, 2);
+  assert.equal(second.length, 1);
+  assert.equal(second[0].unresolved, undefined);
+  assert.equal(second[0].id, 200);
+  assert.equal(second[0].type, all[20].kind);
 });
 
 test('abort and owner-context changes prevent stale batch results from rendering', async () => {
