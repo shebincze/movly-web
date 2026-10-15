@@ -41,6 +41,7 @@ export async function playbackQuality(params, signal) {
     class: value === hours ? "button primary" : "button secondary",
   }, `${value} h`))),
   el("p", {}, "Vzorek 10 % pokusů, nejvýše osm verzí. První pozorovaný snímek předaný kompozitoru není důkaz fyzického zobrazení. Playing je slabší fallback a nevstupuje do latence snímku. Nedokončené pokusy zůstávají v počtech."),
+  el("p", {}, "Okno vybírá pokusy s událostí ve zvoleném období; přehled zahrnuje jejich uchovaný kontext až sedm dnů."),
   el("p", {}, "p50/p95 jsou horní hranice pevných histogramových intervalů. Časy měření jsou omezené na jednu hodinu. Etapy měří klientem pozorované trvání API a přehrávače, nikoli serverové interní trace. Chybějící data mohou znamenat výpadek sběru."));
   if (!versions.length) page.append(el("p", {}, "V tomto období zatím nejsou data."));
   else page.append(table(["Verze", "Pokusy", "Snímek", "Pokrytí snímkem", "Playing bez snímku", "Chyba", "Timeout", "Zrušeno", "Změna zdroje", "Nedokončeno", "p50 snímku", "p95 snímku"],
