@@ -1166,7 +1166,7 @@ test('TV lite: vstupní stránka a soubory mají správné typy a nezměněné C
       assert.equal(response.status, 200, route);
       assert.match(response.headers['content-type'], /^text\/html/);
       assert.match(response.body, /data-movly-tv="1"/);
-      assert.match(response.body, /src="\/app\/legacy.js\?v=3"/);
+      assert.match(response.body, /src="\/app\/legacy.js\?v=4"/);
       assert.doesNotMatch(response.body, /app\/main.js/);
     }
     const files = {

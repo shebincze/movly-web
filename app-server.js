@@ -1,4 +1,5 @@
 "use strict";
+const tvDiagnosticPolicy = require("./app/tv/diagnostics.js");
 
 const crypto = require("node:crypto");
 const providers = require("./providers-server");
@@ -693,13 +694,12 @@ function createAppHandler({
         if (now - tvDiagnostics.windowStart > 60_000) tvDiagnostics = { windowStart: now, count: 0 };
         if (++tvDiagnostics.count > 120) throw new HttpError(429, "Příliš mnoho diagnostických záznamů.");
         const body = objectBody(await readBody(req, 16384));
-        const id = typeof body.id === "string" && /^[a-z0-9]{1,12}$/.test(body.id) ? body.id : "?";
         const events = Array.isArray(body.events) ? body.events.slice(0, 20) : [];
         for (const event of events) {
           if (!event || typeof event !== "object" || Array.isArray(event)) continue;
-          const type = typeof event.t === "string" && /^[a-z-]{1,16}$/.test(event.t) ? event.t : "?";
-          const line = JSON.stringify({ at: event.s, d: event.d ?? null }).replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 1500);
-          console.log(`[Movly TV] ${id} ${s ? "auth" : "anon"} ${type} ${line}`);
+          const safe = tvDiagnosticPolicy.sanitize(event.t, event.d, event.s);
+          if (!safe) continue;
+          console.log(`[Movly TV] ${s ? "auth" : "anon"} ${safe.t} ${JSON.stringify({ at: safe.s, d: safe.d })}`);
         }
         res.statusCode = 204;
         res.end();
@@ -712,7 +712,7 @@ function createAppHandler({
         if (tvMedia[3] === "index.m3u8" && !tvMediaSeen.has(tvMedia[1])) {
           if (tvMediaSeen.size > 200) tvMediaSeen.clear();
           tvMediaSeen.add(tvMedia[1]);
-          console.log(`[Movly TV] media-playlist cookie=${s ? "yes" : "no"} ua=${String(req.headers["user-agent"] || "").replace(/[^\x20-\x7e]/g, "").slice(0, 160)}`);
+          console.log(`[Movly TV] media-playlist cookie=${s ? "yes" : "no"}`);
         }
         await playback.handle(null, { ...req, method: "GET", headers: req.headers }, res, tvMedia[1], tvMedia[3], tvMedia[2]);
         return true;

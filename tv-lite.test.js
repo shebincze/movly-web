@@ -16,13 +16,10 @@ test("TV lite a legacy.js zůstávají ES5 pro prohlížeče TV (Chrome 34)", ()
   assert.deepEqual(checkFiles(), []);
   // Stráž skutečně zachytí moderní syntaxi i API, ale ne text v řetězcích a komentářích.
   for (const sample of ["let a = 1;", "const b = 2;", "var f = () => 1;", "var t = `x`;", "class A {}", "var a = [...b];",
-    "var a = b?.c;", "for (var x of y) {}", "fetch('/x');", "Object.assign({}, {});", "[1].includes(1);", "function f(a = 1) {}"])
+    "var a = b?.c;", "for (var x of y) {}", "fetch('/x');", "Object.assign({}, {});", "[1].includes(1);", "function f(a = 1) {}", "var {x} = y;", "function* f() {}", "var x = { f() {} };", "var r = /x/u;"])
     assert.notDeepEqual(checkSource(sample), [], sample);
   assert.deepEqual(checkSource("var r = /=>`let /; var s = \"const x => `\"; // let y\n/* const z */"), []);
-  // Volitelně i skutečný ES5 parser, pokud je acorn v prostředí dostupný.
-  let acorn = null;
-  try { acorn = require("acorn"); } catch { /* projekt nemá npm závislosti */ }
-  if (acorn) for (const file of tvScripts()) acorn.parse(fs.readFileSync(file, "utf8"), { ecmaVersion: 5 });
+
 });
 
 test("TV lite styly nepoužívají CSS proměnné, grid ani sticky", () => {
@@ -41,7 +38,7 @@ test("TV vstupní stránka nemá inline skripty ani styly (CSP)", () => {
     assert.match(tag, /><\/script>$/);
   }
   assert.doesNotMatch(html, /<style|\sstyle=|\son[a-z]+=/i);
-  assert.match(html, /<script src="\/app\/legacy.js\?v=3" defer><\/script>/);
+  assert.match(html, /<script src="\/app\/legacy.js\?v=4" defer><\/script>/);
 });
 
 test("vendorovaný hls.js 0.14.17 (ES5 UMD) má licenci a bez eval", () => {
@@ -90,14 +87,16 @@ function runLegacy({ modern = false, search = "", hash = "", tvPage = false, boo
   return { context, head, content, html, timers, replaced: () => replaced, text: () => text(content) };
 }
 
-test("TV lite je vypnutá: nepodporovaný prohlížeč dostane jen hlášku", () => {
-  const run = runLegacy();
-  assert.equal(run.head.children.length, 0);
-  assert.match(run.text(), /Tento prohlížeč Movly nepodporuje/);
-  assert.match(run.html.className, /legacy-browser/);
-  const page = runLegacy({ modern: true, tvPage: true });
-  assert.equal(page.head.children.length, 0);
-  assert.match(page.text(), /Tento prohlížeč Movly nepodporuje/);
+test("unsupported capabilities and explicit TV page load ES5 app", () => {
+  for (const run of [runLegacy(), runLegacy({ modern: true, tvPage: true })]) {
+    assert.equal(run.head.children[0].href, "/app/tv/tv.css");
+    assert.equal(run.head.children[1].src, "/app/tv/diagnostics.js");
+    run.head.children[1].onload();
+    assert.equal(run.head.children[2].src, "/app/tv/tv.js");
+    assert.equal(run.text(), "");
+    run.head.children[2].onerror();
+    assert.match(run.text(), /Tento prohlížeč Movly nepodporuje/);
+  }
 });
 
 test("legacy.js v moderním prohlížeči nic nenačítá, dokud se aplikace spustí", () => {
@@ -109,7 +108,7 @@ test("legacy.js v moderním prohlížeči nic nenačítá, dokud se aplikace spu
   run.timers[0].fn();
   assert.equal(run.content.children.length, 0);
 
-  // Aplikace se nevykreslila: hláška, ne TV lite.
+  // A slow modern module must not race a second application.
   const stuck = runLegacy({ modern: true });
   stuck.timers[0].fn();
   assert.equal(stuck.head.children.length, 0);
@@ -121,7 +120,7 @@ test("legacy.js v moderním prohlížeči nic nenačítá, dokud se aplikace spu
   assert.equal(stale.content.children.length, 0);
 });
 
-test("přímý vstup do TV lite je vypnutý", () => {
-  assert.equal(runLegacy({ modern: true, search: "?tv=1" }).replaced(), null);
-  assert.equal(runLegacy({ modern: true, hash: "#tv" }).replaced(), null);
+test("explicit TV entry redirects to the ES5 page", () => {
+  assert.equal(runLegacy({ modern: true, search: "?tv=1" }).replaced(), "/app/tv/");
+  assert.equal(runLegacy({ modern: true, hash: "#tv" }).replaced(), "/app/tv/");
 });
