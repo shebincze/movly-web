@@ -2039,6 +2039,26 @@ function createAppHandler({
         });
         return true;
       }
+      const personalDataReset = error.payload;
+      if (
+        status === 410 &&
+        /^sync\/v2\/profile-data\/(?:snapshot|changes)$/.test(target) &&
+        personalDataReset?.code === "personal_delta_reset_required" &&
+        ["expired", "retention", "policy_changed", "catalog_changed", "environment_changed"].includes(personalDataReset.reason) &&
+        personalDataReset.reset_required === true &&
+        personalDataReset.preserve_pending_mutations === true &&
+        personalDataReset.snapshot_path === "/sync/v2/profile-data/snapshot"
+      ) {
+        json(res, 410, {
+          message: "Osobní data je potřeba znovu synchronizovat.",
+          code: "personal_delta_reset_required",
+          reason: personalDataReset.reason,
+          reset_required: true,
+          preserve_pending_mutations: true,
+          snapshot_path: "/sync/v2/profile-data/snapshot",
+        });
+        return true;
+      }
       if (status >= 500) {
         console.error(
           `[Movly web] app ${req.method} ${target} -> ${status}: ${error.message}`,
@@ -2047,9 +2067,14 @@ function createAppHandler({
       }
       const retry = error.headers?.get("retry-after");
       if (retry && /^\d+$/.test(retry)) res.setHeader("Retry-After", retry);
+      const personalDataRoute = /^sync\/v2\/profile-data\/(?:snapshot|changes)$/.test(target);
       json(res, status, {
-        message: error.message || "Požadavek se nepodařilo dokončit.",
-        code: error.code || error.payload?.code || null,
+        message: personalDataRoute && status === 410
+          ? "Osobní data se nepodařilo synchronizovat."
+          : error.message || "Požadavek se nepodařilo dokončit.",
+        code: personalDataRoute && status === 410
+          ? null
+          : error.code || error.payload?.code || null,
         ...(target === "home" && error.homeViewerScope ? { viewer_scope: error.homeViewerScope } : {}),
         ...(["source_resolve", "video_analysis", "playback"].includes(error.diagnosticStage) ? { diagnostic_stage: error.diagnosticStage } : {}),
       });
