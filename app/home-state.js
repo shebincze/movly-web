@@ -1,7 +1,8 @@
 // Server-owned composition. No client list names or inferred recommendation data.
-export function homeQuery({ section, collection, page = 1 } = {}) {
-  if (!Number.isSafeInteger(page) || page < 1 || (section && collection)) throw new Error("Neplatná stránka Domů.");
+export function homeQuery({ section, collection, layoutOnly = false, page = 1 } = {}) {
+  if (!Number.isSafeInteger(page) || page < 1 || (section && collection) || layoutOnly && (section || collection || page !== 1)) throw new Error("Neplatná stránka Domů.");
   const q = new URLSearchParams({ include_highlights: "true", page: String(page) });
+  if (layoutOnly) q.set("layout_only", "true");
   for (const [key, value] of Object.entries({ section, collection })) {
     if (value == null) continue;
     if (!/^[a-z0-9_-]{1,100}$/.test(value)) throw new Error("Neplatná řada Domů.");

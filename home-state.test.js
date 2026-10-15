@@ -17,6 +17,7 @@ test("Home paging always uses the same endpoint and rejects mixed selectors",asy
  const {homeQuery}=await modulePromise;
  assert.match(homeQuery({section:"arbitrary-db",page:2}),/^home\?include_highlights=true&page=2&section=arbitrary-db$/);
  assert.match(homeQuery({collection:"saga"}),/collection=saga/);
+ assert.match(homeQuery({layoutOnly:true}),/layout_only=true/);
  for(const args of [{section:"a",collection:"b"},{page:0},{section:"../x"}]) assert.throws(()=>homeQuery(args));
 });
 test("continue shows actual resume or next episode, upcoming uses verified metadata",async()=>{

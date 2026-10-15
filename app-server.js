@@ -143,16 +143,17 @@ function createAppHandler({
       ? { "X-Profile-ID": String(s.profile.id), ...(s.grant ? { "X-Profile-Grant": s.grant } : {}) }
       : {}),
   });
-  async function call(s, target, method = "GET", body = null, extra = {}) {
+  async function upstreamCall(s, target, method = "GET", body = null, extra = {}, options = {}) {
     const identityOnly = (target.startsWith("auth/") && !/^auth\/(?:devices|sessions|device\/push-id)(?:[/?]|$)/.test(target)) || (target === "profiles" && method === "GET");
     return (
       await api(`v1/${target}`, method, body, s?.token, s?.device, {
         ...headersFor(identityOnly ? { ...s, profile: null } : s),
         ...(/^(?:admin\/)?feedback(?:\/|$)/.test(target) ? { "X-Movly-Feedback-Diagnostics": "1" } : {}),
         ...extra,
-      })
+      }, options)
     ).payload;
   }
+  const call = upstreamCall;
   const integer = (value) =>
     (typeof value === "number" || typeof value === "string") &&
     /^[1-9]\d*$/.test(String(value)) &&
@@ -500,7 +501,7 @@ function createAppHandler({
     ["GET", /^party\/v2\/[a-f0-9]{32}$/, []],
     ["POST", /^party\/v2\/[a-f0-9]{32}\/(?:preparation|leave)$/, []],
     ["PUT", /^party\/v2\/[a-f0-9]{32}\/state$/, []],
-    ["GET", /^home$/, ["section", "collection", "page", "include_highlights"]],
+    ["GET", /^home$/, ["section", "collection", "page", "include_highlights", "layout_only"]],
     ["POST", /^recommendations\/action$/, []],
     ["GET", /^themed-lists$/, []],
     ["GET", /^themed-lists\/[a-z0-9_-]+$/, ["page", "limit"]],
@@ -595,6 +596,13 @@ function createAppHandler({
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     const target = url.pathname.slice("/api/app/".length);
+    // Response close means the consumer left only when the response did not
+    // finish normally. IncomingMessage.close also fires on ordinary GETs.
+    const homeController = target === "home" && req.method === "GET" ? new AbortController() : null;
+    const abortHome = () => { if (!res.writableEnded) homeController?.abort(); };
+    if (homeController) { res.once?.("close", abortHome); req.once?.("aborted", abortHome); if (req.aborted) abortHome(); }
+    const homeDeadline = homeController ? setTimeout(() => homeController.abort(), 8000) : null;
+    const call = (session, path, method = "GET", body = null, extra = {}) => upstreamCall(session, path, method, body, extra, homeController ? { signal: homeController.signal } : {});
     if (!["GET", "HEAD"].includes(req.method)) sameOrigin(req);
     let s = sessionFrom(req);
     const language = ["cs", "sk", "en"].includes(
@@ -1960,6 +1968,10 @@ function createAppHandler({
       }
       json(res, 200, result);
     } catch (error) {
+      if (homeController?.signal.aborted) {
+        if (!res.destroyed && !req.aborted) json(res, 504, { message: "Domů se nepodařilo načíst včas.", code: "home_unavailable" });
+        return true;
+      }
       // Invalid PIN and optional telemetry must not mutate the login session.
       // Diagnostics still retain their real status/code instead of empty content.
       if (error.status === 401 && target !== "profile" && target !== "login" && target !== "telemetry/client")
@@ -1992,6 +2004,9 @@ function createAppHandler({
         ...(target === "home" && error.homeViewerScope ? { viewer_scope: error.homeViewerScope } : {}),
         ...(["source_resolve", "video_analysis", "playback"].includes(error.diagnosticStage) ? { diagnostic_stage: error.diagnosticStage } : {}),
       });
+    } finally {
+      clearTimeout(homeDeadline);
+      if (homeController) { res.removeListener?.("close", abortHome); req.removeListener?.("aborted", abortHome); }
     }
     return true;
   };
