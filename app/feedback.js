@@ -1,3 +1,4 @@
+import { requireFeedback } from "./feedback-access.js";
 import { api } from "./api.js";
 import { el, button, icon, loading, errorBox, showDialog, formField, toast } from "./ui.js";
 import { translateUI as t } from "./i18n.js";
@@ -130,11 +131,13 @@ function feedbackForm({ kind, view, initialPlatform = "web", diagnostics = null,
 }
 
 export function createDialog(kind, view, initialPlatform = "web", diagnostics = null) {
+  requireFeedback();
   const form = feedbackForm({ kind, view, initialPlatform, diagnostics, onSent: () => document.querySelector("#dialog").close() });
   const dialog = showDialog(el("div", { class: "dialog-body fb-dialog" }, el("h2", { id: "dialog-title" }, t(kind === "bug" ? "Nahlásit chybu" : "Přidat nápad")), form));
   const revoke = () => dialog.close();
   window.addEventListener("movly-offline-revoked", revoke, { once: true });
-  dialog.addEventListener("close", () => window.removeEventListener("movly-offline-revoked", revoke), { once: true });
+  window.addEventListener("movly-feedback-revoked", revoke, { once: true });
+  dialog.addEventListener("close", () => { window.removeEventListener("movly-offline-revoked", revoke); window.removeEventListener("movly-feedback-revoked", revoke); }, { once: true });
 }
 
 function adminEditor(item, refresh) {
@@ -230,6 +233,7 @@ async function detailContent(id, admin, signal, refresh) {
 }
 
 export async function feedback(params, signal, account = null) {
+  requireFeedback();
   const currentOwner = account?.username || null;
   if (diagnosticOwner !== currentOwner) diagnosticDraft = null;
   diagnosticOwner = currentOwner;

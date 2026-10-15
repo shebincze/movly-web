@@ -1077,8 +1077,8 @@ test("feedback requires authentication and rejects foreign-origin writes", async
   const response = await h.request("feedback/items/1/vote", { method: "PUT", cookie: login.cookie, origin: "https://foreign.test" });
   assert.equal(response.status, 403); assert.equal(h.calls.length, start);
 });
-test("feedback forwards consumer routes in account scope without a selected profile", async () => {
-  const h = harness(); const login = await h.login();
+test("feedback forwards Premium consumer routes in account scope without a selected profile", async () => {
+  const h = harness({ override: (path) => path === "v1/auth/me" ? { payload: { id: 1, role: "premium", username: "test", is_active: true, is_verified: true } } : undefined }); const login = await h.login();
   assert.equal((await h.request("feedback/items?kind=idea&limit=25", { cookie: login.cookie })).status, 200);
   assert.match(h.calls.at(-1)[0], /^v1\/feedback\/items\?kind=idea&limit=25/);
   assert.equal((await h.request("feedback/items/1/vote", { method: "PUT", cookie: login.cookie })).status, 200);
