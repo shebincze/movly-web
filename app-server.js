@@ -899,7 +899,13 @@ function createAppHandler({
       }
       if (target === "party/v2/capabilities" && req.method === "GET") {
         cleanQuery(url, []);
-        json(res, 200, await call({ ...s, profile: null }, "party/v2/capabilities"));
+        const response = await api("v1/party/v2/capabilities", "GET", null, s.token, s.device,
+          headersFor({ ...s, profile: null }));
+        if (response.status !== 200)
+          throw new HttpError(502, "Server vrátil neplatnou odpověď protokolu party.", {
+            code: "party_capabilities_unexpected_status",
+          });
+        json(res, 200, response.payload);
         return true;
       }
       if (!s.profile)

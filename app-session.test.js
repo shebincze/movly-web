@@ -568,7 +568,7 @@ test("party capabilities is an authenticated read and preserves old-route absenc
   const h = harness({ override: path => {
     if (path === "v1/party/v2/capabilities") {
       if (absent) throw Object.assign(new Error("absent"), { status: 404 });
-      return { payload: { preparation_rounds: true } };
+      return { status: 200, payload: { preparation_rounds: true } };
     }
   } });
   assert.equal((await h.request("party/v2/capabilities")).status, 401);
@@ -580,6 +580,21 @@ test("party capabilities is an authenticated read and preserves old-route absenc
   assert.equal((await h.request("party/v2/capabilities?url=https://other.invalid", { cookie: login.cookie })).status, 400);
   absent = true;
   assert.equal((await h.request("party/v2/capabilities", { cookie: login.cookie })).status, 404);
+});
+
+test("party capabilities rejects unexpected successful upstream status before any mutation", async () => {
+  for (const status of [201, 202, 206]) {
+    const h = harness({ override: path => path === "v1/party/v2/capabilities"
+      ? { status, payload: { preparation_rounds: true } } : undefined });
+    const login = await h.login();
+    h.calls.length = 0;
+    const response = await h.request("party/v2/capabilities", { cookie: login.cookie });
+    assert.equal(response.status, 502, `unexpected upstream ${status}`);
+    assert.equal(response.body.code, "party_capabilities_unexpected_status");
+    assert.equal(h.calls.filter(call => call[0] === "v1/party/v2/capabilities").length, 1);
+    assert.ok(h.calls.every(call => call[1] === "GET"));
+    assert.equal(response.headers["Set-Cookie"], undefined);
+  }
 });
 
 test("old and v2 party HTTP and SSE use explicit authenticated prefixes and closed bodies", async () => {
