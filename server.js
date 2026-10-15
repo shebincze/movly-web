@@ -296,10 +296,13 @@ function apiHeaders(token, sessionId = `web-${crypto.randomUUID()}`) {
   return headers;
 }
 
-async function movlyApiResponse(pathname, method, body, token, sessionId, timeoutMs = API_TIMEOUT_MS, extraHeaders = {}) {
+async function movlyApiResponse(pathname, method, body, token, sessionId, timeoutMs = API_TIMEOUT_MS, extraHeaders = {}, externalSignal = null) {
   const url = `${API_BASE}/${pathname.replace(/^\/+/, '')}`;
   const headers = { ...apiHeaders(token, sessionId), ...extraHeaders };
   const controller = new AbortController();
+  const abortExternal = () => controller.abort();
+  if (externalSignal?.aborted) controller.abort();
+  else externalSignal?.addEventListener("abort", abortExternal, { once: true });
   const options = { method, headers, signal: controller.signal };
   if (body !== undefined && body !== null) {
     headers['Content-Type'] = 'application/json';
@@ -323,6 +326,7 @@ async function movlyApiResponse(pathname, method, body, token, sessionId, timeou
     throw new HttpError(502, `Nepodařilo se spojit s Movly API: ${error.message}`);
   } finally {
     clearTimeout(timeout);
+    externalSignal?.removeEventListener("abort", abortExternal);
   }
 
   let payload = null;
@@ -1989,8 +1993,8 @@ function serveStatic(req, res, pathname) {
 
 const handleApp = createAppHandler({
   offlineEnvironment: API_BASE,
-  api: (target, method, body, token, sessionId, headers) =>
-    movlyApiResponse(target, method, body, token, sessionId, API_TIMEOUT_MS, headers),
+  api: (target, method, body, token, sessionId, headers, options) =>
+    movlyApiResponse(target, method, body, token, sessionId, API_TIMEOUT_MS, headers, options?.signal),
   partyStream: async (target, token, sessionId, headers, res) => {
     const controller = new AbortController();
     res.on('close', () => controller.abort());

@@ -1,7 +1,8 @@
+import { createHomeLoader } from "./home-loader.js";
 import { api, title, imageURL } from "./api.js";
 import { translateUI } from "./i18n.js";
 import { el, button, loading, empty, rail, errorBox, icon } from "./ui.js";
-import { homeSections, retainHome, homeQuery, homeCaption, recommendationAction, HomeImpressions } from "./home-state.js";
+import { retainHome, homeCaption, recommendationAction, HomeImpressions } from "./home-state.js";
 
 const impressions = new HomeImpressions();
 export function resetHomeImpressions() { impressions.clear(); }
@@ -32,6 +33,7 @@ export function homeTracking(signal, actions) {
   return {
     setOwner: value => { owner = value ? { accountId: value.account_id, profileId: value.profile_id } : null; },
     clear: () => observer?.disconnect(),
+    forget: node => { observer?.unobserve(node); node.querySelectorAll("*").forEach(child => observer?.unobserve(child)); },
     observe: (node, item) => { if (node && recommendationAction(item, "view")) { metadata.set(node, item); observer?.observe(node); } },
     detail: item => { send(item, "click")?.catch(() => {}); actions.detail(item); },
     save: item => actions.save(item),
@@ -61,7 +63,7 @@ function genreSection(genres) {
 export function serverHome(signal, actions, carousel) {
   const content = el("div", { class: "native-home" }, loading());
   const tracker = homeTracking(signal, actions);
-  let rows = [], viewer = null, revision = 0, busy = false, pending = false, timer, genres = [];
+  let rows = [], viewer = null, timer, genres = [];
   api("titles/genres", { signal }).then(data => {
     genres = (Array.isArray(data?.genres) ? data.genres : []).filter(g => Number.isSafeInteger(g.id) && g.id > 0 && typeof (g.name_cs || g.name) === "string").slice(0, 16);
     if (rows.length && !signal.aborted) paint();
@@ -69,6 +71,10 @@ export function serverHome(signal, actions, carousel) {
   const rowURL = (row, page = 1) => `#collection?${new URLSearchParams({ source: "home", slug: row.slug, page: String(page) })}`;
   function renderRow(row) {
     const node = el("section", { class: "home-section", "data-home-slug": row.slug });
+    if (row.state === "loading" && !(row.items?.length || row.collections?.length)) {
+      node.append(el("h2", {}, row.name), loading());
+      return node;
+    }
     if (row.kind === "collections") {
       node.classList.add("rail-section");
       node.append(el("h2", {}, row.name), el("div", { class: "collection-banners" }, (row.collections || []).map(c => el("a", {
@@ -107,33 +113,25 @@ export function serverHome(signal, actions, carousel) {
     else if (!rows.length) content.append(empty(translateUI("Domů zatím nemá žádné aktivní řady."), ""));
     if (rows.length && genres.length) content.append(genreSection(genres));
   }
-  async function refresh(section) {
-    if (signal.aborted) return;
-    if (busy) { pending = true; return; }
-    busy = true; let fullReload = false; const current = ++revision;
-    const previousRows = rows, previousViewer = viewer;
-    try {
-      const response = await api(homeQuery({ section }), { signal });
-      if (signal.aborted || current !== revision) return;
-      if (!response.viewer_scope) throw new Error(translateUI("Neplatná odpověď Domů."));
-      const scope = JSON.stringify(response.viewer_scope);
-      const same = viewer === scope;
-      if (!same) rows = [];
-      const fresh = homeSections(response);
-      if (section && !same) { rows = []; tracker.clear(); content.replaceChildren(loading()); fullReload = true; return; }
-      if (section) {
-        if (fresh.length !== 1 || fresh[0].slug !== section) throw new Error(translateUI("Neplatná řada Domů."));
-        rows = rows.map(row => row.slug === section ? retainHome(fresh, rows)[0] : row);
-      } else rows = retainHome(fresh, same ? rows : []);
+  const loader = createHomeLoader({ request: api, signal,
+    onLayout: (response, fresh) => {
+      const scope = JSON.stringify(response.viewer_scope), same = viewer === scope;
+      rows = fresh.map(row => {
+        const old = same && rows.find(old => old.slug === row.slug && old.content_key === row.content_key);
+        return old ? { ...old, name: row.name, subtitle: row.subtitle, display_order: row.display_order } : row;
+      });
       viewer = scope; tracker.setOwner(response.viewer_scope); paint();
-    } catch (error) {
-      if (signal.aborted || current !== revision) return;
-      const errorScope = error.body?.viewer_scope;
-      const policyChanged = error.code === "home_policy_changed" || (errorScope && JSON.stringify(errorScope) !== previousViewer);
-      rows = ![401, 403].includes(error.status) && !policyChanged && viewer === previousViewer ? previousRows : [];
-      paint(error);
-    } finally { busy = false; if ((pending || fullReload) && !signal.aborted) { pending = false; refresh(); } }
-  }
+    },
+    onRow: (row, verified) => {
+      const index = rows.findIndex(old => old.slug === row.slug);
+      if (index < 0) return;
+      rows[index] = retainHome([row], verified ? rows : [])[0];
+      const old = content.querySelector(`[data-home-slug="${row.slug}"]`);
+      if (old) { tracker.forget(old); old.replaceWith(renderRow(rows[index])); }
+    },
+    onError: error => { rows = []; viewer = null; tracker.clear(); paint(error); },
+  });
+  function refresh(section) { if (section) loader.retry(section); else void loader.refresh(); }
   const changed = () => { clearTimeout(timer); timer = setTimeout(() => refresh(), 250); };
   document.addEventListener("movly:personal-changed", changed);
   window.addEventListener("movly:personal-changed", changed);
