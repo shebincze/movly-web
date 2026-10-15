@@ -19,6 +19,7 @@ if (!deviceId) {
   sessionStorage.setItem(key, deviceId);
 }
 export const partyState = () => state;
+export const partyIsHost = () => host;
 export const partyWaiting = () => waitingForParty(state, Date.now(), offset);
 export const partyPosition = () =>
   effectivePartyPosition(state, Date.now(), offset);

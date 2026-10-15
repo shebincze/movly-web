@@ -1,3 +1,4 @@
+import { mountIntroSkip } from "./intro-skip.js";
 import { translateUI } from "./i18n.js";
 import { nextReleasedEpisode, episodeReleaseState } from "./episode-policy.js";
 import { api } from "./api.js";
@@ -273,9 +274,19 @@ export async function offlineLibrary(
         src: `/app/offline-media/${file.id}.mp4`,
         class: "offline-video",
       });
-      video.addEventListener("loadedmetadata", () => {
+      let introCleanup = null;
+      const introControls = el("div", {class:"pk-intro-controls"});
+      video.addEventListener("loadedmetadata", async () => {
         video.currentTime = file.watched ? 0 : file.position || 0;
         video.play().catch(() => {});
+        const owner = await verifiedGrant(active);
+        if (owner && alive && Number.isFinite(video.duration)) {
+          introCleanup?.();
+          introCleanup = mountIntroSkip({container:introControls,scope:owner,title:file.identity?.titleId,
+            episode:file.identity?.type === "tv" ? {season_number:file.identity.season,episode_number:file.identity.episode}:null,
+            duration:video.duration,position:()=>video.currentTime,playing:()=>!video.paused,
+            canSeek:()=>alive,seek:target=>{video.currentTime=target;},current:()=>alive,offline:true});
+        }
       });
       let lastSaved = 0,
         lastSynced = Date.now();
@@ -355,6 +366,7 @@ export async function offlineLibrary(
           { class: "dialog-body" },
           el("h2", { id: "dialog-title" }, file.title),
           video,
+          introControls,
         ),
       );
       let alive = true;
@@ -377,6 +389,7 @@ export async function offlineLibrary(
         "close",
         () => {
           alive = false;
+          introCleanup?.();
           clearInterval(permissionTimer);
           video.pause();
           save(video.ended, true).catch((error) => toast(error.message));

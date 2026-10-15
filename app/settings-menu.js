@@ -1,3 +1,4 @@
+import { openIntroSettings } from "./intro-skip.js";
 import { openNotifications } from "./notifications.js";
 import { notificationLabel } from "./notification-labels.js";
 import { translateUI } from "./i18n.js";
@@ -18,6 +19,7 @@ export function openSettingsMenu({ openProviders }) {
   showDialog(el("div", { class: "dialog-body settings-dialog" },
     el("h2", { id: "dialog-title" }, translateUI("Nastavení")),
     el("nav", { class: "settings-menu", "aria-label": translateUI("Nastavení") },
+      entry("Přeskakování intra", "Nabídka nebo automatické přeskočení", () => void openIntroSettings()),
       entry(notificationLabel("NotificationsEntry"), translateUI("Kam posílat upozornění a přehled novinek"), () => void openNotifications()),
       entry(translateUI("Úložiště a přehrávání"), translateUI("Webshare, FastShare, doplňky a Trakt / Simkl"), () => void openProviders()),
       entry(translateUI("Premium a mince"), translateUI("Zůstatek mincí a prodloužení Premium"), "#premium"),

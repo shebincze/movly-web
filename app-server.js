@@ -910,6 +910,19 @@ function createAppHandler({
         );
         return true;
       }
+      if (target === "playback/preferences" || target === "playback/segments") {
+        if (target === "playback/segments") {
+          if (req.method !== "GET") throw new HttpError(405, "Nepodporovaná metoda.");
+          const query = cleanQuery(url, ["title_id", "season", "episode", "duration_ms"], language);
+          json(res, 200, await call(s, target + query));
+        } else if (req.method === "GET") json(res, 200, await call(s, target));
+        else if (req.method === "PUT") {
+          const body = objectBody(await readBody(req, 4096));
+          if (Object.keys(body).length !== 1 || !["off", "manual", "auto"].includes(body.intro_skip_mode)) throw new HttpError(400, "Neplatné nastavení intra.");
+          json(res, 200, await call(s, target, "PUT", body));
+        } else throw new HttpError(405, "Nepodporovaná metoda.");
+        return true;
+      }
       if (
         target.startsWith("sources/") ||
         target.startsWith("providers/") ||
