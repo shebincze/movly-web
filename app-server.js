@@ -471,6 +471,22 @@ function createAppHandler({
     q.set("lang", language);
     return `?${q}`;
   }
+  function cleanPersonalDataQuery(url, allowed) {
+    const q = new URLSearchParams();
+    for (const [key, value] of url.searchParams) {
+      if (!allowed.includes(key) || q.has(key) || value.length > (key === "cursor" ? 4096 : 64))
+        throw new HttpError(400, "Neplatné stránkování osobních dat.");
+      if (key === "limit" && (!/^[1-9]\d*$/.test(value) || Number(value) > 1000))
+        throw new HttpError(400, "Neplatná velikost stránky osobních dat.");
+      if (key === "device_id" && !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value))
+        throw new HttpError(400, "Neplatné zařízení osobních dat.");
+      if (key === "cursor" && !value)
+        throw new HttpError(400, "Neplatný kurzor osobních dat.");
+      q.append(key, value);
+    }
+    if (!q.has("device_id")) throw new HttpError(400, "Chybí zařízení osobních dat.");
+    return q.size ? `?${q}` : "";
+  }
   const routes = [
     ["GET", /^notifications\/(?:defaults|series\/[1-9]\d*)$/, []],
     ["PUT", /^notifications\/(?:defaults|series\/[1-9]\d*)$/, []],
@@ -485,6 +501,7 @@ function createAppHandler({
     ["DELETE", /^user\/hidden-titles\/[1-9]\d*$/, ["source"]],
     ["GET", /^sync\/v2\/conflicts$/, ["limit", "cursor", "status"]],
     ["GET", /^sync\/v2\/snapshot\/pages$/, ["limit", "page_token"]],
+    ["GET", /^sync\/v2\/profile-data\/(?:snapshot|changes)$/, ["limit", "cursor", "device_id"]],
     ["POST", /^sync\/v2\/mutations$/, []],
     ["POST", /^sync\/v2\/conflicts\/[1-9]\d*\/resolve$/, []],
     ["GET", /^integrations$/, []],
@@ -1668,7 +1685,9 @@ function createAppHandler({
           404,
           "Tato funkce není ve webové aplikaci dostupná.",
         );
-      let query = target === "titles/batch" ? "" : cleanQuery(url, rule[2], language);
+      let query = target === "titles/batch" ? "" : /^sync\/v2\/profile-data\/(?:snapshot|changes)$/.test(target)
+        ? cleanPersonalDataQuery(url, rule[2])
+        : cleanQuery(url, rule[2], language);
       if (target === "autocomplete" && (!url.searchParams.get("q")?.trim() || url.searchParams.get("q").length > 100))
         throw new HttpError(400, "Zadej hledaný výraz o délce 1 až 100 znaků.");
       if (target === "home") {
@@ -2020,6 +2039,26 @@ function createAppHandler({
         });
         return true;
       }
+      const personalDataReset = error.payload;
+      if (
+        status === 410 &&
+        /^sync\/v2\/profile-data\/(?:snapshot|changes)$/.test(target) &&
+        personalDataReset?.code === "personal_delta_reset_required" &&
+        ["expired", "retention", "policy_changed", "catalog_changed", "environment_changed"].includes(personalDataReset.reason) &&
+        personalDataReset.reset_required === true &&
+        personalDataReset.preserve_pending_mutations === true &&
+        personalDataReset.snapshot_path === "/sync/v2/profile-data/snapshot"
+      ) {
+        json(res, 410, {
+          message: "Osobní data je potřeba znovu synchronizovat.",
+          code: "personal_delta_reset_required",
+          reason: personalDataReset.reason,
+          reset_required: true,
+          preserve_pending_mutations: true,
+          snapshot_path: "/sync/v2/profile-data/snapshot",
+        });
+        return true;
+      }
       if (status >= 500) {
         console.error(
           `[Movly web] app ${req.method} ${target} -> ${status}: ${error.message}`,
@@ -2028,9 +2067,14 @@ function createAppHandler({
       }
       const retry = error.headers?.get("retry-after");
       if (retry && /^\d+$/.test(retry)) res.setHeader("Retry-After", retry);
+      const personalDataRoute = /^sync\/v2\/profile-data\/(?:snapshot|changes)$/.test(target);
       json(res, status, {
-        message: error.message || "Požadavek se nepodařilo dokončit.",
-        code: error.code || error.payload?.code || null,
+        message: personalDataRoute && status === 410
+          ? "Osobní data se nepodařilo synchronizovat."
+          : error.message || "Požadavek se nepodařilo dokončit.",
+        code: personalDataRoute && status === 410
+          ? null
+          : error.code || error.payload?.code || null,
         ...(target === "home" && error.homeViewerScope ? { viewer_scope: error.homeViewerScope } : {}),
         ...(["source_resolve", "video_analysis", "playback"].includes(error.diagnosticStage) ? { diagnostic_stage: error.diagnosticStage } : {}),
       });
