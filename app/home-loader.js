@@ -47,6 +47,7 @@ export function createHomeLoader({ request, signal, onLayout, onRow, onError, bu
     }
   }
   async function refresh() {
+    if (signal.aborted) return;
     close(cycle);
     const c = cycle = { generation: ++generation, controller: new AbortController(), jobs: [], queue: [], active: 0, closed: false };
     c.timer = setTimeout(() => {
