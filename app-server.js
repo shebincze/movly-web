@@ -728,6 +728,21 @@ function createAppHandler({
         throw new HttpError(409, "Aktivní profil se změnil.", {
           code: "offline_owner_changed",
         });
+      if (target === "telemetry/client" && req.method === "POST") {
+        const body = objectBody(await readBody(req, 2048));
+        const keys = ["event", "outcome", "provider", "duration_ms"];
+        if (Object.keys(body).some(key => !keys.includes(key))
+          || !["stream_resolve", "media_opened", "playing"].includes(body.event)
+          || !["failure", "timeout"].includes(body.outcome)
+          || !["", "webshare", "hellspy", "fastshare", "sosac", "stremio"].includes(body.provider)
+          || body.duration_ms !== 0)
+          throw new HttpError(400, "Neplatná diagnostická událost.");
+        await call(s, "telemetry/client", "POST", { event: body.event, outcome: body.outcome,
+          provider: body.provider, duration_ms: 0 });
+        res.statusCode = 204;
+        res.end();
+        return true;
+      }
       if (target === "session" && req.method === "GET") {
         if (s.profile) {
           const profiles = await call(s, "profiles");
@@ -1897,9 +1912,9 @@ function createAppHandler({
       }
       json(res, 200, result);
     } catch (error) {
-      // Invalid PIN is a profile error, not a logout. All other API diagnostics
-      // retain their real status/code instead of masquerading as empty content.
-      if (error.status === 401 && target !== "profile" && target !== "login")
+      // Invalid PIN and optional telemetry must not mutate the login session.
+      // Diagnostics still retain their real status/code instead of empty content.
+      if (error.status === 401 && target !== "profile" && target !== "login" && target !== "telemetry/client")
         writeSession(res, null, s);
       const status = Number.isInteger(error.status) ? error.status : 500;
       if (
