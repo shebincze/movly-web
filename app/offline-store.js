@@ -1,5 +1,8 @@
 import { translateUI } from "./i18n.js";
 export const CHUNK_BYTES = 512 * 1024;
+export const OFFLINE_CACHE_NAME = "movly-offline-shell-v23-offline-policy-marker";
+const OFFLINE_POLICY_MARKER_CACHE_NAME = "movly-offline-policy-markers-v1";
+const volatilePolicyBlocks = new Set();
 const request = (r) =>
   new Promise((resolve, reject) => {
     r.onsuccess = () => resolve(r.result);
@@ -127,6 +130,53 @@ function validStoredPolicy(value, owner) {
     value.user_id === owner.accountId && value.profile_id === owner.profileId &&
     typeof value.revision === "string" && /^ep1\.[a-f0-9]{64}$/.test(value.revision);
 }
+async function receiptDigest(receipt) {
+  const value = JSON.stringify({ payload: receipt?.payload, signature: receipt?.signature, publicKey: receipt?.publicKey });
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+}
+function policyMarkerKey(digest) {
+  return new Request(new URL(`/app/offline-policy-markers/${digest}`, self.location.origin));
+}
+async function writePolicyMarkerFallback(receipt, marker) {
+  const digest = await receiptDigest(receipt);
+  const bound = { ...marker, reason: marker.reason || "known_policy_change", grant_digest: digest };
+  volatilePolicyBlocks.add(digest);
+  try {
+    if (!globalThis.caches) return false;
+    const cache = await caches.open(OFFLINE_POLICY_MARKER_CACHE_NAME);
+    await cache.put(policyMarkerKey(digest), new Response(JSON.stringify(bound), {
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function readPolicyMarkerFallback(active, grant) {
+  const digest = await receiptDigest(active);
+  if (volatilePolicyBlocks.has(digest)) return true;
+  try {
+    if (!globalThis.caches) return false;
+    const cache = await caches.open(OFFLINE_POLICY_MARKER_CACHE_NAME), response = await cache.match(policyMarkerKey(digest));
+    if (!response) return false;
+    const marker = await response.json();
+    return marker.grant_digest === digest && marker.user_id === grant.accountId &&
+      marker.profile_id === grant.profileId && (
+        (marker.reason === "known_policy_change" && /^ep1\.[a-f0-9]{64}$/.test(marker.current_revision || "")) ||
+        marker.reason === "authoritative_server_denial"
+      );
+  } catch {
+    return false;
+  }
+}
+async function clearPolicyMarkerFallback(receipt) {
+  try {
+    const digest = await receiptDigest(receipt);
+    volatilePolicyBlocks.delete(digest);
+    if (globalThis.caches) await (await caches.open(OFFLINE_POLICY_MARKER_CACHE_NAME)).delete(policyMarkerKey(digest));
+  } catch { /* A different newly issued receipt has a distinct digest. */ }
+}
 export function effectivePolicySupersedesGrant(previous, policy, grant) {
   if (!policy || policy.user_id !== grant?.accountId || policy.profile_id !== grant?.profileId) return null;
   const sameOwnerKnown = validStoredPolicy(previous, grant);
@@ -157,13 +207,43 @@ async function updateActiveGrant(receipt, change) {
     });
   } finally { db.close(); }
 }
+export async function clearActiveGrantIfMatches(receipt) {
+  if (!receipt?.payload || !receipt?.signature) return false;
+  const db = await database();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction("settings", "readwrite"), store = tx.objectStore("settings");
+      const request = store.get("active");
+      let cleared = false;
+      request.onsuccess = () => {
+        const active = request.result;
+        if (active?.payload === receipt.payload && active?.signature === receipt.signature) {
+          store.put(null, "active");
+          cleared = true;
+        }
+      };
+      tx.oncomplete = () => resolve(cleared);
+      tx.onabort = () => reject(tx.error || new Error("Offline oprávnění se nepodařilo odebrat."));
+    });
+  } finally { db.close(); }
+}
+export async function denyOfflineGrant(receipt) {
+  if (await clearActiveGrantIfMatches(receipt).catch(() => false)) return true;
+  const grant = await verifiedGrant(receipt, Date.now(), { ownershipOnly: true });
+  if (!grant) return false;
+  return writePolicyMarkerFallback(receipt, {
+    user_id: grant.accountId,
+    profile_id: grant.profileId,
+    reason: "authoritative_server_denial",
+  });
+}
 // Policy metadata is local to the existing grant record; the signed receipt stays byte-for-byte intact.
 export async function observeEffectivePolicy(policy) {
   const active = await get("settings", "active"), grant = await verifiedGrant(active, Date.now(), { ownershipOnly: true });
   if (!grant || policy?.user_id !== grant.accountId || policy?.profile_id !== grant.profileId ||
       !/^ep1\.[a-f0-9]{64}$/.test(policy.revision || "")) return false;
   const next = policyTuple(policy);
-  await updateActiveGrant(active, current => {
+  const change = current => {
     const previous = current.effectivePolicy;
     const marker = effectivePolicySupersedesGrant(previous, next, grant);
     const oldMarker = current.supersededPolicy;
@@ -174,7 +254,13 @@ export async function observeEffectivePolicy(policy) {
       effectivePolicy: next,
       ...(retainedMarker ? { supersededPolicy: retainedMarker } : {}),
     };
-  });
+  };
+  try {
+    await updateActiveGrant(active, change);
+  } catch {
+    const marker = effectivePolicySupersedesGrant(active.effectivePolicy, next, grant);
+    if (marker) await writePolicyMarkerFallback(active, marker);
+  }
   return true;
 }
 export async function storeFreshOfflineGrant(receipt, policy) {
@@ -197,6 +283,7 @@ export async function storeFreshOfflineGrant(receipt, policy) {
     ...(superseded ? { supersededPolicy: superseded } :
       !matchingPolicy && sameOwner && previous.supersededPolicy ? { supersededPolicy: previous.supersededPolicy } : {}),
   }, "active");
+  if (matchingPolicy) await clearPolicyMarkerFallback(receipt);
   return true;
 }
 export async function removeFile(id) {
@@ -272,6 +359,7 @@ export async function verifiedGrant(
 }
 export async function hasSupersededPolicyMarker(active) {
   const grant = await verifiedGrant(active, Date.now(), { ownershipOnly: true });
+  if (grant && await readPolicyMarkerFallback(active, grant)) return true;
   const marker = active?.supersededPolicy;
   return Boolean(grant && marker?.user_id === grant.accountId && marker?.profile_id === grant.profileId &&
     /^ep1\.[a-f0-9]{64}$/.test(marker.current_revision || "") &&

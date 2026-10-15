@@ -3,7 +3,7 @@ const {test}=require("node:test");const assert=require("node:assert/strict");con
 test("offline manifest contains every transitive browser module including the worker import",()=>{
  let source=fs.readFileSync(path.join(__dirname,"app/offline-sw.js"),"utf8");
  source=source.replace(/^import .*;\n/,"");
- const manifest=vm.runInNewContext(source.slice(0,source.indexOf('self.addEventListener'))+"\nFILES",{URL,self:{location:{origin:"https://fixture.invalid"}}});
+ const manifest=vm.runInNewContext(source.slice(0,source.indexOf('self.addEventListener'))+"\nFILES",{URL,OFFLINE_CACHE_NAME:"movly-offline-shell-v23-offline-policy-marker",self:{location:{origin:"https://fixture.invalid"}}});
  const seen=new Set();
  function walk(file){
   if(seen.has(file))return;seen.add(file);

@@ -1,5 +1,5 @@
-import { get, mayRead, CHUNK_BYTES } from "./offline-store.js";
-const CACHE = "movly-offline-shell-v21-offline-policy-marker";
+import { get, mayRead, CHUNK_BYTES, OFFLINE_CACHE_NAME } from "./offline-store.js";
+const CACHE = OFFLINE_CACHE_NAME;
 const FILES = ["/app/", "/app/styles.css?v=2", "/app/legacy.js?v=3", ...["catalog", "player", "library", "account"].map(s => `/app/css/${s}.css?v=2`), ...["main", "api", "ui", "catalog", "home", "home-state", "home-loader", "playback-memory", "intro-skip", "intro-skip-policy", "playback-diagnostics", "playback-telemetry", "external-lists", "capabilities", "library", "profiles", "personal", "friends", "admin", "auth", "provider-settings", "settings-menu", "tracking-settings", "notifications", "notification-labels", "stream-feedback", "stream-recommendations", "player", "party", "party-clock", "user-state", "episode-policy", "episode-state", "offline", "offline-store", "feedback", "feedback-access", "offline-history", "offline-downloads", "premium", "search-history", "effective-policy", "i18n", "translations"].map(s => `/app/${s}.js`), "/app/vendor/hls.mjs", ...["thumbs-up", "info", "message-square", "home", "film", "tv", "bookmark", "settings", "smartphone", "monitor", "globe", "search", "plus", "check", "chevron-right", "alert-circle", "arrow-left"].map(name => `/app/vendor/feedback-icons/${name}.svg`)];
 FILES.push("/assets/movly-mark.svg");
 const SHELL_PATHS = new Set(FILES.map(file => new URL(file, self.location.origin).pathname));

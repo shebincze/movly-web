@@ -10,6 +10,7 @@ import {
   removeFile,
   verifiedGrant,
   storeFreshOfflineGrant,
+  denyOfflineGrant,
   CHUNK_BYTES,
   commitDownload,
 } from "./offline-store.js";
@@ -27,7 +28,14 @@ export async function queueOffline(title, episode, selection) {
     throw new Error(translateUI("Epizoda ještě neměla premiéru."));
   let policy = null;
   try { policy = await effectiveContentPolicy({ refresh: true }); } catch { /* Offline metadata is optional for online actions. */ }
-  const receipt = await api("offline-grant", { method: "POST", body: {} });
+  const activeBefore = await get("settings", "active");
+  let receipt;
+  try { receipt = await api("offline-grant", { method: "POST", body: {} }); }
+  catch (error) {
+    if (error.status === 403 && await denyOfflineGrant(activeBefore).catch(() => false))
+      window.dispatchEvent(new Event("movly-offline-revoked"));
+    throw error;
+  }
   if (!(await verifiedGrant(receipt)))
     throw new Error(translateUI("Server nevydal platné offline oprávnění."));
   await storeFreshOfflineGrant(receipt, policy);
@@ -117,10 +125,14 @@ async function download(job) {
     await permitted(job);
     let policy = null;
     try { policy = await effectiveContentPolicy({ refresh: true }); } catch { /* Existing lease remains governed by its signed expiry. */ }
-    const receipt = await ownedAPI("offline-grant", {
-      method: "POST",
-      body: {},
-    });
+    let receipt;
+    try {
+      receipt = await ownedAPI("offline-grant", { method: "POST", body: {} });
+    } catch (error) {
+      if (error.status === 403 && await denyOfflineGrant(job.receipt).catch(() => false))
+        window.dispatchEvent(new Event("movly-offline-revoked"));
+      throw error;
+    }
     if (!(await sameOfflineOwner(job.receipt, receipt)))
       throw new Error(translateUI("Stažení patří k jinému profilu."));
     await storeFreshOfflineGrant(receipt, policy);

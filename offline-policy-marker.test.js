@@ -6,6 +6,7 @@ const { offlineSigner } = require("./offline-grant");
 
 function installIndexedDB() {
   const stores = new Map(["files", "chunks", "settings", "history", "downloads"].map(name => [name, new Map()]));
+  let failSettingsWrites = false;
   globalThis.indexedDB = {
     open() {
       const request = {};
@@ -13,8 +14,15 @@ function installIndexedDB() {
         request.result = {
           objectStoreNames: { contains: name => stores.has(name) },
           close() {},
-          transaction(names) {
+          transaction(names, mode) {
             const tx = { error: null };
+            if (mode === "readwrite" && names === "settings" && failSettingsWrites) {
+              tx.objectStore = () => ({
+                get(key) { const request = {}; setTimeout(() => { request.result = stores.get("settings").get(key); request.onsuccess?.(); }, 0); return request; },
+                put() { setTimeout(() => tx.onabort?.(), 0); return {}; },
+              });
+              return tx;
+            }
             let pending = 0;
             const complete = () => setTimeout(() => { if (pending === 0) tx.oncomplete?.(); }, 0);
             tx.objectStore = name => ({
@@ -38,7 +46,7 @@ function installIndexedDB() {
       return request;
     },
   };
-  return stores;
+  return { stores, setFailSettingsWrites(value) { failSettingsWrites = value; } };
 }
 
 const revision = (char) => `ep1.${char.repeat(64)}`;
@@ -87,7 +95,7 @@ test("a fresh unrestricted matching grant has no superseded marker and remains r
 });
 
 test("policy marker persists beside the signed grant across reads and a matching fresh grant clears it", async () => {
-  const stores = installIndexedDB();
+  const { stores } = installIndexedDB();
   const { get, put, observeEffectivePolicy, storeFreshOfflineGrant, mayRead, hasSupersededPolicyMarker } = await import("./app/offline-store.js");
   const now = Date.now(), signer = offlineSigner("synthetic-test-secret");
   const user = { id: 1, username: "test", role: "user", is_active: true, is_verified: true,
@@ -145,6 +153,72 @@ test("policy marker persists beside the signed grant across reads and a matching
   assert.equal(await serviceWorkerMediaStatus(stores, id, mayRead), 403);
 });
 
+test("a read-only IndexedDB failure uses a receipt-bound CacheStorage marker that survives worker restart", async () => {
+  const oldIndexedDB = globalThis.indexedDB, oldCaches = globalThis.caches, oldSelf = globalThis.self;
+  const fixture = installIndexedDB(), { stores } = fixture;
+  const cacheEntries = new Map(), cache = {
+    async put(request, response) { cacheEntries.set(request.url, response.clone()); },
+    async match(request) { return cacheEntries.get(request.url)?.clone(); },
+    async delete(request) { return cacheEntries.delete(request.url); },
+  };
+  globalThis.caches = { async open() { return cache; } };
+  globalThis.self = { location: { origin: "https://fixture.invalid" } };
+  try {
+    const { put, observeEffectivePolicy, storeFreshOfflineGrant, mayRead, denyOfflineGrant } = await import("./app/offline-store.js");
+    const now = Date.now(), signer = offlineSigner("synthetic-test-secret");
+    const user = { id: 1, username: "test", role: "user", is_active: true, is_verified: true,
+      premium_until: new Date(now + 86400000).toISOString() };
+    const profile = { id: 2, name: "Adult", is_kids: false, has_pin: false, max_certification: 18, allow_unrated: true };
+    const receipt = signer.issue(user, profile, { token: "read-only", device: "browser" }, now);
+    await storeFreshOfflineGrant(receipt, policy(revision("f")));
+    const id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", file = { id, complete: true, size: 1, receipt };
+    stores.get("files").set(id, file);
+    const pendingHistory = { id: "pending", state: "unsent", position_ms: 321 };
+    stores.get("history").set(pendingHistory.id, pendingHistory);
+    fixture.setFailSettingsWrites(true);
+    await observeEffectivePolicy(policy(revision("1"), true));
+    const active = stores.get("settings").get("active");
+    assert.equal(active.supersededPolicy, undefined, "the IndexedDB write is intentionally unavailable");
+    assert.equal(await mayRead(file, active), false, "CacheStorage fallback closes the current read gate");
+    assert.equal(await serviceWorkerMediaStatus(stores, id, mayRead), 403,
+      "a fresh service-worker instance reads the persisted marker fallback");
+    assert.equal(stores.get("settings").get("active").payload, receipt.payload,
+      "the original signed receipt remains available for proof/recovery");
+    assert.deepEqual(stores.get("history").get("pending"), pendingHistory,
+      "pending history remains unchanged");
+
+    fixture.setFailSettingsWrites(false);
+    const renewed = signer.issue(user, profile, { token: "renewed", device: "browser" }, Date.now());
+    await storeFreshOfflineGrant(renewed, policy(revision("2")));
+    assert.equal(await mayRead(file, stores.get("settings").get("active")), true,
+      "a newly verified matching unrestricted grant remains readable");
+    fixture.setFailSettingsWrites(true);
+    assert.equal(await denyOfflineGrant(renewed), true, "an authoritative denial persists a receipt-bound fallback if IndexedDB cannot clear it");
+    assert.equal(await mayRead(file, stores.get("settings").get("active")), false,
+      "a valid signed grant is not restored by bypassing an authoritative 403");
+    assert.equal(await serviceWorkerMediaStatus(stores, id, mayRead), 403,
+      "the denial fallback remains enforced by a fresh worker instance");
+  } finally {
+    globalThis.indexedDB = oldIndexedDB;
+    globalThis.caches = oldCaches;
+    globalThis.self = oldSelf;
+  }
+});
+
+test("clearing a denied grant is owner-conditional and preserves pending history", async () => {
+  const { stores } = installIndexedDB();
+  const { put, clearActiveGrantIfMatches } = await import("./app/offline-store.js");
+  const old = { payload: "old-payload", signature: "old-signature" }, current = { payload: "new-payload", signature: "new-signature" };
+  const pending = { id: "pending-denial", state: "unsent", position_ms: 45 };
+  await put("settings", current, "active");
+  await put("history", pending);
+  assert.equal(await clearActiveGrantIfMatches(old), false, "a stale denial cannot clear the newer owner's grant");
+  assert.deepEqual(await (await import("./app/offline-store.js")).get("settings", "active"), current);
+  assert.equal(await clearActiveGrantIfMatches(current), true, "the matching denied grant is removed");
+  assert.equal(await (await import("./app/offline-store.js")).get("settings", "active"), null);
+  assert.deepEqual(stores.get("history").get(pending.id), pending, "the outbox entry is untouched");
+});
+
 async function serviceWorkerMediaStatus(stores, id, mayRead) {
   const source = fs.readFileSync(require.resolve("./app/offline-sw.js"), "utf8").replace(/^import .*;\n/, "");
   const handlers = new Map(), self = { location: { origin: "https://fixture.invalid" },
@@ -154,6 +228,7 @@ async function serviceWorkerMediaStatus(stores, id, mayRead) {
     caches: { open: async () => ({ addAll: async () => {}, put: async () => {} }), keys: async () => [], match: async () => null },
     fetch: async () => new Response(null, { status: 404 }),
     get: async (store, key) => stores.get(store).get(key), mayRead, CHUNK_BYTES: 512 * 1024,
+    OFFLINE_CACHE_NAME: "movly-offline-shell-v23-offline-policy-marker",
   });
   let response;
   handlers.get("fetch")({ request: new Request(`https://fixture.invalid/app/offline-media/${id}.mp4`),

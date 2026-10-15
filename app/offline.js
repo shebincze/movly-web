@@ -14,6 +14,7 @@ import {
   mayRead,
   hasSupersededPolicyMarker,
   storeFreshOfflineGrant,
+  denyOfflineGrant,
 } from "./offline-store.js";
 import {
   sameOfflineOwner,
@@ -73,6 +74,7 @@ export async function registerOffline() {
   return true;
 }
 export async function synchronizeOfflineContext() {
+  const activeBefore = await get("settings", "active").catch(() => null);
   try {
     let policy = null;
     try { policy = await effectiveContentPolicy({ refresh: true }); } catch { /* Policy observation must not block online profile use. */ }
@@ -82,10 +84,9 @@ export async function synchronizeOfflineContext() {
     void runDownloads();
   } catch (error) {
     if ([401, 403, 409].includes(error.status)) {
-      const active = await get("settings", "active").catch(() => null);
       const retainedKnownMismatch = error.status === 403 &&
-        await hasSupersededPolicyMarker(active).catch(() => false);
-      if (!retainedKnownMismatch) await put("settings", null, "active").catch(() => {});
+        await hasSupersededPolicyMarker(activeBefore).catch(() => false);
+      if (!retainedKnownMismatch) await denyOfflineGrant(activeBefore).catch(() => false);
     }
   }
 }
