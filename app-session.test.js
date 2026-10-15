@@ -1261,3 +1261,24 @@ test("playback segments reuse account validation for 60 s, other playback calls 
   assert.equal(validations() - before, 2);
   assert.deepEqual(handled, ["index.m3u8", "index0.ts", "index1.ts", "index2.ts", "status"]);
 });
+
+test("intro preferences and segment lookup remain bound to the selected profile", async()=>{
+  const h=harness(), login=await h.login();
+  assert.equal((await h.request("playback/preferences",{cookie:login.cookie})).status,409);
+  const first=await h.request("profile",{cookie:login.cookie,method:"POST",body:{id:1}});
+  assert.equal((await h.request("playback/preferences",{cookie:first.cookie})).body.intro_skip_mode,"manual");
+  assert.equal((await h.request("playback/preferences",{cookie:first.cookie,method:"PUT",body:{intro_skip_mode:"auto"}})).status,200);
+  assert.equal((await h.request("playback/preferences",{cookie:first.cookie})).body.intro_skip_mode,"auto");
+  assert.equal(h.calls.findLast(c=>c[0]==="v1/playback/preferences")[5]["X-Profile-ID"],"1");
+  for(const body of [{intro_skip_mode:"unknown"},{intro_skip_mode:"auto",profile_id:2},{}])
+    assert.equal((await h.request("playback/preferences",{cookie:first.cookie,method:"PUT",body})).status,400);
+  const query="playback/segments?title_id=20&season=1&episode=1&duration_ms=180000";
+  const segments=await h.request(query,{cookie:first.cookie,headers:{"x-profile-id":"999"}});
+  assert.equal(segments.status,200);assert.equal(segments.body.duration_ms,180000);
+  const upstream=h.calls.at(-1);assert.equal(upstream[5]["X-Profile-ID"],"1");assert.ok(upstream[0].includes("duration_ms=180000"));
+  assert.equal((await h.request(query,{cookie:first.cookie,method:"POST"})).status,405);
+  assert.equal((await h.request("playback/preferences",{cookie:first.cookie,headers:{"x-movly-expected-account":"1","x-movly-expected-profile":"2"}})).status,409);
+  const second=await h.request("profile",{cookie:first.cookie,method:"POST",body:{id:2,pin:"1234"}});
+  assert.equal((await h.request("playback/preferences",{cookie:second.cookie})).body.intro_skip_mode,"manual");
+  assert.equal((await h.request(query)).status,401);
+});
