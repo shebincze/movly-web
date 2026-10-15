@@ -1,3 +1,4 @@
+import { feedbackAllowed } from "./feedback-access.js";
 import { mountIntroSkip } from "./intro-skip.js";
 import { streamPickerSections } from "./stream-recommendations.js";
 import { createDialog as createFeedbackDialog } from "./feedback.js";
@@ -729,13 +730,14 @@ async function play(
       { index: audio, key: trackKey(session.audio.find(t => t.index === audio)) },
       { index: subtitle, key: subtitle < 0 ? "off" : trackKey(session.subtitles.find(t => t.index === subtitle)) }, scope);
     let failureDiagnostics = null;
-    const reportFailure = button(translateUI("Nahlásit chybu"), () => createFeedbackDialog("bug", "mine", "web", failureDiagnostics), "small");
+    const reportFailure = feedbackButton(translateUI("Nahlásit chybu"), () => createFeedbackDialog("bug", "mine", "web", failureDiagnostics), "small");
     reportFailure.hidden = true;
     function captureFailure(stage, error, code) {
       if (handle.cancelled) return;
       failureDiagnostics = playbackDiagnostics(stage, selection.diagnostic_provider, error, code);
       void handle.reportTelemetry(failureDiagnostics);
-      reportFailure.hidden = false;
+      reportFailure.hidden = !feedbackAllowed();
+      reportFailure.dataset.feedbackEntry = "";
       reportFailure.parentElement?.classList.add("is-error");
     }
     if (handle.cancelled || current !== handle || !dialog.open) {
@@ -1478,7 +1480,7 @@ async function play(
             { class: "pk-error-actions" },
             button(translateUI("Vybrat jiný zdroj"), () => sources(t, episode, { skipResume: true })),
             button(translateUI("Připojit Webshare"), providerSettings),
-            button(translateUI("Nahlásit chybu"), () => createFeedbackDialog("bug", "mine", "web", playbackDiagnostics(e.body?.diagnostic_stage || "source_resolve", selection.diagnostic_provider, e)), "small"),
+            feedbackAllowed() ? feedbackButton(translateUI("Nahlásit chybu"), () => createFeedbackDialog("bug", "mine", "web", playbackDiagnostics(e.body?.diagnostic_stage || "source_resolve", selection.diagnostic_provider, e)), "small") : null,
           ),
         ),
       );
@@ -1508,4 +1510,10 @@ export async function stop() {
     await api(`playback/${handle.session.id}`, { method: "DELETE" }).catch(
       () => {},
     );
+}
+
+function feedbackButton(...args) {
+  const node = button(...args);
+  node.dataset.feedbackEntry = "";
+  return node;
 }

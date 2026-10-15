@@ -8,6 +8,15 @@ const nativeProviders = require("./native-providers");
 const { streamUploadPayload } = require("./stream-feedback");
 const { offlineSigner } = require("./offline-grant");
 
+function feedbackPremiumActive(value, now = Date.now()) {
+  if (typeof value !== "string") return false;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|([+-])(\d{2}):(\d{2}))$/.exec(value);
+  if (!m) return false;
+  const [, y, month, d, h, minute, second, sign, oh = "0", om = "0"] = m;
+  const probe = new Date(Date.UTC(+y, +month - 1, +d));
+  return probe.getUTCFullYear() === +y && probe.getUTCMonth() === +month - 1 && probe.getUTCDate() === +d && +h < 24 && +minute < 60 && +second < 60 && +oh < 24 && +om < 60 && !(sign === "-" && +oh === 0 && +om === 0) && Number.isFinite(Date.parse(value)) && Date.parse(value) > now;
+}
+
 // Deliberately closed BFF: neither upstream URLs nor authentication/profile
 // headers are accepted from the browser. The core API remains authoritative.
 function createAppHandler({
@@ -152,7 +161,7 @@ function createAppHandler({
       throw new HttpError(400, "Požadavek musí být JSON objekt.");
     return body;
   }
-  const roles = ["user", "vip", "moderator", "admin"];
+  const roles = ["user", "premium", "vip", "moderator", "admin"];
   function accountView(user) {
     if (
       !user ||
@@ -763,6 +772,8 @@ function createAppHandler({
         return true;
       }
       if (/^(?:admin\/)?feedback\//.test(target)) {
+        if (!["premium", "vip", "moderator", "admin"].includes(account.role) && !feedbackPremiumActive(account.premiumUntil))
+          throw new HttpError(403, "Pomozte zlepšovat Movly je dostupné s Premium.", { code: "feedback_premium_required" });
         const isAdmin = target.startsWith("admin/");
         if (isAdmin && account.role !== "admin") throw new HttpError(403, "K této akci nemáš oprávnění.");
         const feedbackTarget = target.replace(/^admin\//, "");

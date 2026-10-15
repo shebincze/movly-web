@@ -27,13 +27,14 @@ function json(res, status, payload) {
   res.body = payload;
 }
 
-function makeHandler(role, calls) {
+function makeHandler(role, calls, premiumUntil = null) {
   const user = {
     username: "mod",
     display_name: "Mod",
     is_active: true,
     is_verified: true,
     role,
+    premium_until: premiumUntil,
   };
   const listPayload = (source) => ({
     requests:
@@ -369,5 +370,18 @@ test("only admin can permanently delete feedback; empty upstream response become
     assert.equal(res.statusCode, role === "admin" ? 200 : 403);
     if (role === "admin") assert.deepEqual(res.body, {});
     assert.equal(calls.filter((c) => c.path.split("?")[0] === "v1/admin/feedback/items/7" && c.method === "DELETE").length, role === "admin" ? 1 : 0);
+  }
+});
+
+test("feedback proxy denies free, expired and malformed subscriptions before forwarding", async () => {
+  for (const until of [null, "bad-date", "2030", "2030-01-01", "2030-02-30T00:00:00Z", "2000-01-01T00:00:00Z", 9999999999999]) {
+    const calls = [], handle = makeHandler("user", calls, until), cookie = await login(handle);
+    for (const [method, target] of [["GET", "feedback/items"], ["POST", "feedback/handoffs/consume"], ["PUT", "feedback/items/7/vote"]]) {
+      const res = fakeResponse();
+      await handle(requestFor(cookie, method, target, {}), res, new URL(`http://localhost/api/app/${target}`));
+      assert.equal(res.statusCode, 403);
+      assert.equal(res.body.code, "feedback_premium_required");
+    }
+    assert.equal(calls.filter(c => c.path.startsWith("v1/feedback/")).length, 0);
   }
 });

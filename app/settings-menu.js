@@ -1,3 +1,4 @@
+import { feedbackAllowed } from "./feedback-access.js";
 import { openIntroSettings } from "./intro-skip.js";
 import { openNotifications } from "./notifications.js";
 import { notificationLabel } from "./notification-labels.js";
@@ -23,7 +24,7 @@ export function openSettingsMenu({ openProviders }) {
       entry(notificationLabel("NotificationsEntry"), translateUI("Kam posílat upozornění a přehled novinek"), () => void openNotifications()),
       entry(translateUI("Úložiště a přehrávání"), translateUI("Webshare, FastShare, doplňky a Trakt / Simkl"), () => void openProviders()),
       entry(translateUI("Premium a mince"), translateUI("Zůstatek mincí a prodloužení Premium"), "#premium"),
-      entry(translateUI("Vylepšit Movly"), translateUI("Nahlas chybu nebo navrhni funkci"), "#feedback"),
+      feedbackAllowed() ? entry(translateUI("Vylepšit Movly"), translateUI("Nahlas chybu nebo navrhni funkci"), "#feedback") : null,
     ),
   ));
 }

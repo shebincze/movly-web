@@ -1,3 +1,4 @@
+import { setFeedbackAccount } from "./feedback-access.js";
 import { invalidateApiContext } from "./api.js";
 import { openSettingsMenu } from "./settings-menu.js";
 import { startSystemNotifications } from "./notifications.js";
@@ -69,6 +70,7 @@ const content = document.querySelector("#content"),
 let session = null,
   controller = null,
   renderRevision = 0,
+  feedbackRefreshRevision = 0,
   profileShortcuts = null,
   inboxItems = null,
   inboxRequested = false;
@@ -103,6 +105,7 @@ dialog.addEventListener("close", () => {
   }
 });
 function chrome() {
+  setFeedbackAccount(session?.account);
   document.querySelector("#app-settings").textContent=translateUI("Nastavení");
   setSearchOwner(session?.account, session?.profile);
   setPlaybackOwner(session?.account, session?.profile);
@@ -709,11 +712,13 @@ window.addEventListener("hashchange", () => {
 });
 // Po nákupu Premium obnoví mince a datum v hlavičce.
 window.addEventListener("movly-premium-changed", async () => {
+  const attempt = ++feedbackRefreshRevision, owner = session?.account?.id;
   try {
     const fresh = await api("session");
-    if (session && fresh.account?.id === session.account?.id) {
+    if (attempt === feedbackRefreshRevision && session?.account?.id === owner && fresh.account?.id === owner) {
       session.account = fresh.account;
       chrome();
+      if (location.hash.startsWith("#feedback")) await render();
     }
   } catch {}
 });
@@ -747,3 +752,33 @@ try {
       ),
     );
 }
+
+// Refresh only when returning to a feedback view; the server checks every operation too.
+window.addEventListener("focus", async () => {
+  if (!session || !location.hash.startsWith("#feedback")) return;
+  const owner = session.account?.id, hash = location.hash, revision = renderRevision;
+  const attempt = ++feedbackRefreshRevision;
+  const current = () => attempt === feedbackRefreshRevision && session?.account?.id === owner && location.hash === hash && renderRevision === revision;
+  setFeedbackAccount(null);
+  if (dialog.open) dialog.close();
+  content.replaceChildren(loading());
+  try {
+    const fresh = await api("session");
+    if (!current()) return;
+    if (fresh.account?.id !== owner) { login(); return; }
+    session.account = fresh.account;
+    chrome();
+    await render();
+  } catch {
+    if (!current()) return;
+    setFeedbackAccount(null);
+    content.replaceChildren(errorBox(new Error("Pomozte zlepšovat Movly je dostupné s Premium.")));
+  }
+});
+
+window.addEventListener("movly-feedback-revoked", () => {
+  if (!location.hash.startsWith("#feedback")) return;
+  controller?.abort();
+  if (dialog.open) dialog.close();
+  content.replaceChildren(errorBox(new Error("Pomozte zlepšovat Movly je dostupné s Premium.")));
+});

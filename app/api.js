@@ -1,3 +1,4 @@
+import { requireFeedback, setFeedbackAccount } from "./feedback-access.js";
 import { uiLanguage } from "./i18n.js";
 import { translateUI } from "./i18n.js";
 export class RequestError extends Error {
@@ -23,6 +24,7 @@ export async function api(
   path,
   { method = "GET", body, signal, expectedOwner } = {},
 ) {
+  if (/^(?:admin\/)?feedback(?:\/|$)/.test(path)) requireFeedback();
   const revision = contextRevision;
   const owner = expectedOwner || (contextOwner?.accountId && contextOwner?.profile?.id
     ? {accountId: contextOwner.accountId, profileId: contextOwner.profile.id} : null);
@@ -67,6 +69,7 @@ export async function api(
   }
   assertCurrentContext(revision, signal);
   if (!response.ok) {
+    if (response.status === 401 || data?.code === "feedback_premium_required") setFeedbackAccount(null);
     if (
       response.status === 401 ||
       [
