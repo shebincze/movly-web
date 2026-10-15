@@ -1,5 +1,6 @@
 import { translateUI } from "./i18n.js";
 import { api } from "./api.js";
+import { effectiveContentPolicy } from "./effective-policy.js";
 import {
   allFiles,
   allEntries,
@@ -8,6 +9,7 @@ import {
   remove,
   removeFile,
   verifiedGrant,
+  storeFreshOfflineGrant,
   CHUNK_BYTES,
   commitDownload,
 } from "./offline-store.js";
@@ -23,10 +25,12 @@ window.addEventListener("offline", () => controller?.abort());
 export async function queueOffline(title, episode, selection) {
   if (episode && episodeReleaseState(episode.air_date) === "upcoming")
     throw new Error(translateUI("Epizoda ještě neměla premiéru."));
+  let policy = null;
+  try { policy = await effectiveContentPolicy({ refresh: true }); } catch { /* Offline metadata is optional for online actions. */ }
   const receipt = await api("offline-grant", { method: "POST", body: {} });
   if (!(await verifiedGrant(receipt)))
     throw new Error(translateUI("Server nevydal platné offline oprávnění."));
-  await put("settings", receipt, "active");
+  await storeFreshOfflineGrant(receipt, policy);
   const identity = {
     titleId: title.id,
     type: title.type,
@@ -111,13 +115,15 @@ async function download(job) {
     api(path, { ...options, expectedOwner });
   try {
     await permitted(job);
+    let policy = null;
+    try { policy = await effectiveContentPolicy({ refresh: true }); } catch { /* Existing lease remains governed by its signed expiry. */ }
     const receipt = await ownedAPI("offline-grant", {
       method: "POST",
       body: {},
     });
     if (!(await sameOfflineOwner(job.receipt, receipt)))
       throw new Error(translateUI("Stažení patří k jinému profilu."));
-    await put("settings", receipt, "active");
+    await storeFreshOfflineGrant(receipt, policy);
     const base = await captureOfflineBase(api, job.identity, receipt);
     const maxBytes =
       Number(await get("settings", "fileLimit")) || 2 * 1024 ** 3;

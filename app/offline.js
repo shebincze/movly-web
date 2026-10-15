@@ -2,6 +2,7 @@ import { mountIntroSkip } from "./intro-skip.js";
 import { translateUI } from "./i18n.js";
 import { nextReleasedEpisode, episodeReleaseState } from "./episode-policy.js";
 import { api } from "./api.js";
+import { effectiveContentPolicy } from "./effective-policy.js";
 import { el, button, loading, toast } from "./ui.js";
 import {
   allFiles,
@@ -11,6 +12,8 @@ import {
   removeFile,
   verifiedGrant,
   mayRead,
+  hasSupersededPolicyMarker,
+  storeFreshOfflineGrant,
 } from "./offline-store.js";
 import {
   sameOfflineOwner,
@@ -71,16 +74,19 @@ export async function registerOffline() {
 }
 export async function synchronizeOfflineContext() {
   try {
-    await put(
-      "settings",
-      await api("offline-grant", { method: "POST", body: {} }),
-      "active",
-    );
+    let policy = null;
+    try { policy = await effectiveContentPolicy({ refresh: true }); } catch { /* Policy observation must not block online profile use. */ }
+    const receipt = await api("offline-grant", { method: "POST", body: {} });
+    await storeFreshOfflineGrant(receipt, policy);
     await flushOfflineHistory(api);
     void runDownloads();
   } catch (error) {
-    if ([401, 403, 409].includes(error.status))
-      await put("settings", null, "active");
+    if ([401, 403, 409].includes(error.status)) {
+      const active = await get("settings", "active").catch(() => null);
+      const retainedKnownMismatch = error.status === 403 &&
+        await hasSupersededPolicyMarker(active).catch(() => false);
+      if (!retainedKnownMismatch) await put("settings", null, "active").catch(() => {});
+    }
   }
 }
 export async function saveOffline(title, episode, selection) {

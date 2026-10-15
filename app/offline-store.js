@@ -110,6 +110,95 @@ export async function put(store, value, key) {
     db.close();
   }
 }
+const policyTuple = (policy) => ({
+  schema_version: policy.schema_version,
+  user_id: policy.user_id,
+  profile_id: policy.profile_id,
+  revision: policy.revision,
+  is_kids: policy.is_kids,
+  age_controls_active: policy.age_controls_active,
+  max_age: policy.max_age,
+  allow_unrated: policy.allow_unrated,
+  exclude_adult: policy.exclude_adult,
+  catalog_excludes_adult: policy.catalog_excludes_adult,
+});
+function validStoredPolicy(value, owner) {
+  return value?.schema_version === 1 &&
+    value.user_id === owner.accountId && value.profile_id === owner.profileId &&
+    typeof value.revision === "string" && /^ep1\.[a-f0-9]{64}$/.test(value.revision);
+}
+export function effectivePolicySupersedesGrant(previous, policy, grant) {
+  if (!policy || policy.user_id !== grant?.accountId || policy.profile_id !== grant?.profileId) return null;
+  const sameOwnerKnown = validStoredPolicy(previous, grant);
+  const changed = (sameOwnerKnown && previous.revision !== policy.revision) ||
+    (!sameOwnerKnown && policy.is_kids === true);
+  return changed ? {
+    user_id: grant.accountId,
+    profile_id: grant.profileId,
+    previous_revision: sameOwnerKnown ? previous.revision : null,
+    current_revision: policy.revision,
+  } : null;
+}
+async function updateActiveGrant(receipt, change) {
+  const db = await database();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction("settings", "readwrite"), store = tx.objectStore("settings");
+      const request = store.get("active");
+      let updated = false;
+      request.onsuccess = () => {
+        const active = request.result;
+        if (active?.payload !== receipt.payload || active?.signature !== receipt.signature) return;
+        const next = change(active);
+        if (next) { store.put(next, "active"); updated = true; }
+      };
+      tx.oncomplete = () => resolve(updated);
+      tx.onabort = () => reject(tx.error || new Error("Offline oprávnění se nepodařilo aktualizovat."));
+    });
+  } finally { db.close(); }
+}
+// Policy metadata is local to the existing grant record; the signed receipt stays byte-for-byte intact.
+export async function observeEffectivePolicy(policy) {
+  const active = await get("settings", "active"), grant = await verifiedGrant(active, Date.now(), { ownershipOnly: true });
+  if (!grant || policy?.user_id !== grant.accountId || policy?.profile_id !== grant.profileId ||
+      !/^ep1\.[a-f0-9]{64}$/.test(policy.revision || "")) return false;
+  const next = policyTuple(policy);
+  await updateActiveGrant(active, current => {
+    const previous = current.effectivePolicy;
+    const marker = effectivePolicySupersedesGrant(previous, next, grant);
+    const oldMarker = current.supersededPolicy;
+    const retainedMarker = marker || (oldMarker?.user_id === grant.accountId && oldMarker?.profile_id === grant.profileId
+      ? oldMarker : null);
+    return {
+      ...current,
+      effectivePolicy: next,
+      ...(retainedMarker ? { supersededPolicy: retainedMarker } : {}),
+    };
+  });
+  return true;
+}
+export async function storeFreshOfflineGrant(receipt, policy) {
+  const grant = await verifiedGrant(receipt);
+  if (!grant) return false;
+  const previous = await get("settings", "active"), previousGrant = await verifiedGrant(previous, Date.now(), { ownershipOnly: true });
+  const sameOwner = previousGrant?.accountId === grant.accountId && previousGrant?.profileId === grant.profileId;
+  const validPolicy = policy?.user_id === grant.accountId && policy?.profile_id === grant.profileId &&
+    /^ep1\.[a-f0-9]{64}$/.test(policy.revision || "");
+  const matchingPolicy = policy?.user_id === grant.accountId && policy?.profile_id === grant.profileId &&
+    policy.is_kids === false && policy.age_controls_active === false && policy.max_age === null &&
+    policy.allow_unrated === true && policy.exclude_adult === false && policy.catalog_excludes_adult === true &&
+    /^ep1\.[a-f0-9]{64}$/.test(policy.revision || "");
+  const superseded = !matchingPolicy && validPolicy
+    ? effectivePolicySupersedesGrant(sameOwner ? previous.effectivePolicy : null, policy, grant)
+    : null;
+  await put("settings", {
+    ...receipt,
+    ...(validPolicy ? { effectivePolicy: policyTuple(policy) } : sameOwner && previous.effectivePolicy ? { effectivePolicy: previous.effectivePolicy } : {}),
+    ...(superseded ? { supersededPolicy: superseded } :
+      !matchingPolicy && sameOwner && previous.supersededPolicy ? { supersededPolicy: previous.supersededPolicy } : {}),
+  }, "active");
+  return true;
+}
 export async function removeFile(id) {
   const db = await database();
   try {
@@ -181,9 +270,17 @@ export async function verifiedGrant(
     return null;
   }
 }
+export async function hasSupersededPolicyMarker(active) {
+  const grant = await verifiedGrant(active, Date.now(), { ownershipOnly: true });
+  const marker = active?.supersededPolicy;
+  return Boolean(grant && marker?.user_id === grant.accountId && marker?.profile_id === grant.profileId &&
+    /^ep1\.[a-f0-9]{64}$/.test(marker.current_revision || "") &&
+    validStoredPolicy(active.effectivePolicy, grant) && active.effectivePolicy.revision === marker.current_revision);
+}
 export async function mayRead(file, active) {
   if (!file?.complete || !active) return false;
   const selected = await verifiedGrant(active);
+  if (await hasSupersededPolicyMarker(active)) return false;
   if (!selected || file.receipt?.publicKey?.x !== active.publicKey?.x)
     return false;
   const grant = await verifiedGrant(file.receipt, Date.now(), {

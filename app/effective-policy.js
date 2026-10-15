@@ -1,4 +1,5 @@
 import { api, apiContextKey, apiContextOwner } from "./api.js";
+import { observeEffectivePolicy } from "./offline-store.js";
 
 let generation = 0,
   cached = null,
@@ -144,6 +145,10 @@ export async function effectiveContentPolicy({ signal, refresh = false } = {}) {
     if (signal?.aborted || context !== `${location.origin}:${apiContextKey()}` || requestGeneration !== generation)
       throw new DOMException("Profile policy context changed", "AbortError");
     if (!policy) return null;
+    // A validated policy revision is mirrored only inside the current signed
+    // offline-grant record. Failure to persist this optional marker must not
+    // interrupt online catalog/profile use.
+    try { await observeEffectivePolicy(policy); } catch { /* Best-effort local policy marker. */ }
     const previous = cached?.policy;
     if (previous && previous.revision !== policy.revision) {
       generation++;

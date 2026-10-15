@@ -209,3 +209,26 @@ test("unsupported endpoint refreshes legacy settings and ignores a late same-own
     globalThis.location = oldLocation;
   }
 });
+
+test("offline policy-marker storage failures do not block online policy use", async () => {
+  const { invalidateApiContext } = await import("./app/api.js");
+  const { effectiveContentPolicy, clearEffectivePolicyCache } = await import(moduleURL.href);
+  const oldFetch = globalThis.fetch,
+    oldLocation = globalThis.location,
+    oldIndexedDB = globalThis.indexedDB;
+  globalThis.location = { origin: "https://fixture.test" };
+  globalThis.indexedDB = { open() { throw new Error("local offline storage unavailable"); } };
+  try {
+    clearEffectivePolicyCache();
+    invalidateApiContext({ accountId: 1, profile: { id: 10 } });
+    const expected = fixtures.cases.find((item) => item.name === "ordinary_default").effective;
+    globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => expected });
+    const policy = await effectiveContentPolicy({ refresh: true });
+    assert.equal(policy.revision, expected.revision);
+  } finally {
+    clearEffectivePolicyCache();
+    globalThis.fetch = oldFetch;
+    globalThis.location = oldLocation;
+    globalThis.indexedDB = oldIndexedDB;
+  }
+});
