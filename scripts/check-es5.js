@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 "use strict";
 // Kontrola, že skripty pro staré prohlížeče TV (Chrome 34) zůstávají ES5.
-// Projekt nemá npm závislosti: místo acornu syntaktická kontrola přes vm.Script
-// a lexikální stráž nad kódem bez komentářů, řetězců a regulárních výrazů.
+// Vendored Acorn 8.15.0 (MIT) parses ecmaVersion 5 without npm installation.
+// Additional lexical guards reject unsupported runtime APIs.
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
+const acorn = require("./vendor/acorn.cjs");
 
 const ROOT = path.resolve(__dirname, "..");
 const KEYWORDS_BEFORE_REGEX = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "do", "else"]);
@@ -116,6 +117,7 @@ const FORBIDDEN = [
 function checkSource(source) {
   const problems = [];
   try {
+    acorn.parse(source, { ecmaVersion: 5 });
     new vm.Script(source, { filename: "es5-check.js" });
   } catch (error) {
     problems.push(`syntaxe: ${error.message}`);
@@ -134,6 +136,7 @@ function tvScripts() {
   const dir = path.join(ROOT, "app", "tv");
   return [
     path.join(ROOT, "app", "legacy.js"),
+    path.join(ROOT, "app", "vendor", "hls-0.14.17.light.min.js"),
     ...fs.readdirSync(dir).filter((f) => f.endsWith(".js")).sort().map((f) => path.join(dir, f)),
   ];
 }
@@ -141,7 +144,13 @@ function tvScripts() {
 function checkFiles(files = tvScripts()) {
   const failures = [];
   for (const file of files) {
-    const problems = checkSource(fs.readFileSync(file, "utf8"));
+    const source = fs.readFileSync(file, "utf8");
+    // Vendor feature-detects Symbol behind typeof; parse its ES5 syntax without
+    // treating those guarded compatibility branches as application API usage.
+    const problems = file.includes("/vendor/") ? (() => {
+      try { acorn.parse(source, { ecmaVersion: 5 }); return []; }
+      catch (error) { return [error.message]; }
+    })() : checkSource(source);
     for (const problem of problems) failures.push(`${path.relative(ROOT, file)}: ${problem}`);
   }
   return failures;

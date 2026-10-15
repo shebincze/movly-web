@@ -5,7 +5,7 @@
    Používá výhradně existující cesty BFF /api/app/. */
 (function () {
   "use strict";
-  if (window.__movlyTvStarted) return;
+  if (window.__movlyStarted || window.__movlyTvStarted) return;
 
   var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, ENTER: 13, BACK: 461, BACKSPACE: 8, ESC: 27,
     PLAY: 415, PAUSE: 19, PLAY_PAUSE: 10252, STOP: 413, REWIND: 412, FORWARD: 417 };
@@ -97,15 +97,17 @@
     e.code = body && body.code;
     return e;
   }
-  var pendingRequests = [];
+  var pendingRequests = [], requestEpoch = 0;
   // ---------- diagnostika pro ladění na skutečných TV ----------
-  // Posílá jen technické údaje (klávesy, schopnosti prohlížeče, chyby); nikdy obsah polí.
+  // Both queue and server enforce the same closed numeric/enum schema.
+  var diagnosticPolicy = window.MovlyTvDiagnostics;
   var diagQueue = [], diagTimer = null, diagCount = 0, diagKeys = 0, bootAt = new Date().getTime();
-  var diagId = Math.floor(Math.random() * 1e9).toString(36);
   function diag(type, data) {
-    if (diagCount >= 300) return;
+    if (diagCount >= 300 || !diagnosticPolicy) return;
+    var event = diagnosticPolicy.sanitize(type, data, (new Date().getTime() - bootAt) / 1000);
+    if (!event) return;
     diagCount++;
-    diagQueue.push({ t: type, s: Math.round((new Date().getTime() - bootAt) / 100) / 10, d: data || null });
+    diagQueue.push(event);
     if (!diagTimer) diagTimer = setTimeout(flushDiag, 1500);
   }
   function flushDiag() {
@@ -117,7 +119,7 @@
       xhr.open("POST", "/api/app/tv-diagnostics", true);
       xhr.setRequestHeader("Content-Type", "application/json");
       xhr.setRequestHeader("X-Movly-App", "1");
-      xhr.send(JSON.stringify({ id: diagId, events: batch }));
+      xhr.send(JSON.stringify({ events: batch }));
     } catch (e) { /* ignorovat */ }
     if (diagQueue.length) diagTimer = setTimeout(flushDiag, 1500);
   }
@@ -134,25 +136,42 @@
     return out;
   }
   window.onerror = function (message, source, line, col) {
-    diag("error", { m: String(message).slice(0, 300), src: String(source || "").slice(-60), l: line, c: col });
+    diag("error", { stage: "runtime", l: line, c: col });
   };
   function logKey(phase, event) {
-    if (diagKeys >= 60) return;
+    if (diagKeys >= 60 || !diagnosticPolicy) return;
+    var eventData = diagnosticPolicy.keyEvent(phase, event, document.activeElement);
+    if (!eventData) return;
     diagKeys++;
-    var t = event.target;
-    diag(phase, { k: event.keyCode, w: event.which, key: event.key || event.keyIdentifier || "", tg: t && t.tagName ? t.tagName + (t.type ? ":" + t.type : "") : "" });
+    diag(phase, eventData.d);
   }
   window.addEventListener("keydown", function (event) { logKey("keydown", event); }, true);
   window.addEventListener("keypress", function (event) { logKey("keypress", event); }, true);
-  window.addEventListener("keyup", function (event) { if (event.keyCode !== 13 && (event.keyCode < 37 || event.keyCode > 40)) logKey("keyup", event); }, true);
-  window.addEventListener("mousedown", function (event) { if (diagKeys < 60) { diagKeys++; diag("mouse", { tg: event.target && event.target.tagName }); } }, true);
+  window.addEventListener("keyup", function (event) { logKey("keyup", event); }, true);
+  function diagnosticStage(path) {
+    if (/^(?:login|logout|session)(?:\?|$)/.test(path)) return "auth";
+    if (/^profiles?(?:[/?]|$)/.test(path)) return "profiles";
+    if (/^home(?:\?|$)/.test(path)) return "home";
+    if (/^search(?:\?|$)/.test(path)) return "search";
+    if (/^titles\//.test(path)) return "detail";
+    if (/^(?:sources|streaming2?|providers)\//.test(path)) return "sources";
+    if (/^playback(?:[/?]|$)/.test(path)) return "playback";
+    if (/^watch-history(?:[/?]|$)/.test(path)) return "history";
+    return "other";
+  }
   function api(path, options, done) {
     options = options || {};
-    var xhr = new XMLHttpRequest(), finished = false;
+    var xhr = new XMLHttpRequest(), finished = false, epoch = requestEpoch;
     xhr.open(options.method || "GET", "/api/app/" + path, true);
     xhr.setRequestHeader("Accept", "application/json");
     xhr.setRequestHeader("X-Movly-App", "1");
     xhr.setRequestHeader("X-Movly-Language", "cs");
+    // Pin requests to the account/profile that opened the screen, including
+    // history writes and session teardown after another tab switches profiles.
+    if (account && isId(account.id) && profile && isId(profile.id) && path !== "session" && path !== "profiles" && path !== "profile" && path !== "login" && path !== "logout") {
+      xhr.setRequestHeader("X-Movly-Expected-Account", String(account.id));
+      xhr.setRequestHeader("X-Movly-Expected-Profile", String(profile.id));
+    }
     if (options.body !== undefined) xhr.setRequestHeader("Content-Type", "application/json");
     xhr.timeout = options.timeout || 60000;
     function finish(err, data) {
@@ -160,7 +179,8 @@
       finished = true;
       var i = pendingRequests.indexOf(xhr);
       if (i >= 0) pendingRequests.splice(i, 1);
-      if (err && path !== "session") diag("api", { p: (options.method || "GET") + " " + path.split("?")[0].replace(/[a-f0-9]{48}/, "<id>"), st: err.status, c: err.code || null, m: String(err.message || "").slice(0, 160) });
+      if (epoch !== requestEpoch) return;
+      if (err && path !== "session") diag("api", { stage: diagnosticStage(path), st: err.status });
       if (err && !options.quiet && handleAuthError(err)) return;
       if (done) done(err, data);
     }
@@ -181,13 +201,21 @@
   }
   // Vypršené přihlášení vrací na přihlášení, chybějící profil na výběr profilu.
   function handleAuthError(err) {
+    if (err.code === "offline_owner_changed") {
+      stopPlayback();
+      account = null; profile = null;
+      boot();
+      return true;
+    }
     if (err.status === 401 || contains(SESSION_CODES, err.code)) {
       stopPlayback();
+      account = null; profile = null;
       resetTo(loginScreen("Přihlášení vypršelo. Přihlas se znovu."));
       return true;
     }
     if (contains(PROFILE_CODES, err.code)) {
       stopPlayback();
+      profile = null;
       resetTo(profilesScreen("Vyber profil znovu."));
       return true;
     }
@@ -230,7 +258,14 @@
     popScreen();
   }
   function resetTo(screen) {
+    // Revoke callbacks before aborting: old XHR errors must never reset a newer
+    // login/profile screen. Aborts can synchronously trigger readyState changes.
+    requestEpoch++;
+    var obsolete = pendingRequests.slice(0);
+    pendingRequests.length = 0;
+    each(obsolete, function (xhr) { try { xhr.abort(); } catch (e) { /* already closed */ } });
     while (stack.length) destroy(stack.pop());
+    if (screen.name === "profiles") profile = null;
     // Záznamy historie z předchozích obrazovek už nic nevracejí.
     historyDepth = 0;
     stack.push(screen);
@@ -990,7 +1025,7 @@
     }
     function say(text) { info.textContent = text || ""; showOsd(Boolean(text)); }
     function fail(text) {
-      diag("fail", { m: String(text).slice(0, 200), engine: el.getAttribute("data-engine") });
+      diag("fail", { stage: "playback", engine: el.getAttribute("data-engine") });
       // Uvolní relaci na serveru (webový server zvládá jen omezený počet přehrávání).
       var at = position();
       saveHistory();
@@ -1020,7 +1055,10 @@
       };
       if (episode) { body.season_number = episode.season_number; body.episode_number = episode.episode_number; }
       api("watch-history", { method: "POST", body: body, quiet: true }, function (err) {
-        if (err && !stopped) say("Pozice se neuložila: " + err.message);
+        if (err) {
+          if (lastSaved === pos) lastSaved = -1;
+          if (!stopped) say("Pozice se neuložila: " + err.message);
+        }
       });
     }
     function teardown() {
@@ -1105,7 +1143,7 @@
         diag("engine", { e: "hls.js" });
         hls = new Hls({ enableWorker: false, liveSyncDurationCount: 3, startPosition: 0, maxBufferLength: 24 });
         hls.on(Hls.Events.ERROR, function (_event, data) {
-          if (data) diag("hls-error", { type: data.type, details: data.details, fatal: Boolean(data.fatal), code: data.response && data.response.code, reason: data.reason ? String(data.reason).slice(0, 160) : null });
+          if (data) diag("hls-error", { type: data.type, fatal: Boolean(data.fatal), code: data.response && data.response.code });
           if (!data || !data.fatal || stopped || mine !== generation) return;
           if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !hls.__recovered) { hls.__recovered = true; hls.recoverMediaError(); return; }
           fail(data.type === Hls.ErrorTypes.NETWORK_ERROR ? "Přehrávání se přerušilo kvůli chybě sítě." : "Televizor nedokáže toto video dekódovat. Zkus jiný zdroj.");
@@ -1152,7 +1190,7 @@
       if (!session) return;
       var end = null;
       try { if (video.buffered.length) end = Math.round(video.buffered.end(video.buffered.length - 1) * 10) / 10; } catch (e) { end = "err"; }
-      diag("beat", { ct: Math.round((video.currentTime || 0) * 10) / 10, buf: end, dur: isFinite(video.duration) ? Math.round(video.duration) : String(video.duration), p: video.paused, rs: video.readyState, ns: video.networkState });
+      diag("beat", { ct: Math.round((video.currentTime || 0) * 10) / 10, buf: end, dur: isFinite(video.duration) ? Math.round(video.duration) : null, p: video.paused, rs: video.readyState, ns: video.networkState });
     }, 5000);
     video.addEventListener("playing", function () { say(""); showOsd(); diag("playing", { engine: el.getAttribute("data-engine"), w: video.videoWidth, h: video.videoHeight }); }, false);
     video.addEventListener("pause", function () { if (!stopped) showOsd(true); }, false);
@@ -1257,7 +1295,7 @@
   }
   // Příznak pro legacy.js: až po úspěšném vykreslení první obrazovky, jinak zobrazí původní hlášku.
   function start() {
-    diag("boot", { ua: navigator.userAgent.slice(0, 200), sw: window.screen.width, sh: window.screen.height, iw: window.innerWidth, ih: window.innerHeight, dpr: window.devicePixelRatio || 1, media: mediaSupport() });
+    diag("boot", { sw: window.screen.width, sh: window.screen.height, iw: window.innerWidth, ih: window.innerHeight, dpr: window.devicePixelRatio || 1, media: mediaSupport() });
     boot();
     window.__movlyTvStarted = true;
   }
