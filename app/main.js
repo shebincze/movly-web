@@ -70,6 +70,7 @@ const content = document.querySelector("#content"),
 let session = null,
   controller = null,
   renderRevision = 0,
+  feedbackRefreshRevision = 0,
   profileShortcuts = null,
   inboxItems = null,
   inboxRequested = false;
@@ -711,9 +712,10 @@ window.addEventListener("hashchange", () => {
 });
 // Po nákupu Premium obnoví mince a datum v hlavičce.
 window.addEventListener("movly-premium-changed", async () => {
+  const attempt = ++feedbackRefreshRevision, owner = session?.account?.id;
   try {
     const fresh = await api("session");
-    if (session && fresh.account?.id === session.account?.id) {
+    if (attempt === feedbackRefreshRevision && session?.account?.id === owner && fresh.account?.id === owner) {
       session.account = fresh.account;
       chrome();
       if (location.hash.startsWith("#feedback")) await render();
@@ -755,17 +757,23 @@ try {
 window.addEventListener("focus", async () => {
   if (!session || !location.hash.startsWith("#feedback")) return;
   const owner = session.account?.id, hash = location.hash, revision = renderRevision;
+  const attempt = ++feedbackRefreshRevision;
+  const current = () => attempt === feedbackRefreshRevision && session?.account?.id === owner && location.hash === hash && renderRevision === revision;
   setFeedbackAccount(null);
   if (dialog.open) dialog.close();
   content.replaceChildren(loading());
   try {
     const fresh = await api("session");
-    if (session?.account?.id !== owner || location.hash !== hash || renderRevision !== revision) return;
+    if (!current()) return;
     if (fresh.account?.id !== owner) { login(); return; }
     session.account = fresh.account;
     chrome();
     await render();
-  } catch { setFeedbackAccount(null); content.replaceChildren(errorBox(new Error("Pomozte zlepšovat Movly je dostupné s Premium."))); }
+  } catch {
+    if (!current()) return;
+    setFeedbackAccount(null);
+    content.replaceChildren(errorBox(new Error("Pomozte zlepšovat Movly je dostupné s Premium.")));
+  }
 });
 
 window.addEventListener("movly-feedback-revoked", () => {

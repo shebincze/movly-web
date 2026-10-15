@@ -84,7 +84,6 @@ export async function api(
       window.dispatchEvent(new CustomEvent("movly-offline-revoked"));
     throw new RequestError(response.status, data);
   }
-  if (["session", "login"].includes(path)) setFeedbackAccount(data?.account);
   return data;
 }
 export function array(value, label = "seznam") {
