@@ -25,12 +25,84 @@ test('one batch preserves mixed types, duplicate TMDB identities, and duplicate 
   const cards = await resolveExternalPage(items, async (path, options) => {
     calls.push({path, ...options});
     return {results: [found(0, items[0], 10), found(1, items[1], 11), found(2, items[2], 12)]};
-  }, new AbortController().signal, 'trakt', 'en');
+  }, new AbortController().signal, 'trakt', 'en', async () => true);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].path, 'titles/batch');
   assert.equal(calls[0].method, 'POST');
   assert.deepEqual(calls[0].body, {items:[{type:'movie',tmdb_id:7},{type:'tv',tmdb_id:7},{type:'movie',tmdb_id:7}],language:'en'});
   assert.deepEqual(cards.map(card => card.id), [10, 11, 12]);
+});
+
+test('unsupported batch negotiation resolves legacy TMDB details in original order', async () => {
+  const { resolveExternalPage } = await modulePromise;
+  const items = [item('tv', 12), item('movie', 13), item('tv', 12)];
+  const calls = [];
+  const request = async path => {
+    calls.push(path);
+    const id = Number(path.match(/^tmdb\/(\d+)/)?.[1]);
+    const source = items.find(value => value.tmdb_id === id);
+    return { id: id + 100, title: `Title ${id}`, original_title: `Original ${id}`, type: source.kind, tmdb_id: id };
+  };
+  const cards = await resolveExternalPage(items, request, new AbortController().signal, 'trakt', 'en', async () => false);
+  assert.deepEqual(cards.map(value => value.tmdb_id), [12, 13, 12]);
+  assert.deepEqual(cards.map(value => value.type), ['tv', 'movie', 'tv']);
+  assert.deepEqual(calls, ['tmdb/12?type=tv', 'tmdb/13?type=movie', 'tmdb/12?type=tv']);
+});
+
+test('legacy requests share a global four-request limit across resolver calls', async () => {
+  const { resolveExternalPage } = await modulePromise;
+  const request = async path => {
+    if (!path.startsWith('tmdb/')) throw new Error('unexpected batch request');
+    active++; peak = Math.max(peak, active);
+    await new Promise(resolve => setTimeout(resolve, 2));
+    active--;
+    const id = Number(path.match(/^tmdb\/(\d+)/)?.[1]);
+    return { id: id + 100, title: `Title ${id}`, original_title: `Original ${id}`, type: 'movie', tmdb_id: id };
+  };
+  let active = 0, peak = 0;
+  const run = (start) => resolveExternalPage(Array.from({length:12}, (_, index) => item('movie', start + index)), request,
+    new AbortController().signal, 'simkl', 'cs', async () => false);
+  const pages = await Promise.all([run(1), run(21), run(41)]);
+  assert.equal(peak, 4);
+  assert.ok(pages.flat().every(card => !card.unresolved));
+});
+
+test('only batch 404 or 501 triggers legacy fallback', async () => {
+  const { resolveExternalPage } = await modulePromise;
+  const source = [item('movie', 18)];
+  for (const status of [400, 401, 403]) {
+    let calls = 0;
+    const cards = await resolveExternalPage(source, async path => {
+      calls++;
+      if (path === 'titles/batch') throw Object.assign(new Error('denied'), { status });
+      throw new Error('fallback must not run');
+    }, new AbortController().signal, 'trakt', 'cs', async () => true);
+    assert.equal(calls, 1);
+    assert.equal(cards[0].unresolved, true);
+  }
+});
+
+test('a later batch 404 invalidates negotiated support and retries the probe next time', async () => {
+  const { resolveExternalPage } = await modulePromise;
+  const { resetCapabilityCacheForTests } = await import('./app/capabilities.js');
+  resetCapabilityCacheForTests();
+  const source = [item('movie', 19)];
+  let probes = 0;
+  const request = async path => {
+    if (path === 'capabilities/negotiate') {
+      probes++;
+      return { schema_version: 1, revision: `cap1.${'c'.repeat(64)}`, cache_ttl_seconds: 300,
+        server_capabilities: [{ id: 'catalog_batch', versions: [1], enabled: true }], negotiated: [{ id: 'catalog_batch', version: 1 }] };
+    }
+    if (path === 'titles/batch') throw Object.assign(new Error('batch route absent'), { status: 404 });
+    return { id: 119, title: 'Title 19', original_title: 'Original 19', type: 'movie', tmdb_id: 19 };
+  };
+  for (let index = 0; index < 2; index++) {
+    const cards = await resolveExternalPage(source, request, new AbortController().signal, 'trakt', 'cs');
+    assert.equal(cards[0].unresolved, undefined);
+  }
+  assert.equal(probes, 2);
+  resetCapabilityCacheForTests();
 });
 
 test('invalid or missing IDs stay in place and are omitted from the batch request', async () => {
@@ -41,7 +113,7 @@ test('invalid or missing IDs stay in place and are omitted from the batch reques
   const cards = await resolveExternalPage(items, async (path, options) => {
     body = options.body;
     return {results:[found(0, items[0], 91), found(1, items[1], 92)]};
-  }, new AbortController().signal, 'simkl', 'cs');
+  }, new AbortController().signal, 'simkl', 'cs', async () => true);
   assert.deepEqual(body.items, [{type:'movie',tmdb_id:9},{type:'tv',tmdb_id:2147483647}]);
   assert.deepEqual(cards.map(card => card.unresolved === true), [false, false, true, true, true, true, true]);
   assert.match(cards[5].title, /No ID/);
@@ -50,7 +122,7 @@ test('invalid or missing IDs stay in place and are omitted from the batch reques
 test('an empty page is valid and makes no request', async () => {
   const { resolveExternalPage } = await modulePromise;
   let calls = 0;
-  assert.deepEqual(await resolveExternalPage([], async () => { calls++; }, new AbortController().signal, 'trakt', 'cs'), []);
+  assert.deepEqual(await resolveExternalPage([], async () => { calls++; }, new AbortController().signal, 'trakt', 'cs', async () => true), []);
   assert.equal(calls, 0);
 });
 
@@ -59,7 +131,7 @@ test('unavailable entries become placeholders while found entries remain usable'
   const items = [item('movie', 3), item('tv', 4)];
   const cards = await resolveExternalPage(items, async () => ({results:[
     found(0, items[0], 30), {index:1,type:'tv',tmdb_id:4,status:'unavailable'},
-  ]}), new AbortController().signal, 'trakt', 'cs');
+  ]}), new AbortController().signal, 'trakt', 'cs', async () => true);
   assert.equal(cards[0].id, 30);
   assert.equal(cards[1].unresolved, true);
 });
@@ -68,12 +140,12 @@ test('failed and malformed batch responses fail closed to ordered placeholders',
   const { resolveExternalPage } = await modulePromise;
   const items = [item('movie', 8), item('tv', 8)];
   const signal = new AbortController().signal;
-  const failed = await resolveExternalPage(items, async () => { throw new Error('503'); }, signal, 'simkl', 'en');
-  const malformed = await resolveExternalPage(items, async () => ({results:[found(1, items[0])]}), signal, 'simkl', 'en');
+  const failed = await resolveExternalPage(items, async () => { throw new Error('503'); }, signal, 'simkl', 'en', async () => true);
+  const malformed = await resolveExternalPage(items, async () => ({results:[found(1, items[0])]}), signal, 'simkl', 'en', async () => true);
   const invalidTitle = await resolveExternalPage(items, async () => ({results:[
     {index:0,type:'movie',tmdb_id:8,status:'found',title:{tmdb_id:8,type:'movie',title:'Missing internal ID'}},
     found(1, items[1]),
-  ]}), signal, 'simkl', 'en');
+  ]}), signal, 'simkl', 'en', async () => true);
   assert.deepEqual(failed.map(card => card.unresolved), [true, true]);
   assert.deepEqual(malformed.map(card => card.unresolved), [true, true]);
   assert.deepEqual(invalidTitle.map(card => card.unresolved), [true, true]);
@@ -88,7 +160,7 @@ test('nested title identity must match the echoed batch identity', async () => {
   const wrongTmdb = found(0, source[0]); wrongTmdb.title.tmdb_id = 9;
   const missingCoreIdentity = found(0, source[0]); delete missingCoreIdentity.title.original_title;
   for (const entry of [wrongType, wrongTmdb, missingCoreIdentity]) {
-    const cards = await resolveExternalPage(source, async () => ({results:[entry]}), new AbortController().signal, 'simkl', 'en');
+    const cards = await resolveExternalPage(source, async () => ({results:[entry]}), new AbortController().signal, 'simkl', 'en', async () => true);
     assert.deepEqual(cards.map(card => card.unresolved), [true]);
   }
 });
@@ -101,13 +173,13 @@ test('a 20-item page and its next page each make exactly one batch request', asy
     calls++;
     return {results: options.body.items.map((identity, index) => found(index, identity, calls * 100 + index))};
   };
-  const first = await resolveExternalPage(all.slice(0, 20), request, new AbortController().signal, 'trakt', 'cs');
+  const first = await resolveExternalPage(all.slice(0, 20), request, new AbortController().signal, 'trakt', 'cs', async () => true);
   assert.equal(calls, 1);
   assert.equal(first.length, 20);
   assert.ok(first.every(card => !card.unresolved));
   assert.deepEqual(first.map(card => card.id), Array.from({length:20}, (_,i)=>100+i));
   assert.deepEqual(first.map(card => card.type), all.slice(0,20).map(value=>value.kind));
-  const second = await resolveExternalPage(all.slice(20), request, new AbortController().signal, 'trakt', 'cs');
+  const second = await resolveExternalPage(all.slice(20), request, new AbortController().signal, 'trakt', 'cs', async () => true);
   assert.equal(calls, 2);
   assert.equal(second.length, 1);
   assert.equal(second[0].unresolved, undefined);
@@ -119,7 +191,7 @@ test('abort and owner-context changes prevent stale batch results from rendering
   const { resolveExternalPage } = await modulePromise;
   const controller = new AbortController();
   let release;
-  const pending = resolveExternalPage([item('movie', 1)], () => new Promise(resolve => { release = resolve; }), controller.signal, 'trakt', 'cs');
+  const pending = resolveExternalPage([item('movie', 1)], () => new Promise(resolve => { release = resolve; }), controller.signal, 'trakt', 'cs', async () => true);
   await new Promise(resolve => setImmediate(resolve));
   controller.abort();
   release({results:[found(0, item('movie', 1))]});
@@ -127,7 +199,7 @@ test('abort and owner-context changes prevent stale batch results from rendering
 
   const { invalidateApiContext } = await import('./app/api.js');
   let releaseOwner;
-  const ownerPending = resolveExternalPage([item('movie', 2)], () => new Promise(resolve => { releaseOwner = resolve; }), new AbortController().signal, 'trakt', 'cs');
+  const ownerPending = resolveExternalPage([item('movie', 2)], () => new Promise(resolve => { releaseOwner = resolve; }), new AbortController().signal, 'trakt', 'cs', async () => true);
   await new Promise(resolve => setImmediate(resolve));
   invalidateApiContext({accountId:99,profile:{id:1}});
   releaseOwner({results:[found(0, item('movie', 2))]});
