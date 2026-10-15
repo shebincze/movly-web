@@ -145,6 +145,21 @@ test("profile selection supplies explicit identity and ignores client overrides"
   assert.equal(c[5]["X-Profile-ID"], "1");
   assert.equal(c[5]["X-Profile-Grant"], "grant-1");
 });
+
+test("catalog batch BFF forwards only the bounded route body and selected UI language", async () => {
+  const h = harness(), selected = await h.selected();
+  h.calls.length = 0;
+  const identities = [{type:"movie",tmdb_id:7},{type:"tv",tmdb_id:7}];
+  const response = await h.request("titles/batch", {method:"POST", cookie:selected.cookie,
+    headers:{"x-movly-language":"en"}, body:{items:identities,language:"cs",extra:"discard"}});
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.deepEqual(response.body.results.map(x=>x.type), ["movie","tv"]);
+  const call = h.calls.at(-1);
+  assert.equal(call[0], "v1/titles/batch");
+  assert.equal(call[1], "POST");
+  assert.deepEqual(call[2], {items:identities,language:"en"});
+  assert.equal(call[5]["X-Profile-ID"], "1");
+});
 test("session without selected profile cannot read catalog", async () => {
   const h = harness(),
     l = await h.login(),

@@ -1,34 +1,52 @@
-import { api, title } from './api.js';
-import { translateUI } from './i18n.js';
+import { api, apiContextKey, title } from './api.js';
+import { translateUI, uiLanguage } from './i18n.js';
 import { el, poster, button, toast, countLabel } from './ui.js';
 import { listCard, libraryThumb } from './personal.js';
 
-export function localizedExternalTitle(raw, item) {
+export function localizedExternalTitle(raw, item, language = uiLanguage()) {
   const mapped = title(raw);
-  const name = mapped.all_titles?.cs?.trim() || mapped.title?.trim() || item.name;
+  const name = mapped.all_titles?.[language]?.trim() || mapped.title?.trim() || item.name;
   return { ...mapped, title: name };
 }
-export function createExternalCardResolver(request, signal) {
-  let active = 0;
-  const queue = [], cache = new Map();
-  function drain() {
-    while (active < 4 && queue.length) {
-      const task = queue.shift();
-      if (signal.aborted) { task.reject(new DOMException('Aborted', 'AbortError')); continue; }
-      active++;
-      Promise.resolve().then(task.work).then(task.resolve, task.reject).finally(() => { active--; drain(); });
-    }
+function validIdentity(item) {
+  return Number.isSafeInteger(item?.tmdb_id) && item.tmdb_id > 0 && ['movie', 'tv'].includes(item.kind);
+}
+function assertCurrent(signal, context) {
+  if (signal?.aborted || apiContextKey() !== context) throw new DOMException('Context changed', 'AbortError');
+}
+export async function resolveExternalPage(items, request, signal, provider, language = uiLanguage()) {
+  const context = apiContextKey();
+  const cards = new Array(items.length);
+  const valid = [];
+  items.forEach((item, pageIndex) => {
+    if (validIdentity(item)) valid.push({ item, pageIndex });
+    else cards[pageIndex] = placeholder(item, provider);
+  });
+  if (!valid.length) { assertCurrent(signal, context); return cards; }
+
+  try {
+    const response = await request('titles/batch', {
+      method: 'POST',
+      body: { items: valid.map(({ item }) => ({ type: item.kind, tmdb_id: item.tmdb_id })), language },
+    });
+    assertCurrent(signal, context);
+    if (!Array.isArray(response?.results) || response.results.length !== valid.length)
+      throw new Error('Invalid catalog batch response');
+    const resolved = response.results.map((entry, index) => {
+      const { item } = valid[index];
+      if (!entry || entry.index !== index || entry.type !== item.kind || entry.tmdb_id !== item.tmdb_id)
+        throw new Error('Catalog batch response does not match request');
+      if (entry.status === 'unavailable') return placeholder(item, provider);
+      if (entry.status === 'found') return localizedExternalTitle(entry.title, item, language);
+      throw new Error('Invalid catalog batch status');
+    });
+    assertCurrent(signal, context);
+    valid.forEach(({ pageIndex }, index) => { cards[pageIndex] = resolved[index]; });
+    return cards;
+  } catch (error) {
+    if (signal.aborted || error?.name === 'AbortError' || apiContextKey() !== context) throw error;
+    return items.map(item => placeholder(item, provider));
   }
-  return (item) => {
-    if (!Number.isSafeInteger(item.tmdb_id) || item.tmdb_id <= 0 || !['movie', 'tv'].includes(item.kind))
-      return Promise.reject(new Error(translateUI('Titul nemá rozpoznané katalogové ID.')));
-    const key = `${item.kind}:${item.tmdb_id}`;
-    if (!cache.has(key)) cache.set(key, new Promise((resolve, reject) => {
-      queue.push({ resolve, reject, work: async () => localizedExternalTitle(await request(`tmdb/${item.tmdb_id}?type=${item.kind}`), item) });
-      drain();
-    }));
-    return cache.get(key);
-  };
 }
 function listName(provider, list) {
   if (provider === 'trakt' && list.id === 'watchlist') return translateUI('Ke zhlédnutí');
@@ -39,8 +57,9 @@ function listName(provider, list) {
   return list.name;
 }
 function placeholder(item, provider) {
-  return { id: `external:${provider}:${item.kind}:${item.tmdb_id}:${item.id}`, title: item.name,
-    year: item.year, type: item.kind, unresolved: true };
+  const value = item || {};
+  return { id: `external:${provider}:${value.kind}:${value.tmdb_id}:${value.id}`, title: value.name || translateUI('Nerozpoznaný titul'),
+    year: value.year, type: value.kind, unresolved: true };
 }
 function source(provider) { return provider === 'trakt' ? 'Trakt.tv' : 'Simkl'; }
 function meta(provider, count) {
@@ -77,8 +96,7 @@ function openCard(actions, card) {
 // Externí seznamy jako karty v mřížce knihovny; plakáty se doplní po vyřešení ID.
 export async function externalListCards(signal, actions) {
   const owner = actions.owner;
-  const request = (path) => api(path, { signal, expectedOwner: owner });
-  const resolve = createExternalCardResolver(request, signal);
+  const request = (path, options = {}) => api(path, { ...options, signal, expectedOwner: owner });
   const results = await Promise.all(['trakt', 'simkl'].map(provider => fetchLists(provider, request, signal)));
   const cards = [], messages = [];
   for (const result of results) {
@@ -104,25 +122,27 @@ export async function externalListDetail(params, signal, actions) {
   const provider = params.get('provider');
   if (!['trakt', 'simkl'].includes(provider)) throw new Error(translateUI('Neplatná služba.'));
   const owner = actions.owner;
-  const request = path => api(path, { signal, expectedOwner: owner });
+  const context = apiContextKey();
+  const request = (path, options = {}) => api(path, { ...options, signal, expectedOwner: owner });
   const result = await fetchLists(provider, request, signal);
+  assertCurrent(signal, context);
   const list = result.lists.find(value => value.id === params.get('external'));
   const root = el('div', { class: 'page library-page' }, el('a', { href: '#lists', class: 'text-link lib-back' }, translateUI('Všechny seznamy')), ...notices(result));
   if (!list) { root.append(el('p', {}, translateUI('Seznam se nepodařilo načíst.'))); return root; }
   const grid = el('div', { class: 'lib-poster-grid' });
   const warning = el('p', { class: 'error-copy' });
-  const resolve = createExternalCardResolver(request, signal);
   let offset = 0, busy = false;
   const more = button(translateUI('Načíst další'), loadPage);
   async function loadPage() {
-    if (busy || signal.aborted || offset >= list.items.length) return;
+    if (busy || signal.aborted || apiContextKey() !== context || offset >= list.items.length) return;
     busy = true; more.disabled = true;
     const batch = list.items.slice(offset, offset + 20);
-    const cards = await Promise.all(batch.map(async item => {
-      try { return await resolve(item); }
-      catch { return placeholder(item, provider); }
-    }));
-    if (signal.aborted) return;
+    const cards = await resolveExternalPage(batch, request, signal, provider, uiLanguage()).catch(error => {
+      if (error?.name === 'AbortError' || signal.aborted) return null;
+      return batch.map(item => placeholder(item, provider));
+    });
+    if (!cards) return;
+    if (signal.aborted || apiContextKey() !== context) return;
     grid.append(...cards.map(card => poster(card, value => openCard(actions, value))));
     offset += batch.length; busy = false; more.disabled = false;
     more.hidden = offset >= list.items.length;

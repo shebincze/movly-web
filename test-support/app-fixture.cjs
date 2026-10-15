@@ -394,6 +394,12 @@ function createFixture() {
       {id:"fixture-large",name:"Testovací seznam",description:"Izolovaná testovací data",items:Array.from({length:25},(_,i)=>({id:String(i),name:"English title "+i,kind:"movie",year:2024,tmdb_id:693134+i,imdb_id:""}))}
     ]}};
     if (p === "v1/integrations/simkl/lists") return { payload:{provider:"simkl",status:"rate_limited",notice:"",retry_at:"2026-10-12T04:00:00Z",lists:[]} };
+    if (p === "v1/titles/batch" && method === "POST") return {payload:{results:(body.items || []).map((identity,index)=>{
+      const tv=identity.type==="tv", tmdbID=identity.tmdb_id;
+      const name=tv?"Teorie velkého třesku":tmdbID===693134?"Duna: Část druhá":"Český titul "+tmdbID;
+      const english=tv?"The Big Bang Theory":tmdbID===693134?"Dune: Part Two":"English title "+tmdbID;
+      return {index,type:identity.type,tmdb_id:tmdbID,status:"found",title:{id:10000+tmdbID+(tv?1000:0),tmdb_id:tmdbID,type:identity.type,title:body.language==="en"?english:name,original_title:english,all_titles:{cs:name,en:english}}};
+    })}};
     if (/^v1\/tmdb\/\d+$/.test(p)) {
       const id=Number(p.split("/").at(-1)); const tv=u.searchParams.get("type")==="tv";
       const name=tv?"Teorie velkého třesku":id===693134?"Duna: Část druhá":"Český titul "+id;
