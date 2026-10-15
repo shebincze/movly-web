@@ -103,11 +103,13 @@ function validatePage(page, expected, mode) {
       !UUID.test(context.instance_id) || context.policy_revision !== expected.policyRevision || !REVISION.test(context.policy_revision) || !decimal(context.catalog_epoch))
     throw new Error("Personal data context is invalid or belongs to another owner.");
   const entities = page.entities.map(validateEntity);
-  const ids = new Set();
-  for (const entity of entities) {
-    const key = `${entity.entity_type}:${entity.entity_id}`;
-    if (ids.has(key)) throw new Error("Personal data page contains a duplicate entity.");
-    ids.add(key);
+  if (mode === "snapshot") {
+    const ids = new Set();
+    for (const entity of entities) {
+      const key = `${entity.entity_type}:${entity.entity_id}`;
+      if (ids.has(key)) throw new Error("Personal data page contains a duplicate entity.");
+      ids.add(key);
+    }
   }
   return { ...page, entities };
 }
