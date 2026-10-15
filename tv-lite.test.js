@@ -106,10 +106,11 @@ test("legacy.js v moderním prohlížeči nic nenačítá, dokud se aplikace spu
   run.timers[0].fn();
   assert.equal(run.content.children.length, 0);
 
-  // Stuck modern boot can recover into the lightweight application.
+  // A slow modern module must not race a second application.
   const stuck = runLegacy({ modern: true });
   stuck.timers[0].fn();
-  assert.equal(stuck.head.children[1].src, "/app/tv/tv.js");
+  assert.equal(stuck.head.children.length, 0);
+  assert.match(stuck.text(), /Tento prohlížeč Movly nepodporuje/);
 
   // Starší main.js z cache příznak nenastaví, ale aplikaci vykreslí: nic se nezmění.
   const stale = runLegacy({ modern: true, booting: false });

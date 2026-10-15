@@ -5,7 +5,7 @@
    Používá výhradně existující cesty BFF /api/app/. */
 (function () {
   "use strict";
-  if (window.__movlyTvStarted) return;
+  if (window.__movlyStarted || window.__movlyTvStarted) return;
 
   var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, ENTER: 13, BACK: 461, BACKSPACE: 8, ESC: 27,
     PLAY: 415, PAUSE: 19, PLAY_PAUSE: 10252, STOP: 413, REWIND: 412, FORWARD: 417 };
@@ -97,7 +97,7 @@
     e.code = body && body.code;
     return e;
   }
-  var pendingRequests = [];
+  var pendingRequests = [], requestEpoch = 0;
   // ---------- diagnostika pro ladění na skutečných TV ----------
   // Posílá jen technické údaje (klávesy, schopnosti prohlížeče, chyby); nikdy obsah polí.
   var diagQueue = [], diagTimer = null, diagCount = 0, diagKeys = 0, bootAt = new Date().getTime();
@@ -148,14 +148,14 @@
   window.addEventListener("mousedown", function (event) { if (diagKeys < 60) { diagKeys++; diag("mouse", { tg: event.target && event.target.tagName }); } }, true);
   function api(path, options, done) {
     options = options || {};
-    var xhr = new XMLHttpRequest(), finished = false;
+    var xhr = new XMLHttpRequest(), finished = false, epoch = requestEpoch;
     xhr.open(options.method || "GET", "/api/app/" + path, true);
     xhr.setRequestHeader("Accept", "application/json");
     xhr.setRequestHeader("X-Movly-App", "1");
     xhr.setRequestHeader("X-Movly-Language", "cs");
     // Pin requests to the account/profile that opened the screen, including
     // history writes and session teardown after another tab switches profiles.
-    if (account && isId(account.id) && profile && isId(profile.id) && path !== "profile" && path !== "login" && path !== "logout") {
+    if (account && isId(account.id) && profile && isId(profile.id) && path !== "session" && path !== "profiles" && path !== "profile" && path !== "login" && path !== "logout") {
       xhr.setRequestHeader("X-Movly-Expected-Account", String(account.id));
       xhr.setRequestHeader("X-Movly-Expected-Profile", String(profile.id));
     }
@@ -166,6 +166,7 @@
       finished = true;
       var i = pendingRequests.indexOf(xhr);
       if (i >= 0) pendingRequests.splice(i, 1);
+      if (epoch !== requestEpoch) return;
       if (err && path !== "session") diag("api", { p: (options.method || "GET") + " " + path.split("?")[0].replace(/[a-f0-9]{48}/, "<id>"), st: err.status, c: err.code || null, m: String(err.message || "").slice(0, 160) });
       if (err && !options.quiet && handleAuthError(err)) return;
       if (done) done(err, data);
@@ -187,13 +188,21 @@
   }
   // Vypršené přihlášení vrací na přihlášení, chybějící profil na výběr profilu.
   function handleAuthError(err) {
+    if (err.code === "offline_owner_changed") {
+      stopPlayback();
+      account = null; profile = null;
+      boot();
+      return true;
+    }
     if (err.status === 401 || contains(SESSION_CODES, err.code)) {
       stopPlayback();
+      account = null; profile = null;
       resetTo(loginScreen("Přihlášení vypršelo. Přihlas se znovu."));
       return true;
     }
     if (contains(PROFILE_CODES, err.code)) {
       stopPlayback();
+      profile = null;
       resetTo(profilesScreen("Vyber profil znovu."));
       return true;
     }
@@ -236,7 +245,14 @@
     popScreen();
   }
   function resetTo(screen) {
+    // Revoke callbacks before aborting: old XHR errors must never reset a newer
+    // login/profile screen. Aborts can synchronously trigger readyState changes.
+    requestEpoch++;
+    var obsolete = pendingRequests.slice(0);
+    pendingRequests.length = 0;
+    each(obsolete, function (xhr) { try { xhr.abort(); } catch (e) { /* already closed */ } });
     while (stack.length) destroy(stack.pop());
+    if (screen.name === "profiles") profile = null;
     // Záznamy historie z předchozích obrazovek už nic nevracejí.
     historyDepth = 0;
     stack.push(screen);

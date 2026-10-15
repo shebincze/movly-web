@@ -86,7 +86,9 @@
     // nestačí: prohlížeč může mít z cache (Cloudflare) starší main.js bez příznaku.
     setTimeout(function () {
       if (window.__movlyStarted || !document.querySelector("#content > [data-boot]")) return;
-      startTv();
+      // A slow module can still start later. Do not launch a second application
+      // in a module-capable browser; reserve TV loading for capability failures.
+      show();
     }, 20000);
   }
 })();
