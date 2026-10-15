@@ -55,3 +55,26 @@ test('telemetry BFF requires same origin, authenticated current owner and a clos
  const sent=calls.find(c=>c.path==='v1/telemetry/client');assert.deepEqual(sent.body,payload);
  assert.equal(sent.headers['X-Client-App'],'movly-web');assert.equal(sent.headers['X-Platform'],'web');
 });
+test('optional telemetry 401 never clears cookies or revokes the usable session', async () => {
+ for (const rejectedPath of ['v1/telemetry/client', 'v1/auth/me']) {
+  let reject=false;
+  class HttpError extends Error {constructor(status,message){super(message);this.status=status;}}
+  const user={id:1,username:'fixture',is_active:true,is_verified:true,role:'user'};
+  const handler=createAppHandler({secret:'synthetic-test-secret',production:false,HttpError,
+   json:(res,status,body)=>Object.assign(res,{statusCode:status,body}),readBody:async req=>req.body,
+   api:async path=>{if(reject && path===rejectedPath)throw new HttpError(401,'synthetic auth failure');
+    if(path==='v1/auth/login')return {payload:{token:'fixture',user}};
+    if(path==='v1/auth/me')return {payload:user};
+    if(path==='v1/telemetry/client')return {payload:null};throw Error(path);}});
+  async function request(method,target,body,cookie='') {const res={headers:{},setHeader(k,v){this.headers[k.toLowerCase()]=v;},end(){}};
+   await handler({method,body,headers:{host:'localhost',origin:'http://localhost','x-movly-app':'1',cookie}},res,new URL(`http://localhost/api/app/${target}`));return res;}
+  const login=await request('POST','login',{username:'fixture',password:'synthetic'});
+  const cookie=login.headers['set-cookie'].split(';')[0];reject=true;
+  const failed=await request('POST','telemetry/client',{event:'playing',outcome:'failure',provider:'',duration_ms:0},cookie);
+  assert.equal(failed.statusCode,401,rejectedPath);
+  assert.equal(failed.headers['set-cookie'],undefined,rejectedPath);
+  reject=false;
+  const session=await request('GET','session',null,cookie);
+  assert.equal(session.statusCode,200,rejectedPath);assert.equal(session.body.account.id,1);
+ }
+});

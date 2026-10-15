@@ -1912,9 +1912,9 @@ function createAppHandler({
       }
       json(res, 200, result);
     } catch (error) {
-      // Invalid PIN is a profile error, not a logout. All other API diagnostics
-      // retain their real status/code instead of masquerading as empty content.
-      if (error.status === 401 && target !== "profile" && target !== "login")
+      // Invalid PIN and optional telemetry must not mutate the login session.
+      // Diagnostics still retain their real status/code instead of empty content.
+      if (error.status === 401 && target !== "profile" && target !== "login" && target !== "telemetry/client")
         writeSession(res, null, s);
       const status = Number.isInteger(error.status) ? error.status : 500;
       if (
