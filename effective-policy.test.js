@@ -215,8 +215,11 @@ test("offline policy-marker storage failures do not block online policy use", as
   const { effectiveContentPolicy, clearEffectivePolicyCache } = await import(moduleURL.href);
   const oldFetch = globalThis.fetch,
     oldLocation = globalThis.location,
-    oldIndexedDB = globalThis.indexedDB;
+    oldIndexedDB = globalThis.indexedDB,
+    oldWindow = globalThis.window;
+  const delivered = [];
   globalThis.location = { origin: "https://fixture.test" };
+  globalThis.window = { dispatchEvent: event => { delivered.push(event.type); return true; } };
   globalThis.indexedDB = { open() { throw new Error("local offline storage unavailable"); } };
   try {
     clearEffectivePolicyCache();
@@ -225,10 +228,13 @@ test("offline policy-marker storage failures do not block online policy use", as
     globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => expected });
     const policy = await effectiveContentPolicy({ refresh: true });
     assert.equal(policy.revision, expected.revision);
+    assert.deepEqual(delivered, ["movly:offline-policy-protection-failed"],
+      "the offline protection warning is dispatched to the window listener target");
   } finally {
     clearEffectivePolicyCache();
     globalThis.fetch = oldFetch;
     globalThis.location = oldLocation;
     globalThis.indexedDB = oldIndexedDB;
+    globalThis.window = oldWindow;
   }
 });

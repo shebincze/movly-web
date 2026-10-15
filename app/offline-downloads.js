@@ -32,8 +32,7 @@ export async function queueOffline(title, episode, selection) {
   let receipt;
   try { receipt = await api("offline-grant", { method: "POST", body: {} }); }
   catch (error) {
-    if (error.status === 403 && await denyOfflineGrant(activeBefore).catch(() => false))
-      window.dispatchEvent(new Event("movly-offline-revoked"));
+    if (error.status === 403) await denyOfflineGrant(activeBefore).catch(() => false);
     throw error;
   }
   if (!(await verifiedGrant(receipt)))
@@ -129,8 +128,7 @@ async function download(job) {
     try {
       receipt = await ownedAPI("offline-grant", { method: "POST", body: {} });
     } catch (error) {
-      if (error.status === 403 && await denyOfflineGrant(job.receipt).catch(() => false))
-        window.dispatchEvent(new Event("movly-offline-revoked"));
+      if (error.status === 403) await denyOfflineGrant(job.receipt).catch(() => false);
       throw error;
     }
     if (!(await sameOfflineOwner(job.receipt, receipt)))

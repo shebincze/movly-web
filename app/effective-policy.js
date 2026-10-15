@@ -175,8 +175,8 @@ export async function effectiveContentPolicy({ signal, refresh = false } = {}) {
 }
 
 function reportOfflineProtectionFailure() {
-  if (typeof document !== "undefined" && typeof CustomEvent !== "undefined")
-    document.dispatchEvent(new CustomEvent("movly:offline-policy-protection-failed"));
+  if (typeof window !== "undefined" && typeof CustomEvent !== "undefined")
+    window.dispatchEvent(new CustomEvent("movly:offline-policy-protection-failed"));
 }
 
 export async function assertEffectivePolicyUnchanged(before, { signal } = {}) {
