@@ -133,3 +133,74 @@ test('abort and owner-context changes prevent stale batch results from rendering
   releaseOwner({results:[found(0, item('movie', 2))]});
   await assert.rejects(ownerPending, {name:'AbortError'});
 });
+
+test('one preview queue bounds 1,000 list requests and keeps working after an individual failure', async () => {
+  const { runPreviewQueue } = await modulePromise;
+  const jobs = Array.from({length:1000}, (_, index) => ({provider:index % 2 ? 'simkl' : 'trakt', index}));
+  const controller = new AbortController();
+  let active = 0, peak = 0, completed = 0, failed = 0;
+  await runPreviewQueue(jobs, async job => {
+    active++;
+    peak = Math.max(peak, active);
+    await new Promise(resolve => setTimeout(resolve, 1));
+    active--;
+    if (job.index === 17) { failed++; throw new Error('one preview failed'); }
+    completed++;
+  }, controller.signal, () => true);
+  assert.equal(peak, 4);
+  assert.equal(completed, 999);
+  assert.equal(failed, 1);
+  assert.equal(jobs.length, 0);
+});
+
+test('aborted and stale-owner preview queues do not start queued requests', async () => {
+  const { runPreviewQueue } = await modulePromise;
+  const jobs = Array.from({length:1000}, (_, index) => index);
+  const controller = new AbortController();
+  let started = 0;
+  const aborted = runPreviewQueue(jobs, () => new Promise(resolve => {
+    started++;
+    controller.signal.addEventListener('abort', resolve, {once:true});
+  }), controller.signal, () => true);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(started, 4);
+  controller.abort();
+  await aborted;
+  assert.equal(started, 4);
+  assert.equal(jobs.length, 0);
+
+  let current = true, ownerStarted = 0;
+  const releases = [];
+  const ownerJobs = Array.from({length:1000}, (_, index) => index);
+  const ownerQueue = runPreviewQueue(ownerJobs, () => new Promise(resolve => {
+    ownerStarted++;
+    releases.push(resolve);
+  }), new AbortController().signal, () => current);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(ownerStarted, 4);
+  current = false;
+  releases.forEach(release => release());
+  await ownerQueue;
+  assert.equal(ownerStarted, 4);
+  assert.equal(ownerJobs.length, 0);
+});
+
+test('a context change while the second provider loads rejects the whole overview', async () => {
+  const { loadExternalOverview } = await modulePromise;
+  const { apiContextKey, invalidateApiContext } = await import('./app/api.js');
+  const context = apiContextKey();
+  const signal = new AbortController().signal;
+  let releaseSimkl, traktResolved = false;
+  const pending = loadExternalOverview(path => {
+    if (path === 'integrations/trakt/lists') {
+      traktResolved = true;
+      return Promise.resolve({provider:'trakt',status:'ready',lists:[{id:'old-account',items:[]}]});
+    }
+    return new Promise(resolve => { releaseSimkl = resolve; });
+  }, signal, context);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(traktResolved, true);
+  invalidateApiContext({accountId:100,profile:{id:1}});
+  releaseSimkl({provider:'simkl',status:'ready',lists:[]});
+  await assert.rejects(pending, {name:'AbortError'});
+});

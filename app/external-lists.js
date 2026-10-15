@@ -65,6 +65,19 @@ function placeholder(item, provider) {
     year: value.year, type: value.kind, unresolved: true };
 }
 function source(provider) { return provider === 'trakt' ? 'Trakt.tv' : 'Simkl'; }
+const previewConcurrency = 4;
+export async function runPreviewQueue(jobs, run, signal, isCurrent) {
+  let next = 0;
+  async function worker() {
+    while (!signal?.aborted && isCurrent()) {
+      const index = next++;
+      if (index >= jobs.length) return;
+      try { await run(jobs[index]); } catch { /* One failed preview must not block another list. */ }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(previewConcurrency, jobs.length) }, () => worker()));
+  jobs.length = 0;
+}
 function meta(provider, count) {
   return `${source(provider)} · ${countLabel(count, translateUI('položka'), translateUI('položky'), translateUI('položek'))} · ${translateUI('Pouze ke čtení')}`;
 }
@@ -88,6 +101,11 @@ async function fetchLists(provider, request, signal) {
     return { provider, status: 'unavailable', lists: [] };
   }
 }
+export async function loadExternalOverview(request, signal, context) {
+  const results = await Promise.all(['trakt', 'simkl'].map(provider => fetchLists(provider, request, signal)));
+  assertCurrent(signal, context);
+  return results;
+}
 function notices(result) {
   return [statusMessage(result) ? el('p', { class: 'error-copy' }, statusMessage(result)) : null,
     result.notice === 'premium_only' ? el('p', { class: 'list-meta' }, translateUI('Vlastní seznamy Simkl vyžadují PRO nebo VIP.')) : null].filter(Boolean);
@@ -99,9 +117,10 @@ function openCard(actions, card) {
 // Externí seznamy jako karty v mřížce knihovny; plakáty se doplní po vyřešení ID.
 export async function externalListCards(signal, actions) {
   const owner = actions.owner;
+  const context = apiContextKey();
   const request = (path, options = {}) => api(path, { ...options, signal, expectedOwner: owner });
-  const results = await Promise.all(['trakt', 'simkl'].map(provider => fetchLists(provider, request, signal)));
-  const cards = [], messages = [];
+  const results = await loadExternalOverview(request, signal, context);
+  const cards = [], messages = [], previews = [];
   for (const result of results) {
     if (['disconnected', 'unconfigured'].includes(result.status)) continue;
     const notes = notices(result);
@@ -112,13 +131,17 @@ export async function externalListCards(signal, actions) {
         meta: countLabel(list.items.length, translateUI('položka'), translateUI('položky'), translateUI('položek')),
         tag: translateUI('Externí seznam'), tone: 'external' });
       cards.push(card);
-      resolveExternalPage(list.items.slice(0, 3), request, signal, result.provider, uiLanguage()).then(found => {
-        const art = found.map(t => t?.poster_path).filter(Boolean);
-        if (signal.aborted || !art.length) return;
-        card.querySelector('.lib-stack').replaceChildren(...[0, 1, 2].map(i => libraryThumb(art[i], 'lib-stack-art')));
-      }).catch(() => {});
+      previews.push({ items: list.items.slice(0, 3), provider: result.provider, card });
     }
   }
+  void runPreviewQueue(previews, async ({ items, provider, card }) => {
+    if (signal?.aborted || apiContextKey() !== context) return;
+    const found = await resolveExternalPage(items, request, signal, provider, uiLanguage());
+    if (signal?.aborted || apiContextKey() !== context) return;
+    const art = found.map(t => t?.poster_path).filter(Boolean);
+    if (signal?.aborted || !art.length) return;
+    card.querySelector('.lib-stack').replaceChildren(...[0, 1, 2].map(i => libraryThumb(art[i], 'lib-stack-art')));
+  }, signal, () => apiContextKey() === context);
   return { cards, notices: messages };
 }
 export async function externalListDetail(params, signal, actions) {
