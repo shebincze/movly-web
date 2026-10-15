@@ -2,7 +2,7 @@ import { homeQuery, homeSections } from "./home-state.js";
 
 // The existing manifest/section contract lets useful rows publish independently.
 // One cycle budget includes manifest, local queue residence and all row requests.
-export function createHomeLoader({ request, signal, onLayout, onRow, onError, budget = 8000, concurrency = 4 }) {
+export function createHomeLoader({ request, signal, onLayout, onRow, onError, beforePublish = async () => {}, budget = 8000, concurrency = 4 }) {
   budget = Number.isFinite(budget) ? Math.max(1, Math.min(8000, budget)) : 8000;
   concurrency = Number.isSafeInteger(concurrency) ? Math.max(1, Math.min(4, concurrency)) : 4;
   let cycle = null, generation = 0;
@@ -24,7 +24,9 @@ export function createHomeLoader({ request, signal, onLayout, onRow, onError, bu
       job.running = true; c.active++;
       const controller = new AbortController(); job.controller = controller;
       const abort = () => controller.abort(); c.controller.signal.addEventListener("abort", abort, { once: true });
-      request(homeQuery({ section: job.row.slug }), { signal: controller.signal, expectedOwner: c.owner }).then(response => {
+      request(homeQuery({ section: job.row.slug }), { signal: controller.signal, expectedOwner: c.owner }).then(async response => {
+        if (!current(c) || job.done) return;
+        await beforePublish();
         if (!current(c) || job.done) return;
         if (JSON.stringify(response.viewer_scope) !== c.scope) {
           stopWith(c, Object.assign(new Error("Pravidla profilu se změnila. Zkusit znovu."), { code: "home_policy_changed" })); return;
@@ -34,10 +36,18 @@ export function createHomeLoader({ request, signal, onLayout, onRow, onError, bu
           stopWith(c, new Error("Řady Domů se změnily. Zkusit znovu.")); return;
         }
         job.done = true; onRow(rows[0], true);
-      }).catch(error => {
+      }).catch(async error => {
         if (!current(c) || job.done) return;
         const scope = error.body?.viewer_scope;
         if ([401, 403].includes(error.status) || error.name === "AbortError" || ["home_policy_changed", "offline_owner_changed"].includes(error.code) || scope && JSON.stringify(scope) !== c.scope) { stopWith(c, error); return; }
+        try { await beforePublish(); } catch (policyError) {
+          if (current(c)) {
+            if (policyError.name === "AbortError") close(c);
+            else stopWith(c, policyError);
+          }
+          return;
+        }
+        if (!current(c) || job.done) return;
         job.done = true; onRow(failed(job.row, error.message || "Řada se neobnovila."), scope && JSON.stringify(scope) === c.scope);
       }).finally(() => {
         c.controller.signal.removeEventListener("abort", abort);
@@ -58,6 +68,8 @@ export function createHomeLoader({ request, signal, onLayout, onRow, onError, bu
     try {
       const response = await request(homeQuery({ layoutOnly: true }), { signal: c.controller.signal });
       if (!current(c)) return;
+      await beforePublish();
+      if (!current(c)) return;
       if (!Number.isSafeInteger(response.viewer_scope?.account_id) || !Number.isSafeInteger(response.viewer_scope?.profile_id) || response.viewer_scope.account_id < 1 || response.viewer_scope.profile_id < 1) throw new Error("Neplatná odpověď Domů.");
       const rows = homeSections(response);
       c.scope = JSON.stringify(response.viewer_scope); c.owner = { accountId: response.viewer_scope.account_id, profileId: response.viewer_scope.profile_id };
@@ -65,7 +77,11 @@ export function createHomeLoader({ request, signal, onLayout, onRow, onError, bu
       c.queue = [...c.jobs].sort((a, b) => (a.row.kind === "continue" ? 0 : a.index === 0 ? 1 : 2) - (b.row.kind === "continue" ? 0 : b.index === 0 ? 1 : 2) || a.index - b.index);
       onLayout(response, rows); pump(c);
       if (!rows.length) clearTimeout(c.timer);
-    } catch (error) { if (current(c)) stopWith(c, error); }
+    } catch (error) {
+      if (!current(c)) return;
+      if (error.name === "AbortError") { close(c); return; }
+      stopWith(c, error);
+    }
   }
   function retry(slug) {
     const c = cycle;

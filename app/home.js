@@ -1,5 +1,6 @@
 import { createHomeLoader } from "./home-loader.js";
 import { api, title, imageURL } from "./api.js";
+import { effectiveContentPolicy } from "./effective-policy.js";
 import { translateUI } from "./i18n.js";
 import { el, button, loading, empty, rail, errorBox, icon } from "./ui.js";
 import { retainHome, homeCaption, recommendationAction, HomeImpressions } from "./home-state.js";
@@ -60,10 +61,10 @@ function genreSection(genres) {
     el("h2", { id: "home-genres" }, translateUI("Žánry")),
     el("div", { class: "genre-chips" }, genres.map(g => el("a", { class: "chip", href: `#movies?${new URLSearchParams({ view: "grid", genre: String(g.id) })}` }, g.name_cs || g.name))));
 }
-export function serverHome(signal, actions, carousel) {
+export function serverHome(signal, actions, carousel, initialPolicy) {
   const content = el("div", { class: "native-home" }, loading());
   const tracker = homeTracking(signal, actions);
-  let rows = [], viewer = null, timer, genres = [];
+  let rows = [], viewer = null, timer, genres = [], policy = initialPolicy;
   api("titles/genres", { signal }).then(data => {
     genres = (Array.isArray(data?.genres) ? data.genres : []).filter(g => Number.isSafeInteger(g.id) && g.id > 0 && typeof (g.name_cs || g.name) === "string").slice(0, 16);
     if (rows.length && !signal.aborted) paint();
@@ -114,6 +115,11 @@ export function serverHome(signal, actions, carousel) {
     if (rows.length && genres.length) content.append(genreSection(genres));
   }
   const loader = createHomeLoader({ request: api, signal,
+    beforePublish: async () => {
+      const current = await effectiveContentPolicy({ signal });
+      if (current?.revision !== policy?.revision)
+        throw new DOMException("Home policy changed before row publication", "AbortError");
+    },
     onLayout: (response, fresh) => {
       const scope = JSON.stringify(response.viewer_scope), same = viewer === scope;
       rows = fresh.map(row => {
@@ -132,16 +138,28 @@ export function serverHome(signal, actions, carousel) {
     onError: error => { rows = []; viewer = null; tracker.clear(); paint(error); },
   });
   function refresh(section) { if (section) loader.retry(section); else void loader.refresh(); }
+  const effectivePolicyChanged = () => {
+    if (signal.aborted) return;
+    void effectiveContentPolicy({ signal }).then(current => {
+      if (!current || signal.aborted || current.revision === policy?.revision) return;
+      policy = current;
+      clearTimeout(timer);
+      rows = []; viewer = null; tracker.clear(); content.replaceChildren(loading());
+      void loader.refresh();
+    }).catch(error => { if (error.name !== "AbortError") console.warn("Home policy refresh is unavailable"); });
+  };
   const changed = () => { clearTimeout(timer); timer = setTimeout(() => refresh(), 250); };
   document.addEventListener("movly:personal-changed", changed);
   window.addEventListener("movly:personal-changed", changed);
   window.addEventListener("online", changed);
   const visible = () => { if (document.visibilityState === "visible") changed(); };
   document.addEventListener("visibilitychange", visible);
+  document.addEventListener("movly:effective-policy-changed", effectivePolicyChanged);
   signal.addEventListener("abort", () => {
     clearTimeout(timer); document.removeEventListener("movly:personal-changed", changed);
     window.removeEventListener("movly:personal-changed", changed); window.removeEventListener("online", changed);
     document.removeEventListener("visibilitychange", visible);
+    document.removeEventListener("movly:effective-policy-changed", effectivePolicyChanged);
   }, { once: true });
   refresh();
   return content;

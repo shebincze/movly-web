@@ -110,9 +110,7 @@ function feedRail(group, actions, source = "main") {
 }
 export async function home(signal, actions) {
   const policy = await effectiveContentPolicy({ signal, refresh: true });
-  const node = await serverHome(signal, actions, carousel);
-  await assertEffectivePolicyUnchanged(policy, { signal });
-  return node;
+  return serverHome(signal, actions, carousel, policy);
 }
 // Stale-while-revalidate pro Filmy/Seriály: návrat na stránku vykreslí hned
 // poslední odpověď /main (do 5 min) a na pozadí ji tiše ověří. Osobní řady se
