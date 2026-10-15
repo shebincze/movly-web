@@ -12,9 +12,11 @@ export function createPlaybackAttempt({owner, supported=false, eligible=()=>true
   let id="", closed=false, terminal=null;
   const observed=new Set(), requests=new Set();
   if(sampled){try{id=Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,"0")).join("");}catch{}}
+  const successful=()=>terminal==="playing"||terminal==="first_frame";
   const current=()=>!!id&&!closed&&eligible();
+  const workCurrent=()=>current()&&(!terminal||successful());
   function send(stage,outcome,stageDuration=0,at=now(),errorClass="none"){
-    if(!current()||observed.has(stage)||!stages.has(stage)||!owner?.accountId||!owner?.profileId)return false;
+    if(!current()||(terminal&&!successful()&&stage!=="terminal"&&stage!=="start")||observed.has(stage)||!stages.has(stage)||!owner?.accountId||!owner?.profileId)return false;
     if(stage!=="start"&&!observed.has("start"))send("start","success",0,startedAt);
     observed.add(stage);
     const time=now();if(time-windowAt>=1000||time<windowAt){windowAt=time;sent=0;}
@@ -38,18 +40,20 @@ export function createPlaybackAttempt({owner, supported=false, eligible=()=>true
   }
   function failure(outcome="failure",errorClass="unknown"){
     if(!["failure","timeout"].includes(outcome))return false;
-    return terminal?send("playback_failure",outcome,now()-startedAt,now(),errorClass):finish(outcome,now(),errorClass);
+    if(terminal&&!successful())return false;
+    const at=now();
+    return terminal?send("playback_failure",outcome,at-startedAt,at,errorClass):finish(outcome,at,errorClass);
   }
   function dispose(reason="cancelled"){
     if(closed)return;
     if(eligible()) {
-      if(reason==="source_switch" && terminal && terminal!=="source_switch")send("source_switch","source_switch",now()-startedAt);
+      if(reason==="source_switch" && successful()){const at=now();send("source_switch","source_switch",at-startedAt,at);}
       else finish(reason);
     }
     else for(const request of requests)request.abort();
     closed=true;
   }
   send("start","success",0,startedAt);
-  return {sampled:!!id,correlation:()=>current() ? id : null,stage:(name,duration)=>["source_discovery","resume_lookup","session_prepare","media_opened"].includes(name)&&send(name,"success",duration),
+  return {sampled:!!id,correlation:()=>workCurrent() ? id : null,stage:(name,duration)=>["source_discovery","resume_lookup","session_prepare","media_opened"].includes(name)&&send(name,"success",duration),
     finish,failure,dispose,setEngine:value=>{if(engines.has(value))engine=value;},setProvider:value=>{provider=typeof value==="string"?value.toLowerCase():"";}};
 }
