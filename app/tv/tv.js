@@ -153,6 +153,12 @@
     xhr.setRequestHeader("Accept", "application/json");
     xhr.setRequestHeader("X-Movly-App", "1");
     xhr.setRequestHeader("X-Movly-Language", "cs");
+    // Pin requests to the account/profile that opened the screen, including
+    // history writes and session teardown after another tab switches profiles.
+    if (account && isId(account.id) && profile && isId(profile.id) && path !== "profile" && path !== "login" && path !== "logout") {
+      xhr.setRequestHeader("X-Movly-Expected-Account", String(account.id));
+      xhr.setRequestHeader("X-Movly-Expected-Profile", String(profile.id));
+    }
     if (options.body !== undefined) xhr.setRequestHeader("Content-Type", "application/json");
     xhr.timeout = options.timeout || 60000;
     function finish(err, data) {
@@ -1020,7 +1026,10 @@
       };
       if (episode) { body.season_number = episode.season_number; body.episode_number = episode.episode_number; }
       api("watch-history", { method: "POST", body: body, quiet: true }, function (err) {
-        if (err && !stopped) say("Pozice se neuložila: " + err.message);
+        if (err) {
+          if (lastSaved === pos) lastSaved = -1;
+          if (!stopped) say("Pozice se neuložila: " + err.message);
+        }
       });
     }
     function teardown() {

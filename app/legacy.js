@@ -9,9 +9,8 @@
     sk: ["Tento prehliadač Movly nepodporuje", "Vstavaný prehliadač tohto zariadenia je zastaraný a webovú aplikáciu Movly nedokáže spustiť.", "Použi aktuálny Chrome, Edge, Firefox alebo Safari, alebo aplikáciu Movly pre iOS, Android, Android TV, Apple TV či Windows.", "Stiahnuť aplikácie", "Identifikácia prehliadača:"],
     en: ["This browser can't run Movly", "This device's built-in browser is too old to run the Movly web app.", "Use a current Chrome, Edge, Firefox or Safari, or the Movly app for iOS, Android, Android TV, Apple TV or Windows.", "Download the apps", "Browser identification:"]
   };
-  // TV lite je zatím vypnutá: na LG NetCast se nepodařilo zprovoznit přehrávání
-  // (#64). Nepodporované prohlížeče dostanou jen hlášku.
-  var TV_ENABLED = false;
+  // Capability detection keeps modern browsers on the full application.
+  var TV_ENABLED = true;
   var t = text[lang] || (lang === "sk" ? text.sk : lang === "cs" ? text.cs : text.en);
   var root = document.documentElement;
   // Samostatná stránka /app/tv/ (data-movly-tv) spouští lite verzi vždy.
