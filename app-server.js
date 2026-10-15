@@ -1776,7 +1776,8 @@ function createAppHandler({
             ) ||
             !["register", "start", "ready", "leave"].includes(body.action) ||
             typeof body.is_host !== "boolean" ||
-            typeof body.ready !== "boolean"
+            typeof body.ready !== "boolean" ||
+            (body.expected_round !== undefined && (!Number.isSafeInteger(body.expected_round) || body.expected_round < 0))
           )
             throw new HttpError(400, "Neplatná příprava party.");
           body = {
@@ -1784,6 +1785,7 @@ function createAppHandler({
             action: body.action,
             is_host: body.is_host,
             ready: body.ready,
+            ...(body.expected_round !== undefined ? { expected_round: body.expected_round } : {}),
           };
         } else if (/^party\/[a-f0-9]{32}\/state$/.test(target)) {
           if (

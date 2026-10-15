@@ -546,6 +546,20 @@ test("party preparation forwards only through an authenticated profile session",
   assert.equal(forwarded[1], "POST");
   assert.equal(forwarded[2].ready, true);
 });
+test("party readiness preserves optional round zero and rejects lossy or malformed rounds", async () => {
+  const h = harness({ override: path => path.startsWith("v1/party/") ? { payload: { party_id: "a".repeat(32), version: 1 } } : undefined });
+  const selected = await h.selected(), path = `party/${"a".repeat(32)}/preparation`;
+  const base = { action: "ready", device_id: "00000000-0000-0000-0000-000000000001", ready: false, is_host: false };
+  for (const round of [undefined, 0, 7, Number.MAX_SAFE_INTEGER]) {
+    const response = await h.request(path, { method: "POST", cookie: selected.cookie, body: { ...base, ...(round === undefined ? {} : { expected_round: round }) } });
+    assert.equal(response.status, 200);
+    assert.equal(h.calls.at(-1)[2].expected_round, round);
+    assert.equal(Object.hasOwn(h.calls.at(-1)[2], "expected_round"), round !== undefined);
+  }
+  for (const round of [-1, 0.5, "1", null, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal((await h.request(path, { method: "POST", cookie: selected.cookie, body: { ...base, expected_round: round } })).status, 400);
+  }
+});
 
 test("native provider tickets keep URLs/credentials server-side and reports bind the canonical table", async () => {
   const resolved = [];

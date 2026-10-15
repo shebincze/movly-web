@@ -4,7 +4,7 @@ import { api, imageURL } from "./api.js";
 import { el, button, showDialog, toast } from "./ui.js";
 let state = null,
   host = false,
-  ready = false,
+  ready = null,
   offset = 0,
   bestRTT = Infinity;
 let events = null;
@@ -12,6 +12,7 @@ let generation = 0,
   timer = null,
   opening = false,
   presented = null;
+let playback = null, playbackSequence = 0;
 const key = "movly.party.device";
 let deviceId = sessionStorage.getItem(key);
 if (!deviceId) {
@@ -23,8 +24,44 @@ export const partyIsHost = () => host;
 export const partyWaiting = () => waitingForParty(state, Date.now(), offset);
 export const partyPosition = () =>
   effectivePartyPosition(state, Date.now(), offset);
-export function reportPartyReady(value) {
-  ready = value;
+function episodeID(value) { return value ?? null; }
+function roundOf(value) { return value?.preparation?.round; }
+function mediaKey(value) {
+  return JSON.stringify([value?.party_id, value?.title_id, episodeID(value?.episode_id)]);
+}
+export function partyPlaybackMatches(attempt) {
+  return Boolean(attempt && attempt === playback && !attempt.stopped
+    && attempt.generation === generation && mediaKey(attempt) === mediaKey(state));
+}
+// Each sample belongs to one actual player attempt. A new round needs a new
+// sample from that player; changing the round never relabels a cached boolean.
+export function beginPartyPlayback(titleID, episode = null) {
+  if (playback) playback.stopped = true;
+  playback = { generation, party_id: state?.party_id, title_id: titleID,
+    episode_id: episodeID(episode), sequence: ++playbackSequence, stopped: false };
+  ready = null;
+  reportPartyReady(false, playback);
+  return playback;
+}
+export function reportPartyReady(value, attempt) {
+  if (!partyPlaybackMatches(attempt) || typeof value !== "boolean") return false;
+  const round = roundOf(state);
+  if (round !== undefined && (!Number.isSafeInteger(round) || round < 0)) return false;
+  ready = { attempt, round, value };
+  return true;
+}
+export function endPartyPlayback(attempt) {
+  if (!attempt || attempt !== playback) return;
+  reportPartyReady(false, attempt);
+  attempt.stopped = true;
+}
+function currentReadiness(sample) {
+  return Boolean(sample && sample.attempt === playback && sample.attempt.generation === generation
+    && mediaKey(sample.attempt) === mediaKey(state) && sample.round === roundOf(state)
+    && (!sample.attempt.stopped || sample.value === false));
+}
+function readinessKey(sample) {
+  return JSON.stringify([sample.round, sample.attempt.sequence, sample.value]);
 }
 function apply(fresh, expected) {
   if (
@@ -33,20 +70,38 @@ function apply(fresh, expected) {
     (state && fresh.version < state.version)
   )
     return false;
+  if (mediaKey(fresh) !== mediaKey(state) || roundOf(fresh) !== roundOf(state)) ready = null;
   state = fresh;
   return true;
 }
-async function preparation(action, value = ready) {
+async function preparation(action, sample = null) {
+  if (action === "ready" && !currentReadiness(sample)) return false;
   const expected = generation,
     id = state.party_id,
     sent = Date.now();
-  const fresh = await api(`party/${id}/preparation`, {
-    method: "POST",
-    body: { device_id: deviceId, action, is_host: host, ready: value },
-  });
+  let fresh;
+  try {
+    fresh = await api(`party/${id}/preparation`, {
+      method: "POST",
+      body: { device_id: deviceId, action, is_host: host, ready: sample?.value ?? false,
+        ...(action === "ready" && sample.round !== undefined ? { expected_round: sample.round } : {}) },
+    });
+  } catch (error) {
+    if (action !== "ready" || error.status !== 409 || error.code !== "party_preparation_round_mismatch") throw error;
+    if (expected === generation && state?.party_id === id) {
+      ready = null;
+      const reconciled = await api(`party/${id}`);
+      // Let the player sample readiness again after reconciliation finishes.
+      if (expected === generation && state?.party_id === id) {
+        apply(reconciled, expected);
+        ready = null;
+      }
+    }
+    return false;
+  }
   const received = Date.now(),
     rtt = received - sent;
-  if (expected !== generation || state?.party_id !== id) return;
+  if (expected !== generation || state?.party_id !== id) return false;
   const serverTime = Date.parse(fresh.server_time);
   if (!Number.isFinite(serverTime))
     throw new Error(translateUI("Server vrátil neplatný čas party."));
@@ -54,37 +109,41 @@ async function preparation(action, value = ready) {
     bestRTT = Math.min(bestRTT, rtt);
     offset = serverTime - (sent + received) / 2;
   }
-  apply(fresh, expected);
+  return apply(fresh, expected);
 }
 async function openSources() {
   if (
     !state?.preparation?.started_at ||
-    presented === state.party_id ||
+    presented === mediaKey(state) ||
     opening
   )
     return;
   opening = true;
   const expected = generation,
-    id = state.party_id;
+    id = state.party_id,
+    media = mediaKey(state),
+    titleID = state.title_id,
+    episode = state.episode_id;
   try {
-    const title = await api(`titles/${state.title_id}`);
-    let episode;
-    if (state.episode_id) {
+    const title = await api(`titles/${titleID}`);
+    let selectedEpisode;
+    if (episode) {
       const seasons =
         title.seasons || (await api(`titles/${title.id}/seasons`));
       for (const season of seasons) {
-        const match = season.episodes?.find((e) => e.id === state.episode_id);
-        if (match) episode = { ...match, season_number: season.season_number };
+        const match = season.episodes?.find((e) => e.id === episode);
+        if (match) selectedEpisode = { ...match, season_number: season.season_number };
       }
-      if (!episode)
+      if (!selectedEpisode)
         throw new Error(
           translateUI("Epizoda společného sledování není dostupná."),
         );
     }
-    if (expected !== generation || state?.party_id !== id) return;
-    presented = id;
+    if (expected !== generation || state?.party_id !== id || mediaKey(state) !== media) return;
     const { sources } = await import("./player.js");
-    await sources(title, episode);
+    if (expected !== generation || mediaKey(state) !== media) return;
+    presented = media;
+    await sources(title, selectedEpisode);
   } finally {
     opening = false;
   }
@@ -94,10 +153,10 @@ async function activate(fresh, isHost) {
   generation++;
   state = fresh;
   host = isHost;
-  ready = false;
+  ready = null;
   presented = null;
   bestRTT = Infinity;
-  await preparation("register", false);
+  await preparation("register");
   const eventGeneration = generation;
   events = new EventSource(`/api/app/party/${state.party_id}/events`);
   events.addEventListener("party", (event) => {
@@ -116,12 +175,17 @@ async function activate(fresh, isHost) {
     if (busy || expected !== generation || !state) return;
     busy = true;
     try {
-      if (lastReady !== ready || Date.now() - lastHeartbeat >= 5000) {
-        const value = ready;
-        await preparation("ready", value);
-        lastReady = value;
+      const sample = ready,
+        valid = currentReadiness(sample);
+      if (valid && (lastReady !== readinessKey(sample) || Date.now() - lastHeartbeat >= 5000)) {
+        const accepted = await preparation("ready", sample);
+        if (accepted && currentReadiness(sample)) lastReady = readinessKey(sample);
         lastHeartbeat = Date.now();
-      } else if (events?.readyState !== EventSource.OPEN) {
+      } else if (!valid && Date.now() - lastHeartbeat >= 5000) {
+        await preparation("register");
+        lastHeartbeat = Date.now();
+      }
+      if (expected === generation && state && events?.readyState !== EventSource.OPEN) {
         const fresh = await api(`party/${state.party_id}`);
         apply(fresh, expected);
       }
@@ -145,7 +209,9 @@ export async function leaveParty() {
   clearInterval(timer);
   timer = null;
   state = null;
-  ready = false;
+  ready = null;
+  if (playback) playback.stopped = true;
+  playback = null;
   if (previous)
     await api(
       `party/${previous.party_id}/${wasHost ? "leave" : "preparation"}`,
@@ -252,7 +318,7 @@ export async function hostParty(title, episode) {
             translateUI("Spustit pro všechny"),
             async () => {
               try {
-                await preparation("start", false);
+                await preparation("start");
                 await openSources();
               } catch (e) {
                 toast(e.message);

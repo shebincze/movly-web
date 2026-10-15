@@ -12,6 +12,9 @@ import {
   partyWaiting,
   partyPosition,
   reportPartyReady,
+  beginPartyPlayback,
+  endPartyPlayback,
+  partyPlaybackMatches,
   partyTransport,
 } from "./party.js";
 import { api, array } from "./api.js";
@@ -686,9 +689,10 @@ async function play(
   audio = audio ?? (restoreTracks ? saved.audio.index : 0);
   subtitle = subtitle ?? (restoreTracks ? saved.subtitle.index : -1);
   const handle = { cancelled: false, reportTelemetry: createPlaybackFailureReporter(scope) };
+  handle.partyPlayback = beginPartyPlayback(t.id, episode?.id);
   current = handle;
   try {
-    const inParty = partyState()?.title_id === t.id;
+    const inParty = partyPlaybackMatches(handle.partyPlayback);
     if (inParty) offset = 0;
     if (offset === null) {
       try {
@@ -752,7 +756,7 @@ async function play(
         remoteSeek = null,
         remotePaused = null;
       const publish = () => {
-        if (!applying && !seeking && !handle.cancelled && !partyWaiting())
+        if (!applying && !seeking && !handle.cancelled && partyPlaybackMatches(handle.partyPlayback) && !partyWaiting())
           partyTransport(!video.paused, offset + video.currentTime).catch((e) =>
             toast(e.message),
           );
@@ -792,13 +796,15 @@ async function play(
         publish();
       });
       handle.partyTimer = setInterval(() => {
-        if (handle.cancelled || partyState()?.title_id !== t.id) return;
-        const ready = video.readyState >= 3 && !video.error;
-        reportPartyReady(ready);
+        if (handle.cancelled) return;
+        if (!partyPlaybackMatches(handle.partyPlayback)) { video.pause(); return; }
         const waiting = partyWaiting();
-        video.controls = !waiting;
-        if (!ready) return;
         const target = waiting ? 0 : partyPosition();
+        const mediaReady = video.readyState >= 3 && !video.error;
+        const ready = mediaReady && !video.seeking && (!waiting || Math.abs(video.currentTime + offset - target) <= 0.5);
+        reportPartyReady(ready, handle.partyPlayback);
+        video.controls = !waiting;
+        if (!mediaReady) return;
         applying = true;
         if (Math.abs(video.currentTime + offset - target) > 0.5) {
           remoteSeek = Math.max(0, target - offset);
@@ -1489,7 +1495,7 @@ export async function stop() {
   clearInterval(handle.timer);
   clearInterval(handle.subtitleTimer);
   clearInterval(handle.partyTimer);
-  reportPartyReady(false);
+  endPartyPlayback(handle.partyPlayback);
   handle.video?.pause();
   handle.hls?.destroy();
   if (handle.history)
