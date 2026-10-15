@@ -1,4 +1,17 @@
 export const translations = {
+  "Přeskakování intra": ["Preskakovanie intra", "Intro skipping"],
+  "Vypnuto": ["Vypnuté", "Off"],
+  "Nabízet přeskočení": ["Ponúkať preskočenie", "Offer to skip"],
+  "Automaticky": ["Automaticky", "Automatically"],
+  "Přeskočit intro": ["Preskočiť intro", "Skip intro"],
+  "Přeskočit intro za {0} s": ["Preskočiť intro o {0} s", "Skip intro in {0} s"],
+  "Nepřeskakovat": ["Nepreskakovať", "Don't skip"],
+  "Vrátit přeskočení": ["Vrátiť preskočenie", "Undo skip"],
+  "Nastavení se nepodařilo synchronizovat.": ["Nastavenia sa nepodarilo synchronizovať.", "Settings could not be synchronized."],
+  "Změna nebyla uložena. Zkus to znovu.": ["Zmena nebola uložená. Skús to znova.", "The change was not saved. Try again."],
+  "Nabídka nebo automatické přeskočení": ["Ponuka alebo automatické preskočenie", "Offer or automatically skip"],
+  "Uloženo.": ["Uložené.", "Saved."],
+
   "Obnovuji přehrávání…": ["Obnovujem prehrávanie…", "Restoring playback…"],
   "Věková hranice ({0})": ["Veková hranica ({0})", "Age rating ({0})"],
   "Věková hranice": ["Veková hranica", "Age rating"],

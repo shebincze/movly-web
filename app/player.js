@@ -1153,7 +1153,7 @@ async function play(
     });
     const skipIntro = el("div", {class:"pk-intro-controls"});
     handle.introCleanup = mountIntroSkip({container:skipIntro,scope,title:t.id,episode,duration:session.duration,
-      position:positionNow,playing:()=>!video.paused,canSeek:()=>!partyWaiting()&&(!inParty||partyIsHost()),
+      position:positionNow,playing:()=>!video.paused,canSeek:()=>video.readyState>=2&&!partyWaiting()&&(!inParty||partyIsHost()),
       chapters:session.chapters,current:()=>current===handle&&!handle.cancelled,
       machine:introMachine,seek:(target,machine)=>inParty
         ? partyTransport(partyState().status==="playing",target)

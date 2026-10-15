@@ -7,7 +7,7 @@ export class IntroSkipMachine {
     if (now > this.undoUntil) this.undoPosition = null;
     if (this.pending) {
       const p = this.pending;
-      if (position >= p.segment.end_ms - 1000 && Math.abs(position - p.segment.end_ms) < 10000) {
+      if (canSeek && position >= p.segment.end_ms - 1000 && Math.abs(position - p.segment.end_ms) < 10000) {
         this.consumed.add(p.segment.id); this.undoPosition = p.origin; this.undoUntil = now + 8000; this.pending = null;
       } else if (now - p.at > 8000) { this.suppressed.add(p.segment.id); this.pending = null; }
       this.previous = position; this.offer = null; this.countdown = null; return null;
