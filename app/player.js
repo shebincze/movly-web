@@ -127,7 +127,7 @@ export async function sources(
   let handedOff = false, sourceDialog = null;
   const sourceClosed = () => { if (!handedOff) sourceTelemetry?.dispose(); };
   const sourceTelemetry = !autoDownload && playbackAttemptSupported() ? createPlaybackTelemetryReporter(sourceOwner, {startedAt: sourceStartedAt,
-    isActive: () => revision === sourceRevision && (!handedOff || current?.telemetry === sourceTelemetry)}) : null;
+    isActive: () => handedOff ? current?.telemetry === sourceTelemetry : revision === sourceRevision}) : null;
   const startPlay = (title, episode, selection, offset, audio, subtitle) => {
     handedOff = true; sourceDialog?.removeEventListener("close", sourceClosed); sourceTelemetry?.setProvider(selection.diagnostic_provider);
     return play(title, episode, selection, offset, audio, subtitle, undefined, sourceTelemetry);
