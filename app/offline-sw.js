@@ -1,10 +1,26 @@
-import { get, mayRead, CHUNK_BYTES, OFFLINE_CACHE_NAME } from "./offline-store.js";
+import { get, mayRead, CHUNK_BYTES, OFFLINE_CACHE_NAME, rememberVolatilePolicyBlock, verifiedGrant, offlineReceiptDigest } from "./offline-store.js";
 const CACHE = OFFLINE_CACHE_NAME;
 const FILES = ["/app/", "/app/styles.css?v=2", "/app/legacy.js?v=3", ...["catalog", "player", "library", "account"].map(s => `/app/css/${s}.css?v=2`), ...["main", "api", "ui", "catalog", "home", "home-state", "home-loader", "playback-memory", "intro-skip", "intro-skip-policy", "playback-diagnostics", "playback-telemetry", "external-lists", "capabilities", "library", "profiles", "personal", "friends", "admin", "auth", "provider-settings", "settings-menu", "tracking-settings", "notifications", "notification-labels", "stream-feedback", "stream-recommendations", "player", "party", "party-clock", "user-state", "episode-policy", "episode-state", "offline", "offline-store", "feedback", "feedback-access", "offline-history", "offline-downloads", "premium", "search-history", "effective-policy", "i18n", "translations"].map(s => `/app/${s}.js`), "/app/vendor/hls.mjs", ...["thumbs-up", "info", "message-square", "home", "film", "tv", "bookmark", "settings", "smartphone", "monitor", "globe", "search", "plus", "check", "chevron-right", "alert-circle", "arrow-left"].map(name => `/app/vendor/feedback-icons/${name}.svg`)];
 FILES.push("/assets/movly-mark.svg");
 const SHELL_PATHS = new Set(FILES.map(file => new URL(file, self.location.origin).pathname));
 self.addEventListener("install", event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting())));
 self.addEventListener("activate", event => event.waitUntil(Promise.all([self.clients.claim(), caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith("movly-offline-shell-") && k !== CACHE).map(k => caches.delete(k))))])));
+self.addEventListener("message", event => {
+  const data = event.data;
+  if (data?.type !== "offline-policy-block") return;
+  const work = (async () => {
+    const client = event.source?.id && await self.clients.get(event.source.id);
+    const sourceURL = new URL(event.source?.url || "", self.location.origin);
+    if (!client || client.type !== "window" || client.url !== event.source.url ||
+        sourceURL.origin !== self.location.origin || !sourceURL.pathname.startsWith("/app/")) return false;
+    const active = await get("settings", "active");
+    const grant = await verifiedGrant(active, Date.now(), { ownershipOnly: true });
+    if (!grant || await offlineReceiptDigest(active) !== data.digest || grant.accountId !== data.user_id ||
+        grant.profileId !== data.profile_id || grant.expiresAt !== data.expires_at) return false;
+    return rememberVolatilePolicyBlock(data.digest, grant);
+  })().then(ok => event.ports?.[0]?.postMessage({ ok }), () => event.ports?.[0]?.postMessage({ ok: false }));
+  event.waitUntil?.(work);
+});
 
 async function media(request, id) {
   const file = await get("files", id), active = await get("settings", "active");

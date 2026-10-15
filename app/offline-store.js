@@ -2,7 +2,7 @@ import { translateUI } from "./i18n.js";
 export const CHUNK_BYTES = 512 * 1024;
 export const OFFLINE_CACHE_NAME = "movly-offline-shell-v23-offline-policy-marker";
 const OFFLINE_POLICY_MARKER_CACHE_NAME = "movly-offline-policy-markers-v1";
-const volatilePolicyBlocks = new Set();
+const volatilePolicyBlocks = new Map();
 const request = (r) =>
   new Promise((resolve, reject) => {
     r.onsuccess = () => resolve(r.result);
@@ -130,7 +130,7 @@ function validStoredPolicy(value, owner) {
     value.user_id === owner.accountId && value.profile_id === owner.profileId &&
     typeof value.revision === "string" && /^ep1\.[a-f0-9]{64}$/.test(value.revision);
 }
-async function receiptDigest(receipt) {
+export async function offlineReceiptDigest(receipt) {
   const value = JSON.stringify({ payload: receipt?.payload, signature: receipt?.signature, publicKey: receipt?.publicKey });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
@@ -138,41 +138,84 @@ async function receiptDigest(receipt) {
 function policyMarkerKey(digest) {
   return new Request(new URL(`/app/offline-policy-markers/${digest}`, self.location.origin));
 }
+export function rememberVolatilePolicyBlock(digest, grant) {
+  if (!/^[a-f0-9]{64}$/.test(digest || "")) return false;
+  if (!Number.isSafeInteger(grant?.accountId) || !Number.isSafeInteger(grant?.profileId) ||
+      !Number.isFinite(grant?.expiresAt) || grant.expiresAt <= Date.now()) return false;
+  for (const [key, expiry] of volatilePolicyBlocks) if (expiry <= Date.now()) volatilePolicyBlocks.delete(key);
+  volatilePolicyBlocks.set(digest, grant.expiresAt);
+  return true;
+}
+async function notifyWorkerPolicyBlock(digest, grant) {
+  const controller = globalThis.navigator?.serviceWorker?.controller;
+  if (!controller || typeof MessageChannel === "undefined") return false;
+  return new Promise(resolve => {
+    const channel = new MessageChannel();
+    const timeout = setTimeout(() => { channel.port1.close(); resolve(false); }, 1000);
+    channel.port1.onmessage = event => {
+      clearTimeout(timeout);
+      channel.port1.close();
+      resolve(event.data?.ok === true);
+    };
+    try {
+      controller.postMessage({ type: "offline-policy-block", digest, user_id: grant.accountId,
+        profile_id: grant.profileId, expires_at: grant.expiresAt }, [channel.port2]);
+    } catch {
+      clearTimeout(timeout);
+      channel.port1.close();
+      resolve(false);
+    }
+  });
+}
 async function writePolicyMarkerFallback(receipt, marker) {
-  const digest = await receiptDigest(receipt);
-  const bound = { ...marker, reason: marker.reason || "known_policy_change", grant_digest: digest };
-  volatilePolicyBlocks.add(digest);
+  const digest = await offlineReceiptDigest(receipt);
+  const grant = await verifiedGrant(receipt, Date.now(), { ownershipOnly: true });
+  if (!grant || !Number.isFinite(grant.expiresAt)) return false;
+  const bound = { ...marker, reason: marker.reason || "known_policy_change", grant_digest: digest, expires_at: grant.expiresAt };
+  volatilePolicyBlocks.set(digest, grant.expiresAt);
   try {
-    if (!globalThis.caches) return false;
+    if (!globalThis.caches) throw new Error("CacheStorage is unavailable");
     const cache = await caches.open(OFFLINE_POLICY_MARKER_CACHE_NAME);
+    for (const request of await cache.keys()) {
+      try {
+        const existing = await cache.match(request), value = existing && await existing.json();
+        if (Number.isFinite(value?.expires_at) && value.expires_at <= Date.now()) await cache.delete(request);
+      } catch { /* Preserve entries whose expiry cannot be established. */ }
+    }
     await cache.put(policyMarkerKey(digest), new Response(JSON.stringify(bound), {
       headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
     }));
     return true;
   } catch {
-    return false;
+    // The page-local block remains active; the controlled worker must also
+    // acknowledge the same verified receipt before this is considered covered.
+    return notifyWorkerPolicyBlock(digest, grant);
   }
 }
 async function readPolicyMarkerFallback(active, grant) {
-  const digest = await receiptDigest(active);
-  if (volatilePolicyBlocks.has(digest)) return true;
+  const digest = await offlineReceiptDigest(active);
+  const volatileExpiry = volatilePolicyBlocks.get(digest);
+  if (volatileExpiry > Date.now()) return true;
+  if (volatileExpiry) volatilePolicyBlocks.delete(digest);
   try {
     if (!globalThis.caches) return false;
     const cache = await caches.open(OFFLINE_POLICY_MARKER_CACHE_NAME), response = await cache.match(policyMarkerKey(digest));
     if (!response) return false;
     const marker = await response.json();
-    return marker.grant_digest === digest && marker.user_id === grant.accountId &&
+    return marker.grant_digest === digest && Number.isFinite(marker.expires_at) && marker.expires_at > Date.now() &&
+      marker.user_id === grant.accountId &&
       marker.profile_id === grant.profileId && (
         (marker.reason === "known_policy_change" && /^ep1\.[a-f0-9]{64}$/.test(marker.current_revision || "")) ||
         marker.reason === "authoritative_server_denial"
       );
   } catch {
-    return false;
+    // A fallback marker may be the only durable record of a known denial.
+    return true;
   }
 }
 async function clearPolicyMarkerFallback(receipt) {
   try {
-    const digest = await receiptDigest(receipt);
+    const digest = await offlineReceiptDigest(receipt);
     volatilePolicyBlocks.delete(digest);
     if (globalThis.caches) await (await caches.open(OFFLINE_POLICY_MARKER_CACHE_NAME)).delete(policyMarkerKey(digest));
   } catch { /* A different newly issued receipt has a distinct digest. */ }
@@ -239,9 +282,12 @@ export async function denyOfflineGrant(receipt) {
 }
 // Policy metadata is local to the existing grant record; the signed receipt stays byte-for-byte intact.
 export async function observeEffectivePolicy(policy) {
-  const active = await get("settings", "active"), grant = await verifiedGrant(active, Date.now(), { ownershipOnly: true });
+  let active;
+  try { active = await get("settings", "active"); }
+  catch { return typeof indexedDB === "undefined"; }
+  const grant = await verifiedGrant(active, Date.now(), { ownershipOnly: true });
   if (!grant || policy?.user_id !== grant.accountId || policy?.profile_id !== grant.profileId ||
-      !/^ep1\.[a-f0-9]{64}$/.test(policy.revision || "")) return false;
+      !/^ep1\.[a-f0-9]{64}$/.test(policy.revision || "")) return true;
   const next = policyTuple(policy);
   const change = current => {
     const previous = current.effectivePolicy;
@@ -257,11 +303,12 @@ export async function observeEffectivePolicy(policy) {
   };
   try {
     await updateActiveGrant(active, change);
+    return true;
   } catch {
     const marker = effectivePolicySupersedesGrant(active.effectivePolicy, next, grant);
-    if (marker) await writePolicyMarkerFallback(active, marker);
+    if (!marker) return true;
+    return writePolicyMarkerFallback(active, marker);
   }
-  return true;
 }
 export async function storeFreshOfflineGrant(receipt, policy) {
   const grant = await verifiedGrant(receipt);

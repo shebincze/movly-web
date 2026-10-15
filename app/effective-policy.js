@@ -148,7 +148,12 @@ export async function effectiveContentPolicy({ signal, refresh = false } = {}) {
     // A validated policy revision is mirrored only inside the current signed
     // offline-grant record. Failure to persist this optional marker must not
     // interrupt online catalog/profile use.
-    try { await observeEffectivePolicy(policy); } catch { /* Best-effort local policy marker. */ }
+    try {
+      if (!await observeEffectivePolicy(policy))
+        reportOfflineProtectionFailure();
+    } catch {
+      reportOfflineProtectionFailure();
+    }
     const previous = cached?.policy;
     if (previous && previous.revision !== policy.revision) {
       generation++;
@@ -167,6 +172,11 @@ export async function effectiveContentPolicy({ signal, refresh = false } = {}) {
   } finally {
     if (pending?.promise === promise) pending = null;
   }
+}
+
+function reportOfflineProtectionFailure() {
+  if (typeof document !== "undefined" && typeof CustomEvent !== "undefined")
+    document.dispatchEvent(new CustomEvent("movly:offline-policy-protection-failed"));
 }
 
 export async function assertEffectivePolicyUnchanged(before, { signal } = {}) {

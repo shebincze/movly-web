@@ -159,6 +159,7 @@ test("a read-only IndexedDB failure uses a receipt-bound CacheStorage marker tha
   const cacheEntries = new Map(), cache = {
     async put(request, response) { cacheEntries.set(request.url, response.clone()); },
     async match(request) { return cacheEntries.get(request.url)?.clone(); },
+    async keys() { return [...cacheEntries.keys()].map(url => new Request(url)); },
     async delete(request) { return cacheEntries.delete(request.url); },
   };
   globalThis.caches = { async open() { return cache; } };
@@ -171,6 +172,10 @@ test("a read-only IndexedDB failure uses a receipt-bound CacheStorage marker tha
     const profile = { id: 2, name: "Adult", is_kids: false, has_pin: false, max_certification: 18, allow_unrated: true };
     const receipt = signer.issue(user, profile, { token: "read-only", device: "browser" }, now);
     await storeFreshOfflineGrant(receipt, policy(revision("f")));
+    const expiredKey = new Request("https://fixture.invalid/app/offline-policy-markers/expired");
+    const liveKey = new Request("https://fixture.invalid/app/offline-policy-markers/live");
+    await cache.put(expiredKey, new Response(JSON.stringify({ expires_at: Date.now() - 1 })));
+    await cache.put(liveKey, new Response(JSON.stringify({ expires_at: Date.now() + 86400000 })));
     const id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", file = { id, complete: true, size: 1, receipt };
     stores.get("files").set(id, file);
     const pendingHistory = { id: "pending", state: "unsent", position_ms: 321 };
@@ -182,6 +187,12 @@ test("a read-only IndexedDB failure uses a receipt-bound CacheStorage marker tha
     assert.equal(await mayRead(file, active), false, "CacheStorage fallback closes the current read gate");
     assert.equal(await serviceWorkerMediaStatus(stores, id, mayRead), 403,
       "a fresh service-worker instance reads the persisted marker fallback");
+    const markerResponse = cacheEntries.values().next().value;
+    assert.ok(Math.abs((await markerResponse.clone().json()).expires_at -
+      JSON.parse(Buffer.from(receipt.payload, "base64url").toString("utf8")).expiresAt) < 100,
+    "the fallback marker expiry matches its verified signed grant");
+    assert.equal(cacheEntries.has(expiredKey.url), false, "expired markers are pruned during writes");
+    assert.equal(cacheEntries.has(liveKey.url), true, "unexpired markers are retained");
     assert.equal(stores.get("settings").get("active").payload, receipt.payload,
       "the original signed receipt remains available for proof/recovery");
     assert.deepEqual(stores.get("history").get("pending"), pendingHistory,
@@ -205,6 +216,108 @@ test("a read-only IndexedDB failure uses a receipt-bound CacheStorage marker tha
   }
 });
 
+test("a fallback marker read error fails closed after a fresh module/worker load", async () => {
+  const oldIndexedDB = globalThis.indexedDB, oldCaches = globalThis.caches, oldSelf = globalThis.self;
+  const fixture = installIndexedDB(), { stores } = fixture;
+  globalThis.self = { location: { origin: "https://fixture.invalid" } };
+  const cacheEntries = new Map(), cache = {
+    async put(request, response) { cacheEntries.set(request.url, response.clone()); },
+    async match(request) { return cacheEntries.get(request.url)?.clone(); },
+    async keys() { return [...cacheEntries.keys()].map(url => new Request(url)); },
+    async delete(request) { return cacheEntries.delete(request.url); },
+  };
+  globalThis.caches = { async open() { return cache; } };
+  try {
+    const store = await import(`./app/offline-store.js?marker-read-failure=${Date.now()}`);
+    const now = Date.now(), signer = offlineSigner("synthetic-test-secret");
+    const user = { id: 1, username: "test", role: "user", is_active: true, is_verified: true,
+      premium_until: new Date(now + 86400000).toISOString() };
+    const profile = { id: 2, name: "Adult", is_kids: false, has_pin: false, max_certification: 18, allow_unrated: true };
+    const receipt = signer.issue(user, profile, { token: "marker-read-error", device: "browser" }, now);
+    await store.storeFreshOfflineGrant(receipt, policy(revision("3")));
+    const id = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    stores.get("files").set(id, { id, complete: true, size: 1, receipt });
+    fixture.setFailSettingsWrites(true);
+    await store.observeEffectivePolicy(policy(revision("4"), true));
+    assert.equal(cacheEntries.size, 1, "the known denial was persisted to CacheStorage");
+    globalThis.caches = { async open() { throw new Error("temporary CacheStorage read failure"); } };
+    const freshStore = await import(`./app/offline-store.js?marker-read-restart=${Date.now()}`);
+    assert.equal(await freshStore.mayRead(stores.get("files").get(id), stores.get("settings").get("active")), false,
+      "a fresh module cannot open offline media while marker state is unreadable");
+    assert.equal(await serviceWorkerMediaStatus(stores, id, freshStore.mayRead), 403,
+      "the service-worker request also fails closed");
+  } finally {
+    globalThis.indexedDB = oldIndexedDB;
+    globalThis.caches = oldCaches;
+    globalThis.self = oldSelf;
+  }
+});
+
+test("dual-store failure is denied by the active worker only after owner-bound acknowledgement", async () => {
+  const oldIndexedDB = globalThis.indexedDB, oldCaches = globalThis.caches, oldSelf = globalThis.self;
+  const oldNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  const fixture = installIndexedDB(), { stores } = fixture;
+  globalThis.self = { location: { origin: "https://fixture.invalid" } };
+  globalThis.caches = { async open() { throw new Error("CacheStorage write failure"); } };
+  try {
+    const pageStore = await import(`./app/offline-store.js?page-dual-failure=${Date.now()}`);
+    const workerStore = await import(`./app/offline-store.js?worker-dual-failure=${Date.now()}`);
+    const now = Date.now(), signer = offlineSigner("synthetic-test-secret");
+    const user = { id: 1, username: "test", role: "user", is_active: true, is_verified: true,
+      premium_until: new Date(now + 86400000).toISOString() };
+    const profile = { id: 2, name: "Adult", is_kids: false, has_pin: false, max_certification: 18, allow_unrated: true };
+    const receipt = signer.issue(user, profile, { token: "dual-store-failure", device: "browser" }, now);
+    await pageStore.storeFreshOfflineGrant(receipt, policy(revision("5")));
+    const id = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+    stores.get("files").set(id, { id, complete: true, size: 1, receipt });
+    const worker = loadServiceWorker(stores, workerStore);
+    Object.defineProperty(globalThis, "navigator", { configurable: true, value: { serviceWorker: { controller: {
+      postMessage(data, ports) {
+        const event = { data, source: { id: "fixture-client", url: "https://fixture.invalid/app/" }, ports: [ports[0]], waitUntil(promise) { this.promise = promise; } };
+        worker.handlers.get("message")(event);
+        return event.promise;
+      },
+    } } } });
+    fixture.setFailSettingsWrites(true);
+    await pageStore.observeEffectivePolicy(policy(revision("6"), true));
+    assert.equal(await serviceWorkerMediaStatus(stores, id, workerStore.mayRead), 403,
+      "the owner-bound worker acknowledgement installed an in-memory fence after both durable writes failed");
+  } finally {
+    globalThis.indexedDB = oldIndexedDB;
+    globalThis.caches = oldCaches;
+    globalThis.self = oldSelf;
+    if (oldNavigator) Object.defineProperty(globalThis, "navigator", oldNavigator);
+    else delete globalThis.navigator;
+  }
+});
+
+test("dual-store failure without a controlled worker is reported as unprotected", async () => {
+  const oldIndexedDB = globalThis.indexedDB, oldCaches = globalThis.caches, oldSelf = globalThis.self;
+  const oldNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  const fixture = installIndexedDB();
+  globalThis.self = { location: { origin: "https://fixture.invalid" } };
+  globalThis.caches = { async open() { throw new Error("CacheStorage unavailable"); } };
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { serviceWorker: { controller: null } } });
+  try {
+    const store = await import(`./app/offline-store.js?missing-worker=${Date.now()}`);
+    const now = Date.now(), signer = offlineSigner("synthetic-test-secret");
+    const user = { id: 1, username: "test", role: "user", is_active: true, is_verified: true,
+      premium_until: new Date(now + 86400000).toISOString() };
+    const profile = { id: 2, name: "Adult", is_kids: false, has_pin: false, max_certification: 18, allow_unrated: true };
+    const receipt = signer.issue(user, profile, { token: "missing-worker", device: "browser" }, now);
+    await store.storeFreshOfflineGrant(receipt, policy(revision("7")));
+    fixture.setFailSettingsWrites(true);
+    assert.equal(await store.observeEffectivePolicy(policy(revision("8"), true)), false,
+      "online policy observation succeeds, while callers can explicitly report that offline protection was not confirmed");
+  } finally {
+    globalThis.indexedDB = oldIndexedDB;
+    globalThis.caches = oldCaches;
+    globalThis.self = oldSelf;
+    if (oldNavigator) Object.defineProperty(globalThis, "navigator", oldNavigator);
+    else delete globalThis.navigator;
+  }
+});
+
 test("clearing a denied grant is owner-conditional and preserves pending history", async () => {
   const { stores } = installIndexedDB();
   const { put, clearActiveGrantIfMatches } = await import("./app/offline-store.js");
@@ -220,18 +333,24 @@ test("clearing a denied grant is owner-conditional and preserves pending history
 });
 
 async function serviceWorkerMediaStatus(stores, id, mayRead) {
+  const worker = loadServiceWorker(stores, { mayRead });
+  let response;
+  worker.handlers.get("fetch")({ request: new Request(`https://fixture.invalid/app/offline-media/${id}.mp4`),
+    respondWith: value => { response = value; } });
+  return (await response).status;
+}
+
+function loadServiceWorker(stores, deps) {
   const source = fs.readFileSync(require.resolve("./app/offline-sw.js"), "utf8").replace(/^import .*;\n/, "");
   const handlers = new Map(), self = { location: { origin: "https://fixture.invalid" },
+    clients: { get: async id => id === "fixture-client" ? { type: "window", url: "https://fixture.invalid/app/" } : null },
     addEventListener: (name, handler) => handlers.set(name, handler) };
   vm.runInNewContext(source, {
     self, URL, Set, Response, Request, ReadableStream,
     caches: { open: async () => ({ addAll: async () => {}, put: async () => {} }), keys: async () => [], match: async () => null },
     fetch: async () => new Response(null, { status: 404 }),
-    get: async (store, key) => stores.get(store).get(key), mayRead, CHUNK_BYTES: 512 * 1024,
+    get: async (store, key) => stores.get(store).get(key), ...deps, CHUNK_BYTES: 512 * 1024,
     OFFLINE_CACHE_NAME: "movly-offline-shell-v23-offline-policy-marker",
   });
-  let response;
-  handlers.get("fetch")({ request: new Request(`https://fixture.invalid/app/offline-media/${id}.mp4`),
-    respondWith: value => { response = value; } });
-  return (await response).status;
+  return { handlers };
 }

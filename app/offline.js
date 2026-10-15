@@ -31,6 +31,9 @@ import {
 window.addEventListener("movly-offline-revoked", () =>
   put("settings", null, "active").catch(() => {}),
 );
+window.addEventListener("movly:offline-policy-protection-failed", () =>
+  toast(translateUI("Změna profilu se uplatnila online, ale offline knihovnu se nepodařilo bezpečně uzamknout. Zůstaň online a obnov stránku.")),
+);
 export async function revokeOfflineContext() {
   window.dispatchEvent(new Event("movly-offline-revoked"));
   await put("settings", null, "active");
