@@ -20,9 +20,12 @@ let activePartition = null;
 let syncing = null;
 let rerunRequested = false;
 let mirrorInvalidated = false;
-function publishMirrorChange() {
+function publishMirrorChange(expected, previousContext, acceptedContext, resetAccepted) {
   if (typeof document !== "undefined" && typeof CustomEvent !== "undefined")
-    document.dispatchEvent(new CustomEvent("movly:personal-data-mirror-changed"));
+    document.dispatchEvent(new CustomEvent("movly:personal-data-mirror-changed", {
+      detail: { apiContext: expected.apiContext, accountId: expected.userId, profileId: expected.profileId,
+        catalogContextChanged: resetAccepted || !sameContext(previousContext, acceptedContext) },
+    }));
 }
 
 const exactKeys = (value, keys) =>
@@ -35,6 +38,14 @@ const decimal = (value) =>
 const compareDecimal = (left, right) =>
   left.length === right.length ? (left < right ? -1 : left > right ? 1 : 0) : left.length < right.length ? -1 : 1;
 const isoDate = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+
+function isValidatedReset(error) {
+  const body = error?.body;
+  return error?.status === 410 && body?.code === "personal_delta_reset_required" &&
+    ["expired", "retention", "policy_changed", "catalog_changed", "environment_changed"].includes(body.reason) &&
+    body.reset_required === true && body.preserve_pending_mutations === true &&
+    body.snapshot_path === "/sync/v2/profile-data/snapshot";
+}
 
 function isUnsupportedRoute(error) {
   const code = error?.code || error?.body?.code || error?.payload?.code;
@@ -242,7 +253,7 @@ async function commitPage(storage, partition, expected, page, mode, cursor) {
   return validated;
 }
 
-async function snapshot(request, storage, partition, expected, limit, startCursor = null) {
+async function snapshot(request, storage, partition, expected, limit, startCursor = null, onReset = () => {}) {
   let cursor = startCursor;
   for (let pages = 0; pages < 1000; pages++) {
     const path = query("sync/v2/profile-data/snapshot", expected.deviceId, limit, cursor);
@@ -252,9 +263,10 @@ async function snapshot(request, storage, partition, expected, limit, startCurso
     } catch (error) {
       if (isUnsupportedRoute(error)) { mirrorInvalidated = true; return { status: "unsupported" }; }
       if (error?.status === 410) {
-        if (error.body?.preserve_pending_mutations !== true || error.body?.reset_required !== true)
+        if (!isValidatedReset(error))
           throw new Error("Personal data reset response did not preserve pending mutations.");
         assertCurrent(expected);
+        onReset();
         await storage.update(partition, (record) => {
           assertCurrent(expected);
           return createRecord(partition, record.identity || expected.identity);
@@ -331,6 +343,15 @@ export async function syncPersonalDataMirror(
       await storage.update(partition, () => record);
       assertCurrent(expected);
     }
+    const previousContext = record.complete ? record.context : null;
+    let resetAccepted = false;
+    const acceptReset = () => {
+      assertCurrent(expected);
+      mirrorInvalidated = true;
+      resetAccepted = true;
+      // Fence catalogue readers before the replacement mirror/storage can fail.
+      publishMirrorChange(expected, previousContext, null, true);
+    };
     if (record.complete && record.context?.policy_revision !== expected.policyRevision) {
       record = await storage.update(partition, (current) => {
         assertCurrent(expected);
@@ -347,13 +368,15 @@ export async function syncPersonalDataMirror(
         const result = await changes(request, storage, partition, expected, limit, record.cursor);
         if (result.status === "unsupported") return result;
         if (!rerunRequested) mirrorInvalidated = false;
-        publishMirrorChange();
+        const accepted = await storage.get(partition);
+        assertCurrent(expected);
+        publishMirrorChange(expected, resetAccepted ? accepted?.context : previousContext, accepted?.context, false);
         return result;
       } catch (error) {
         if (error?.status !== 410) throw error;
-        if (error.body?.preserve_pending_mutations !== true || error.body?.reset_required !== true)
+        if (!isValidatedReset(error))
           throw new Error("Personal data reset response did not preserve pending mutations.");
-        assertCurrent(expected);
+        acceptReset();
         await storage.update(partition, (current) => {
           assertCurrent(expected);
           return createRecord(partition, expected.identity);
@@ -372,10 +395,12 @@ export async function syncPersonalDataMirror(
         return createRecord(partition, record.identity || expected.identity);
       });
     }
-    const result = await snapshot(request, storage, partition, expected, limit, stageValid ? stage.cursor : null);
+    const result = await snapshot(request, storage, partition, expected, limit, stageValid ? stage.cursor : null, acceptReset);
     if (result.status === "complete") {
       if (!rerunRequested) mirrorInvalidated = false;
-      publishMirrorChange();
+      const accepted = await storage.get(partition);
+      assertCurrent(expected);
+      publishMirrorChange(expected, resetAccepted ? accepted?.context : previousContext, accepted?.context, false);
     }
     return result;
   };

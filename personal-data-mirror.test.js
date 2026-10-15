@@ -111,7 +111,7 @@ test("410 replaces only the mirror while preserving pending mutation and conflic
   const resetRequest = async (path) => {
     if (path === "sync/device") return { device_id: deviceId };
     if (path.includes("profile-data/changes"))
-      throw Object.assign(new Error("reset"), { status: 410, body: { reset_required: true, preserve_pending_mutations: true } });
+      throw Object.assign(new Error("reset"), { status: 410, body: { code: "personal_delta_reset_required", reason: "catalog_changed", snapshot_path: "/sync/v2/profile-data/snapshot", reset_required: true, preserve_pending_mutations: true } });
     if (path.includes("profile-data/snapshot")) {
       assert.equal(path.includes("cursor="), false);
       return page([entity("rating", 3, "2", "upsert", rating(3, 7))], { cursor: "new-cursor", highwater: "2" });
@@ -349,4 +349,39 @@ test("conflicting same-version changes leave the prior mirror and cursor intact"
   };
   await assert.rejects(syncPersonalDataMirror(conflicting, h.options), /same version/);
   assert.deepEqual([...h.storage.records.values()][0], before);
+});
+
+test('catalog invalidation publication is owner-bound and only marks accepted context/reset transitions', async t => {
+  const oldDocument=global.document;
+  const events=[];global.document={dispatchEvent:event=>events.push(event)};
+  t.after(()=>{global.document=oldDocument;});
+  const {syncPersonalDataMirror}=await import('./app/personal-data-mirror.js');
+  const h=harness();let epoch='1',reset=false;
+  const request=async path=>{
+    if(path==='sync/device')return {device_id:deviceId};
+    if(path.includes('/changes')&&reset){reset=false;throw Object.assign(Error('reset'),{status:410,body:{code:'personal_delta_reset_required',reason:'catalog_changed',snapshot_path:'/sync/v2/profile-data/snapshot',reset_required:true,preserve_pending_mutations:true}});}
+    return page([],{mode:path.includes('/changes')?'changes':'snapshot',contextValue:context({catalog_epoch:epoch}),cursor:'cursor-'+epoch});
+  };
+  await syncPersonalDataMirror(request,h.options);
+  await syncPersonalDataMirror(request,h.options);
+  epoch='2';reset=true;await syncPersonalDataMirror(request,h.options);
+  assert.deepEqual(events.map(e=>e.detail.catalogContextChanged),[true,false,true,false]);
+  assert(events.every(e=>e.type==='movly:personal-data-mirror-changed'&&e.detail.apiContext===h.options.getContextKey()&&e.detail.accountId===accountId&&e.detail.profileId===profileId));
+  assert.deepEqual(h.storage.pending,[{mutation_id:'mutation-kept',base_revision:'19',value:{progress_seconds:15}}]);
+});
+
+test('validated reset fences readers before a failing storage write; malformed410 and network-only do not', async t => {
+  const oldDocument=global.document, events=[];
+  global.document={dispatchEvent:event=>events.push(event)};
+  t.after(()=>{global.document=oldDocument;});
+  const {syncPersonalDataMirror}=await import('./app/personal-data-mirror.js');const h=harness();let failure=null;
+  const request=async path=>{if(path==='sync/device')return{device_id:deviceId};if(path.includes('/changes')&&failure)throw failure;return page([]);};
+  await syncPersonalDataMirror(request,h.options);events.length=0;
+  const before=JSON.stringify([...h.storage.records]);
+  for(const error of [Object.assign(Error('malformed'),{status:410,body:{reset_required:true,preserve_pending_mutations:true}}),Object.assign(Error('network'),{status:503})]){
+    failure=error;await assert.rejects(syncPersonalDataMirror(request,h.options));assert.equal(events.length,0);assert.equal(JSON.stringify([...h.storage.records]),before);
+  }
+  failure=Object.assign(Error('typed reset'),{status:410,body:{code:'personal_delta_reset_required',reason:'catalog_changed',snapshot_path:'/sync/v2/profile-data/snapshot',reset_required:true,preserve_pending_mutations:true}});
+  h.storage.update=async()=>{assert.equal(events.length,1);assert.equal(events[0].detail.catalogContextChanged,true);throw Error('owned storage failure');};
+  await assert.rejects(syncPersonalDataMirror(request,h.options),/storage failure/);assert.equal(JSON.stringify([...h.storage.records]),before);assert.equal(h.storage.pending[0].base_revision,'19');
 });

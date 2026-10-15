@@ -7,7 +7,7 @@ import {
   removeSearch,
   clearSearchHistory,
 } from "./search-history.js";
-import { api, apiContextKey, array, title, imageURL } from "./api.js";
+import { api, apiContextKey, apiContextOwner, array, title, imageURL } from "./api.js";
 import { effectiveContentPolicy, assertEffectivePolicyUnchanged } from "./effective-policy.js";
 import {
   applyUserState,
@@ -124,7 +124,24 @@ export function resetCatalogCache() {
   catalogCache.clear();
   resetHomeImpressions();
 }
-document.addEventListener("movly:effective-policy-changed", resetCatalogCache);
+function refreshCatalogContext() {
+  resetCatalogCache();
+  const context = apiContextKey(), epoch = catalogEpoch;
+  // Policy publication completes after dispatch; refresh only the still-visible
+  // page belonging to this exact API generation, never a previous owner's DOM.
+  queueMicrotask(() => {
+    const page = document.querySelector(".catalog-page[data-catalog-type]");
+    if (context !== apiContextKey() || epoch !== catalogEpoch || page?.movlyCatalogContext !== context) return;
+    void revalidateCatalog(page.dataset.catalogType, page, page.movlyActions, undefined, true);
+  });
+}
+document.addEventListener("movly:effective-policy-changed", refreshCatalogContext);
+document.addEventListener("movly:personal-data-mirror-changed", (event) => {
+  const detail = event.detail, owner = apiContextOwner();
+  if (detail?.catalogContextChanged !== true || detail.apiContext !== apiContextKey() ||
+      detail.accountId !== owner?.accountId || detail.profileId !== owner?.profileId) return;
+  refreshCatalogContext();
+});
 function catalogKey(type) {
   return `${apiContextKey()}:main?type=${type}&limit=30`;
 }
@@ -151,8 +168,9 @@ function renderRails(page, data, actions) {
     ...[warning(data), ...railsFor(data, actions)].filter(Boolean),
   );
 }
-async function revalidateCatalog(type, page, actions, signal) {
+async function revalidateCatalog(type, page, actions, signal, required = false) {
   const key = catalogKey(type), epoch = catalogEpoch;
+  if (required) page.querySelector(".catalog-rails").replaceChildren(loading());
   try {
     const policy = await effectiveContentPolicy({ signal, refresh: true });
     const fresh = await api(`main?type=${type}&limit=30`, { signal });
@@ -165,8 +183,11 @@ async function revalidateCatalog(type, page, actions, signal) {
       JSON.stringify(cached?.data?.lists) !== JSON.stringify(fresh.lists)
     )
       renderRails(page, fresh, actions);
-  } catch {
-    // stará data zůstávají; další navigace to zkusí znovu
+  } catch (error) {
+    if (required && page.isConnected && epoch === catalogEpoch && key === catalogKey(type) && !signal?.aborted)
+      page.querySelector(".catalog-rails").replaceChildren(errorBox(error,
+        () => revalidateCatalog(type, page, actions, signal, true)));
+    // Běžná SWR ponechá stará data; povinná obnova nabízí chybu a retry.
   }
 }
 // Po vlastní změně zhlédnuto / pozice vymění jen osobní řady právě zobrazené
@@ -243,6 +264,7 @@ export async function catalog(route, params, signal, actions) {
     el("div", { class: "catalog-rails" }),
   );
   page.movlyActions = actions;
+  page.movlyCatalogContext = apiContextKey();
   renderRails(page, data, actions);
   if (cached && !fresh) revalidateCatalog(type, page, actions, signal);
   return page;
