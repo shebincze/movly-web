@@ -58,7 +58,11 @@
     script.onload = function () {
       if (!window.__movlyTvStarted) show();
     };
-    head.appendChild(script);
+    var policy = document.createElement("script");
+    policy.src = "/app/tv/diagnostics.js";
+    policy.onerror = show;
+    policy.onload = function () { head.appendChild(script); };
+    head.appendChild(policy);
     setTimeout(function () {
       if (!window.__movlyTvStarted) show();
     }, 20000);

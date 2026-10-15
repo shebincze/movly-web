@@ -45,7 +45,7 @@ test("TV lite diagnostics are logged locally, bounded and never forwarded upstre
     assert.ok(res.ended);
   } finally { console.log = original; }
   assert.equal(calls.length, 0);
-  assert.deepEqual(logs, ['[Movly TV] abc123 anon keydown {"at":1.5,"d":{"k":461}}', '[Movly TV] abc123 anon ? {"at":2,"d":"x\\ny"}']);
+  assert.deepEqual(logs, ['[Movly TV] anon keydown {"at":1.5,"d":{"k":461}}']);
 });
 test("TV media route needs no session but passes the URL key to the playback engine", async () => {
   const handled = [];

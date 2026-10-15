@@ -90,9 +90,11 @@ function runLegacy({ modern = false, search = "", hash = "", tvPage = false, boo
 test("unsupported capabilities and explicit TV page load ES5 app", () => {
   for (const run of [runLegacy(), runLegacy({ modern: true, tvPage: true })]) {
     assert.equal(run.head.children[0].href, "/app/tv/tv.css");
-    assert.equal(run.head.children[1].src, "/app/tv/tv.js");
+    assert.equal(run.head.children[1].src, "/app/tv/diagnostics.js");
+    run.head.children[1].onload();
+    assert.equal(run.head.children[2].src, "/app/tv/tv.js");
     assert.equal(run.text(), "");
-    run.head.children[1].onerror();
+    run.head.children[2].onerror();
     assert.match(run.text(), /Tento prohlížeč Movly nepodporuje/);
   }
 });
