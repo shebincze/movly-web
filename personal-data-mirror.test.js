@@ -249,3 +249,104 @@ test("a changes page cannot cross catalog epochs or advance the prior cursor", a
   assert.deepEqual([...h.storage.records.values()][0], before);
   assert.deepEqual(h.storage.pending, [{ mutation_id: "mutation-kept", base_revision: "19", value: { progress_seconds: 15 } }]);
 });
+
+test("ordered repeated entity versions in changes apply each version and keep the final tombstone", async () => {
+  const { syncPersonalDataMirror } = await import("./app/personal-data-mirror.js");
+  const h = harness();
+  let changesCursor = "cursor-1";
+  const request = async (path) => {
+    if (path === "sync/device") return { device_id: deviceId };
+    if (path.includes("profile-data/snapshot"))
+      return page([
+        entity("rating", 3, "1", "upsert", rating(3, 6)),
+        entity("hidden_title", 4, "1", "upsert", hidden(4)),
+      ], { cursor: changesCursor, highwater: "1" });
+    if (path.includes("profile-data/changes"))
+      return page([
+        entity("rating", 3, "2", "upsert", rating(3, 8)),
+        entity("rating", 3, "3", "upsert", rating(3, 9)),
+        entity("hidden_title", 4, "2", "upsert", hidden(4)),
+        entity("hidden_title", 4, "3", "delete"),
+      ], { mode: "changes", cursor: "cursor-3", highwater: "3" });
+    assert.fail(`unexpected ${path}`);
+  };
+  assert.deepEqual(await syncPersonalDataMirror(request, h.options), { status: "complete", pages: 1 });
+  changesCursor = "cursor-3";
+  assert.deepEqual(await syncPersonalDataMirror(request, h.options), { status: "complete", pages: 1 });
+  const stored = [...h.storage.records.values()][0];
+  assert.equal(stored.cursor, "cursor-3");
+  assert.deepEqual(stored.entities["rating:3"], {
+    version: "3", operation: "upsert", value: rating(3, 9),
+  });
+  assert.deepEqual(stored.entities["hidden_title:4"], {
+    version: "3", operation: "delete", value: null,
+  });
+});
+
+test("snapshot pages still reject repeated entity keys without publishing or advancing a cursor", async () => {
+  const { syncPersonalDataMirror } = await import("./app/personal-data-mirror.js");
+  const h = harness();
+  const request = async (path) => {
+    if (path === "sync/device") return { device_id: deviceId };
+    return page([
+      entity("rating", 3, "1", "upsert", rating(3, 6)),
+      entity("rating", 3, "2", "upsert", rating(3, 8)),
+    ], { cursor: "must-not-publish", highwater: "2" });
+  };
+  await assert.rejects(syncPersonalDataMirror(request, h.options), /duplicate entity/);
+  const stored = [...h.storage.records.values()][0];
+  assert.equal(stored.complete, false);
+  assert.equal(stored.cursor, null);
+  assert.deepEqual(stored.entities, {});
+});
+
+test("a snapshot continuation can extend its 30-minute cursor into the final 30-day cursor", async () => {
+  const { syncPersonalDataMirror } = await import("./app/personal-data-mirror.js");
+  const h = harness();
+  const continuationExpiry = "2026-10-15T12:30:00Z";
+  const finalExpiry = "2026-11-14T12:00:00Z";
+  const request = async (path) => {
+    if (path === "sync/device") return { device_id: deviceId };
+    if (!path.includes("cursor="))
+      return {
+        ...page([entity("rating", 3, "1", "upsert", rating(3))], {
+          more: true, cursor: "snapshot-next", highwater: "1",
+        }),
+        expires_at: continuationExpiry,
+      };
+    assert.ok(path.includes("cursor=snapshot-next"));
+    const staged = [...h.storage.records.values()][0];
+    assert.equal(staged.staging.expiresAt, continuationExpiry);
+    return {
+      ...page([entity("hidden_title", 4, "2", "upsert", hidden(4))], {
+        cursor: "final-30-day-cursor", highwater: "1",
+      }),
+      expires_at: finalExpiry,
+    };
+  };
+  assert.deepEqual(await syncPersonalDataMirror(request, h.options), { status: "complete", pages: 2 });
+  const stored = [...h.storage.records.values()][0];
+  assert.equal(stored.cursor, "final-30-day-cursor");
+  assert.equal(stored.expiresAt, finalExpiry);
+  assert.equal(stored.complete, true);
+});
+
+test("conflicting same-version changes leave the prior mirror and cursor intact", async () => {
+  const { syncPersonalDataMirror } = await import("./app/personal-data-mirror.js");
+  const h = harness();
+  const initial = async (path) => {
+    if (path === "sync/device") return { device_id: deviceId };
+    return page([entity("rating", 3, "1", "upsert", rating(3, 6))], { cursor: "cursor-1", highwater: "1" });
+  };
+  await syncPersonalDataMirror(initial, h.options);
+  const before = structuredClone([...h.storage.records.values()][0]);
+  const conflicting = async (path) => {
+    if (path === "sync/device") return { device_id: deviceId };
+    return page([
+      entity("rating", 3, "2", "upsert", rating(3, 8)),
+      entity("rating", 3, "2", "upsert", rating(3, 9)),
+    ], { mode: "changes", cursor: "cursor-must-not-commit", highwater: "2" });
+  };
+  await assert.rejects(syncPersonalDataMirror(conflicting, h.options), /same version/);
+  assert.deepEqual([...h.storage.records.values()][0], before);
+});
