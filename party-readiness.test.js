@@ -50,6 +50,24 @@ test("readiness carries initial round zero and same-episode restart resends a fr
   assert.equal(h.readyCalls()[1].body.expected_round, 1);
 });
 
+test("an older server omitting preparation.round receives explicit expected_round zero", async () => {
+  const h = harness(), missing = snapshot(); delete missing.preparation.round;
+  h.set(missing); await h.start();
+  const player = h.beginPartyPlayback(42, 101);
+  assert.equal(h.reportPartyReady(true, player), true); await h.tick();
+  assert.equal(h.readyCalls()[0].body.expected_round, 0);
+  assert.equal(Object.hasOwn(h.readyCalls()[0].body, "expected_round"), true);
+});
+
+test("explicit invalid server rounds never become readiness wire values", async () => {
+  for (const round of [null, "0", -1, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+    const h = harness(); h.set(snapshot(round)); await h.start();
+    const player = h.beginPartyPlayback(42, 101);
+    assert.equal(h.reportPartyReady(true, player), false); await h.tick();
+    assert.equal(h.readyCalls().length, 0);
+  }
+});
+
 test("another episode and an older player attempt cannot publish readiness", async () => {
   const h = harness(); await h.start();
   const old = h.beginPartyPlayback(42, 101);

@@ -1777,7 +1777,7 @@ function createAppHandler({
             !["register", "start", "ready", "leave"].includes(body.action) ||
             typeof body.is_host !== "boolean" ||
             typeof body.ready !== "boolean" ||
-            (body.expected_round !== undefined && (!Number.isSafeInteger(body.expected_round) || body.expected_round < 0))
+            (body.expected_round != null && (!Number.isSafeInteger(body.expected_round) || body.expected_round < 0))
           )
             throw new HttpError(400, "Neplatná příprava party.");
           body = {

@@ -25,7 +25,10 @@ export const partyWaiting = () => waitingForParty(state, Date.now(), offset);
 export const partyPosition = () =>
   effectivePartyPosition(state, Date.now(), offset);
 function episodeID(value) { return value ?? null; }
-function roundOf(value) { return value?.preparation?.round; }
+function roundOf(value) {
+  const round = value?.preparation?.round;
+  return round === undefined ? 0 : round;
+}
 function mediaKey(value) {
   return JSON.stringify([value?.party_id, value?.title_id, episodeID(value?.episode_id)]);
 }
