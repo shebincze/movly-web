@@ -1186,6 +1186,9 @@ test('TV lite: vstupní stránka a soubory mají správné typy a nezměněné C
       const csp = (await request(server, 'GET', route)).headers['content-security-policy'];
       assert.match(csp, /script-src 'self';/, route);
       assert.match(csp, /style-src 'self';/, route);
+      const directives = Object.fromEntries(csp.split(";").filter(s => s.trim()).map(s => { const [name, ...sources] = s.trim().split(/\s+/); return [name, sources]; }));
+      assert.ok(directives["img-src"].includes("data:"), route);
+      assert.deepEqual(Object.keys(directives).filter(name => directives[name].includes("data:")), ["img-src"], route);
       assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval/, route);
     }
     assert.equal((await request(server, 'GET', '/app/tv/missing.js')).status, 404);
