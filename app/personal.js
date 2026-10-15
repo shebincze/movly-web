@@ -1,6 +1,7 @@
 import { translateUI } from "./i18n.js";
 import { api, array, title, imageURL } from "./api.js";
 import { setWatched, isWatched, progressPercent } from "./user-state.js";
+import { personalDataForTitle } from "./personal-data-mirror.js";
 import {
   el,
   button,
@@ -22,8 +23,13 @@ export async function titleActivity(t, section = "all") {
     ),
   );
   try {
-    const hidden = await titleIsHidden(t.id);
-    const mine = await api(`ratings/title/${t.id}/my`);
+    const mirrored = await personalDataForTitle(t.id);
+    const [hidden, mine] = mirrored
+      ? [mirrored.hidden, mirrored.mine]
+      : await Promise.all([
+          titleIsHidden(t.id),
+          api(`ratings/title/${t.id}/my`),
+        ]);
     if (!dialog.open) return;
     const status = el("p", { role: "alert", class: "form-status" });
     const value = el("input", {
@@ -55,6 +61,7 @@ export async function titleActivity(t, section = "all") {
               method: "POST",
               body: { rating: Number(value.value), is_public: publish.checked },
             });
+            window.dispatchEvent(new Event("movly:personal-changed"));
             toast(translateUI("Hodnocení uloženo."));
             await titleActivity(t, section);
           } catch (e) {
@@ -138,6 +145,7 @@ export async function titleActivity(t, section = "all") {
               async () => {
                 try {
                   await api(`ratings/${mine.rating.id}`, { method: "DELETE" });
+                  window.dispatchEvent(new Event("movly:personal-changed"));
                   await titleActivity(t, section);
                 } catch (e) {
                   status.textContent = e.message;

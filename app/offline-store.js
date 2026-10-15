@@ -10,7 +10,7 @@ const request = (r) =>
   });
 export function database() {
   return new Promise((resolve, reject) => {
-    const r = indexedDB.open("movly-offline-v1", 2);
+    const r = indexedDB.open("movly-offline-v1", 3);
     r.onupgradeneeded = () => {
       if (!r.result.objectStoreNames.contains("files"))
         r.result.createObjectStore("files", { keyPath: "id" });
@@ -22,10 +22,43 @@ export function database() {
         r.result.createObjectStore("history", { keyPath: "id" });
       if (!r.result.objectStoreNames.contains("downloads"))
         r.result.createObjectStore("downloads", { keyPath: "id" });
+      if (!r.result.objectStoreNames.contains("personalData"))
+        r.result.createObjectStore("personalData", { keyPath: "partition" });
     };
     r.onsuccess = () => resolve(r.result);
     r.onerror = () => reject(r.error);
   });
+}
+export async function getPersonalDataMirror(partition) {
+  return get("personalData", partition);
+}
+// The callback must be synchronous so one record (mirror and cursor together)
+// commits in a single IndexedDB transaction. It must not touch the mutation
+// history store: pending operations and their original bases are independent.
+export async function updatePersonalDataMirror(partition, change) {
+  const db = await database();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction("personalData", "readwrite");
+      const store = tx.objectStore("personalData");
+      const current = store.get(partition);
+      let result;
+      current.onsuccess = () => {
+        try {
+          result = change(current.result || { partition });
+          if (result) store.put({ ...result, partition });
+        } catch (error) {
+          tx.abort();
+          reject(error);
+        }
+      };
+      current.onerror = () => reject(current.error);
+      tx.oncomplete = () => resolve(result || null);
+      tx.onabort = () => reject(tx.error || new Error("Personal mirror transaction aborted."));
+    });
+  } finally {
+    db.close();
+  }
 }
 export async function get(store, key) {
   const db = await database();

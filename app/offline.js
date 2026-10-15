@@ -28,12 +28,20 @@ import {
   changeDownload,
   runDownloads,
 } from "./offline-downloads.js";
+import { syncPersonalDataMirror, invalidatePersonalDataMirror } from "./personal-data-mirror.js";
 window.addEventListener("movly-offline-revoked", () =>
   put("settings", null, "active").catch(() => {}),
 );
 window.addEventListener("movly:offline-policy-protection-failed", () =>
   toast(translateUI("Změna profilu se uplatnila online, ale offline knihovnu se nepodařilo bezpečně uzamknout. Zůstaň online a obnov stránku.")),
 );
+const refreshPersonalDataMirror = () => {
+  invalidatePersonalDataMirror();
+  void syncPersonalDataMirror(api).catch(() => {});
+};
+window.addEventListener("movly:personal-changed", refreshPersonalDataMirror);
+if (typeof document.addEventListener === "function")
+  document.addEventListener("movly:personal-changed", refreshPersonalDataMirror);
 export async function revokeOfflineContext() {
   window.dispatchEvent(new Event("movly-offline-revoked"));
   await put("settings", null, "active");
@@ -78,6 +86,12 @@ export async function registerOffline() {
 }
 export async function synchronizeOfflineContext() {
   const activeBefore = await get("settings", "active").catch(() => null);
+  // Personal-data sync is independent of the Premium-only offline media grant.
+  // Its mirror uses its own IndexedDB store and never mutates the watch-history outbox.
+  void syncPersonalDataMirror(api).catch((error) => {
+    if (error?.name !== "AbortError" && error?.status !== 404)
+      console.warn("Personal data mirror refresh is unavailable");
+  });
   try {
     let policy = null;
     try { policy = await effectiveContentPolicy({ refresh: true }); } catch { /* Policy observation must not block online profile use. */ }

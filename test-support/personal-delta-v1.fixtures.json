@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "decimal_int64_pattern": "^(0|[1-9][0-9]*)$",
+  "decimal_int64_max": "9223372036854775807",
+  "valid_pages": [
+    {
+      "name": "four-upserts-required-zero-and-false",
+      "page": {
+        "schema_version": 1,
+        "context": {
+          "user_id": 1,
+          "profile_id": 7,
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "environment": "api.fixture.movly.test",
+          "instance_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "policy_revision": "ep1.416c18b76e559a24acbe0fbab8a004c8b97660e62414c933063f50f5ac8ed4e0",
+          "catalog_epoch": "0"
+        },
+        "mode": "snapshot",
+        "entities": [
+          {
+            "entity_type": "watchlist",
+            "entity_id": 1,
+            "version": "1",
+            "operation": "upsert",
+            "watchlist": {
+              "id": 1,
+              "name": "Offline list",
+              "description": null,
+              "is_default": false,
+              "is_public": false,
+              "created_at": "2026-10-15T12:00:00Z",
+              "updated_at": "2026-10-15T12:00:00Z"
+            }
+          },
+          {
+            "entity_type": "watchlist_item",
+            "entity_id": 2,
+            "version": "2",
+            "operation": "upsert",
+            "watchlist_item": {
+              "id": 2,
+              "watchlist_id": 1,
+              "title_id": 10,
+              "notes": null,
+              "priority": 0,
+              "added_at": "2026-10-15T12:00:00Z"
+            }
+          },
+          {
+            "entity_type": "rating",
+            "entity_id": 3,
+            "version": "3",
+            "operation": "upsert",
+            "rating": {
+              "id": 3,
+              "title_id": 10,
+              "rating": 0,
+              "is_public": false,
+              "created_at": "2026-10-15T12:00:00Z",
+              "updated_at": "2026-10-15T12:00:00Z"
+            }
+          },
+          {
+            "entity_type": "hidden_title",
+            "entity_id": 4,
+            "version": "4",
+            "operation": "upsert",
+            "hidden_title": {
+              "id": 4,
+              "title_id": 10,
+              "source": "continue_watching",
+              "hidden_at": "2026-10-15T12:00:00Z"
+            }
+          }
+        ],
+        "has_more": false,
+        "next_cursor": "opaque-completed-snapshot-changes-cursor",
+        "highwater": "4",
+        "profile_revision": "0",
+        "expires_at": "2026-11-14T12:00:00Z"
+      }
+    },
+    {
+      "name": "four-tombstones-beyond-js-safe-integer",
+      "page": {
+        "schema_version": 1,
+        "context": {
+          "user_id": 1,
+          "profile_id": 7,
+          "device_id": "11111111-1111-4111-8111-111111111111",
+          "environment": "api.fixture.movly.test",
+          "instance_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "policy_revision": "ep1.416c18b76e559a24acbe0fbab8a004c8b97660e62414c933063f50f5ac8ed4e0",
+          "catalog_epoch": "9007199254740993"
+        },
+        "mode": "changes",
+        "entities": [
+          {
+            "entity_type": "watchlist",
+            "entity_id": 1,
+            "version": "9007199254740993",
+            "operation": "delete"
+          },
+          {
+            "entity_type": "watchlist_item",
+            "entity_id": 2,
+            "version": "9007199254740993",
+            "operation": "delete"
+          },
+          {
+            "entity_type": "rating",
+            "entity_id": 3,
+            "version": "9007199254740993",
+            "operation": "delete"
+          },
+          {
+            "entity_type": "hidden_title",
+            "entity_id": 4,
+            "version": "9007199254740993",
+            "operation": "delete"
+          }
+        ],
+        "has_more": false,
+        "next_cursor": "opaque-completed-snapshot-changes-cursor",
+        "highwater": "9007199254740993",
+        "profile_revision": "9007199254740993",
+        "expires_at": "2026-11-14T12:00:00Z"
+      }
+    }
+  ],
+  "reset_responses": [
+    {
+      "code": "personal_delta_reset_required",
+      "reason": "expired",
+      "reset_required": true,
+      "preserve_pending_mutations": true,
+      "snapshot_path": "/sync/v2/profile-data/snapshot"
+    },
+    {
+      "code": "personal_delta_reset_required",
+      "reason": "retention",
+      "reset_required": true,
+      "preserve_pending_mutations": true,
+      "snapshot_path": "/sync/v2/profile-data/snapshot"
+    },
+    {
+      "code": "personal_delta_reset_required",
+      "reason": "policy_changed",
+      "reset_required": true,
+      "preserve_pending_mutations": true,
+      "snapshot_path": "/sync/v2/profile-data/snapshot"
+    },
+    {
+      "code": "personal_delta_reset_required",
+      "reason": "catalog_changed",
+      "reset_required": true,
+      "preserve_pending_mutations": true,
+      "snapshot_path": "/sync/v2/profile-data/snapshot"
+    },
+    {
+      "code": "personal_delta_reset_required",
+      "reason": "environment_changed",
+      "reset_required": true,
+      "preserve_pending_mutations": true,
+      "snapshot_path": "/sync/v2/profile-data/snapshot"
+    }
+  ],
+  "invalid_entity_cases": [
+    {
+      "name": "numeric-version",
+      "entity": {
+        "entity_type": "watchlist",
+        "entity_id": 1,
+        "version": 1,
+        "operation": "upsert",
+        "watchlist": {
+          "id": 1,
+          "name": "Offline list",
+          "description": null,
+          "is_default": false,
+          "is_public": false,
+          "created_at": "2026-10-15T12:00:00Z",
+          "updated_at": "2026-10-15T12:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "delete-with-value",
+      "entity": {
+        "entity_type": "watchlist",
+        "entity_id": 1,
+        "version": "1",
+        "operation": "delete",
+        "watchlist": {
+          "id": 1,
+          "name": "Offline list",
+          "description": null,
+          "is_default": false,
+          "is_public": false,
+          "created_at": "2026-10-15T12:00:00Z",
+          "updated_at": "2026-10-15T12:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "missing-upsert-value",
+      "entity": {
+        "entity_type": "rating",
+        "entity_id": 3,
+        "version": "1",
+        "operation": "upsert"
+      }
+    },
+    {
+      "name": "mismatched-value-tag",
+      "entity": {
+        "entity_type": "rating",
+        "entity_id": 3,
+        "version": "1",
+        "operation": "upsert",
+        "watchlist": {
+          "id": 1,
+          "name": "Offline list",
+          "description": null,
+          "is_default": false,
+          "is_public": false,
+          "created_at": "2026-10-15T12:00:00Z",
+          "updated_at": "2026-10-15T12:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "overflow-version",
+      "entity": {
+        "entity_type": "watchlist",
+        "entity_id": 1,
+        "version": "9223372036854775808",
+        "operation": "upsert",
+        "watchlist": {
+          "id": 1,
+          "name": "Offline list",
+          "description": null,
+          "is_default": false,
+          "is_public": false,
+          "created_at": "2026-10-15T12:00:00Z",
+          "updated_at": "2026-10-15T12:00:00Z"
+        }
+      }
+    }
+  ]
+}
