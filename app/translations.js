@@ -286,6 +286,7 @@ export const translations = {
   "Odeslat": ["Odoslať", "Send"],
   "Název": ["Názov", "Title"],
   "Popis a očekávané chování": ["Popis a očakávané správanie", "Description and expected behavior"],
+  "Obecný návrh (bez platformy)": ["Všeobecný návrh (bez platformy)", "General idea (no platform)"],
   "Platforma": ["Platforma", "Platform"],
   "Hlášení a odpovědi uvidíš jen ty a tým Movly. Screenshot můžeš přidat po odeslání.": ["Hlásenie a odpovede uvidíš iba ty a tím Movly. Snímku môžeš pridať po odoslaní.", "Only you and the Movly team can see reports and replies. You can attach a screenshot after sending."],
   "Návrh bude veřejný. Screenshoty a diagnostika zůstávají soukromé.": ["Návrh bude verejný. Snímky a diagnostika zostávajú súkromné.", "Your idea will be public. Screenshots and diagnostics stay private."],
