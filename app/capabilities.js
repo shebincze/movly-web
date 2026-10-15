@@ -118,4 +118,3 @@ export function invalidateCapabilityCache(context, origin = currentOrigin()) {
 
 export function resetCapabilityCacheForTests() { cache.clear(); inFlight.clear(); clock = systemClock; }
 export function setCapabilityClockForTests(value = systemClock) { clock = value; }
-
