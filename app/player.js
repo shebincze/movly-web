@@ -688,6 +688,9 @@ async function play(
   const attemptStartedAt = performance.now();
   const scope = selection.playback_owner || playbackOwner();
   const revision = ++playRevision;
+  // Nová relace (posun mimo načtený úsek, změna stopy) přestaví přehrávač;
+  // náhradní celou obrazovku na iPhonu zachováme, nevyžaduje gesto.
+  const keepPageFullscreen = Boolean(current?.controls?.pageFullscreen());
   await stop("source_switch");
   if (revision !== playRevision) return false;
   if (scope?.generation !== playbackOwner()?.generation) return false;
@@ -1405,6 +1408,7 @@ async function play(
       seekTo,
       active: () => current === handle && !handle.cancelled && playerRoot.isConnected && dialog.open,
       disabled: () => inParty && partyWaiting(),
+      pageFullscreen: keepPageFullscreen,
       onInteraction: () => {
         autoplayChain = 0;
       },

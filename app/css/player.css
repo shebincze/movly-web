@@ -365,6 +365,16 @@
 .pk-screen:-webkit-full-screen .pk-stage { flex: 1; min-height: 0; display: flex; border-radius: 0; }
 .pk-screen:fullscreen .video-player { max-height: none; height: 100%; aspect-ratio: auto; }
 .pk-screen:-webkit-full-screen .video-player { max-height: none; height: 100%; aspect-ratio: auto; }
+/* Náhradní celá obrazovka (iPhone Safari): přehrávač přes celé okno. */
+.pk-screen.pk-page-fullscreen {
+  position: fixed; inset: 0; z-index: 10; background: #000; justify-content: flex-end;
+  padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+.pk-screen.pk-page-fullscreen .pk-stage { flex: 1; min-height: 0; display: flex; border-radius: 0; overflow: hidden; background: #000; }
+.pk-screen.pk-page-fullscreen .video-player { max-height: none; height: 100%; aspect-ratio: auto; border-radius: 0; }
+.pk-screen.pk-page-fullscreen .pk-settings { position: absolute; top: 16px; right: 16px; bottom: 16px; width: 340px; max-width: calc(100% - 32px); border-radius: 20px; border: 1px solid var(--line-strong); }
+.pk-screen.pk-page-fullscreen .pk-next { position: absolute; right: 16px; bottom: 16px; max-width: calc(100% - 32px); }
+html.pk-page-fullscreen-open, html.pk-page-fullscreen-open body { overflow: hidden; }
 @media (max-width: 650px) {
   .pk-volume { width: 72px; }
   .pk-transport .pk-spacer { flex: 1; display: block; }

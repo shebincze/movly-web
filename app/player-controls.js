@@ -94,7 +94,7 @@ function pipSupported(video) {
 // čtou z celého dokumentu, dokud `active()` platí: fokus po otevření dialogu
 // stojí na zavíracím tlačítku mimo přehrávač. `seekTo` dostává absolutní
 // pozici titulu, `disabled` vrací true během čekání Watch Party.
-export function mountPlayerControls({ el, glyph, translate, video, screen, keyRoot, storage, positionNow, seekTo, active = () => true, disabled = () => false, onInteraction = () => {} }) {
+export function mountPlayerControls({ el, glyph, translate, video, screen, keyRoot, storage, positionNow, seekTo, active = () => true, disabled = () => false, onInteraction = () => {}, pageFullscreen: startInPage = false }) {
   const saved = readVolume(storage);
   video.volume = saved.volume;
   video.muted = saved.muted;
@@ -135,14 +135,26 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
     if (video.muted && video.volume === 0) video.volume = 0.5;
     video.muted = !video.muted;
   };
+  // iPhone Safari neumí celou obrazovku pro prvek, jen nativní přehrávač
+  // <video>. Ten ale zná jen aktuální HLS relaci (začíná na offsetu a teprve
+  // roste), takže by ukazoval a posouval jen její úsek. Místo něj přehrávač
+  // i s vlastní lištou roztáhneme přes celé okno; posun pak jde po celém titulu.
+  let pageFullscreen = false;
+  const setPageFullscreen = (on) => {
+    pageFullscreen = on;
+    screen.classList.toggle("pk-page-fullscreen", on);
+    document.documentElement.classList.toggle("pk-page-fullscreen-open", on);
+    update();
+  };
   const toggleFullscreen = () => {
+    if (pageFullscreen) return setPageFullscreen(false);
     if (fullscreenElement()) {
       (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)?.catch?.(() => {});
       return;
     }
     const request = screen.requestFullscreen || screen.webkitRequestFullscreen;
-    if (request) request.call(screen)?.catch?.(() => {});
-    else video.webkitEnterFullscreen?.();
+    if (!request) return setPageFullscreen(true);
+    request.call(screen)?.catch?.(() => setPageFullscreen(true));
   };
   const togglePip = () => {
     if (!pipSupported(video)) return;
@@ -199,7 +211,7 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
       setIcon(mute, silent ? icons.muted : icons.volume, translate(silent ? "Zapnout zvuk" : "Ztlumit"));
     }
     volume.value = String(video.muted ? 0 : video.volume);
-    const full = fullscreenElement() === screen;
+    const full = pageFullscreen || fullscreenElement() === screen;
     if (fullscreen.dataset.full !== String(full)) {
       fullscreen.dataset.full = String(full);
       setIcon(fullscreen, full ? icons.exitFullscreen : icons.fullscreen, translate(full ? "Ukončit celou obrazovku" : "Celá obrazovka"));
@@ -254,13 +266,16 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
     [keyRoot, "pointerdown", onPointer],
   ];
   for (const [target, name, handler] of listeners) target.addEventListener(name, handler);
-  update();
+  if (startInPage && !fullscreenElement()) setPageFullscreen(true);
+  else update();
   return {
     element,
     update,
+    pageFullscreen: () => pageFullscreen,
     cleanup() {
       clearTimeout(clickTimer);
       for (const [target, name, handler] of listeners) target.removeEventListener(name, handler);
+      if (pageFullscreen) setPageFullscreen(false);
       if (fullscreenElement() === screen) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)?.catch?.(() => {});
     },
   };
