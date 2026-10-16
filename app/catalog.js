@@ -319,6 +319,7 @@ const FILTER_PARAM_KEYS = [
   "q",
   "hdr",
   "audio",
+  "sub",
   "orig",
   "co",
   "streams",
@@ -327,6 +328,11 @@ const FILTER_PARAM_KEYS = [
 function intParam(params, key, max) {
   const value = Number.parseInt(params.get(key) || "", 10);
   return Number.isInteger(value) && value > 0 ? Math.min(value, max) : null;
+}
+// Jazyky titulků jsou v uloženém filtru seznam (nativní aplikace mohou uložit
+// více jazyků); v URL mřížky je to "sub=cs,en".
+function subtitleCodes(raw) {
+  return [...new Set(String(raw || "").split(",").map((code) => code.trim().toLowerCase()).filter((code) => /^[a-z]{2,3}$/.test(code)))].sort();
 }
 function paramsToDefinition(params, type) {
   const genreIds = (params.get("genre") || "")
@@ -352,6 +358,7 @@ function paramsToDefinition(params, type) {
     video_height_min: intParam(params, "q", 4320),
     hdr: !!params.get("hdr") || null,
     audio_language: params.get("audio") || null,
+    subtitle_languages: subtitleCodes(params.get("sub")),
     original_language: params.get("orig") || null,
     countries: (params.get("co") || "").split(",").map((code) => code.trim().toUpperCase()).filter((code) => /^[A-Z]{2}$/.test(code)),
     has_streams: params.get("streams") === "1",
@@ -374,6 +381,7 @@ function definitionToParams(d, { grid = true } = {}) {
   if (d.video_height_min) q.set("q", String(d.video_height_min));
   if (d.hdr) q.set("hdr", "1");
   if (d.audio_language) q.set("audio", d.audio_language);
+  if (d.subtitle_languages?.length) q.set("sub", subtitleCodes(d.subtitle_languages.join(",")).join(","));
   if (d.original_language) q.set("orig", d.original_language);
   if (d.countries?.length) q.set("co", d.countries.join(","));
   if (d.has_streams) q.set("streams", "1");
@@ -398,6 +406,7 @@ function definitionQuery(d) {
   ])
     if (d[key] != null && d[key] !== "") query.set(key, String(d[key]));
   if (d.countries?.length) query.set("countries", d.countries.join(","));
+  if (d.subtitle_languages?.length) query.set("subtitle_language", d.subtitle_languages.join(","));
   if (d.has_streams) query.set("has_streams", "true");
   if (d.hdr) query.set("hdr", "true");
   query.set("sort_by", d.sort_by || "popularity");
@@ -416,6 +425,7 @@ function hasCriteria(d) {
       d.video_height_min ||
       d.hdr ||
       d.audio_language ||
+      d.subtitle_languages?.length ||
       d.original_language ||
       d.countries?.length ||
       d.has_streams ||
@@ -455,6 +465,8 @@ function definitionChips(d, genreNames) {
   if (d.hdr) chips.push("HDR");
   if (d.audio_language)
     chips.push(translateUI("zvuk {0}", d.audio_language.toUpperCase()));
+  if (d.subtitle_languages?.length)
+    chips.push(translateUI("titulky {0}", d.subtitle_languages.map((code) => code.toUpperCase()).join(", ")));
   if (d.original_language)
     chips.push(`orig. ${d.original_language.toUpperCase()}`);
   if (d.countries?.length) chips.push(translateUI("Země: {0}", d.countries.join(", ")));
@@ -494,6 +506,8 @@ export function interpretationChips(p) {
     );
   if (p.hdr) chips.push("HDR");
   if (p.audio_language) chips.push(p.audio_language.toUpperCase());
+  if (p.subtitle_language)
+    chips.push(translateUI("titulky {0}", p.subtitle_language.toUpperCase()));
   if (p.sort_by === "rating") chips.push(translateUI("nejlépe hodnocené"));
   else if (p.sort_by === "year") chips.push(translateUI("nejnovější"));
   return chips;
@@ -587,6 +601,20 @@ function filterBuilder({
     [["", translateUI("Jakýkoli")], ...AUDIO_LANGUAGES],
     definition.audio_language,
   );
+  // Uložený filtr z jiné aplikace může mít kombinaci jazyků, kterou seznam
+  // nenabízí; zůstane jako vlastní volba, aby ji uložení neztratilo.
+  const subtitleValue = (definition.subtitle_languages || []).join(",");
+  const subtitles = select(
+    "sub",
+    [
+      ["", translateUI("Jakékoli")],
+      ...AUDIO_LANGUAGES,
+      ...(subtitleValue && !AUDIO_LANGUAGES.some(([code]) => code === subtitleValue)
+        ? [[subtitleValue, subtitleValue.toUpperCase()]]
+        : []),
+    ],
+    subtitleValue,
+  );
   const original = select(
     "orig",
     [["", translateUI("Jakýkoli")], ...ORIGINAL_LANGUAGES],
@@ -641,6 +669,7 @@ function filterBuilder({
     formField(translateUI("Kvalita"), quality),
     el("label", { class: "field checkbox" }, hdr, translateUI(" Jen HDR")),
     formField(translateUI("Zvuk"), audio),
+    formField(translateUI("Titulky"), subtitles),
     formField(translateUI("Původní jazyk"), original),
     formField(translateUI("Země původu (ISO kódy)"), countries),
     el("label", { class: "field checkbox" }, hasStreams, translateUI(" Jen s dostupným zdrojem")),

@@ -444,6 +444,8 @@ function createAppHandler({
         throw new HttpError(400, "Neplatný filtr dostupného zdroje.");
       if (k === "countries" && !/^[A-Za-z]{2}(,[A-Za-z]{2})*$/.test(v))
         throw new HttpError(400, "Neplatné kódy zemí původu.");
+      if (k === "subtitle_language" && !/^[A-Za-z]{2,3}(,[A-Za-z]{2,3})*$/.test(v))
+        throw new HttpError(400, "Neplatné jazyky titulků.");
       if (k === "type" && !["movie", "tv", "both"].includes(v))
         throw new HttpError(400, "Neplatný typ titulu.");
       if (
@@ -589,6 +591,7 @@ function createAppHandler({
         "original_language",
         "has_streams",
         "countries",
+        "subtitle_language",
       ],
     ],
     ["GET", /^search\/filters$/, ["q", "type", "page", "limit"]],
