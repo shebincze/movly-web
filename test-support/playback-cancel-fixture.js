@@ -1,0 +1,14 @@
+import {sources,stop} from '../app/player.js';
+import {setPlaybackOwner} from '../app/playback-memory.js';
+import {invalidateApiContext} from '../app/api.js';
+const mode=new URLSearchParams(location.search).get('mode')||'resume';
+await fetch('/fixture/reset?mode='+mode);
+setPlaybackOwner({id:1},{id:2});invalidateApiContext({accountId:1,profile:{id:2}});
+let releaseCapability;const probe=navigator.mediaCapabilities.decodingInfo.bind(navigator.mediaCapabilities);
+navigator.mediaCapabilities.decodingInfo=async info=>{if(mode==='capability'){document.body.dataset.capabilityHeld='true';await new Promise(r=>releaseCapability=r);}return probe(info);};
+const stats=async()=>document.querySelector('#counters').textContent=JSON.stringify(await(await fetch('/fixture/stats')).json(),null,2);
+document.querySelector('#start').onclick=()=>void sources({id:1,title:'Generated cancellation fixture',type:'movie'},null,{skipResume:true});
+document.querySelector('#cancel').onclick=()=>{document.querySelector('#dialog').close();void stop();};
+document.querySelector('.dialog-close').onclick=()=>{document.querySelector('#dialog').close();void stop();};
+document.querySelector('#release').onclick=async()=>{releaseCapability?.();releaseCapability=null;await fetch('/fixture/release');await stats();};
+document.querySelector('#stats').onclick=stats;

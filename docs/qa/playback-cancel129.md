@@ -1,0 +1,11 @@
+# Playback prerequisite cancellation (#129)
+
+The production player previously awaited resume lookup and capability probing before its first cancellation/current-player check. An explicit Close during either prerequisite could still issue a later POST /playback; only the returned session was then deleted. Two admission fences now reject closed/cancelled/replaced/changed-owner attempts before provider/session work is requested. An already-admitted POST retains its existing late-response DELETE cleanup. Final position/history behavior is unchanged.
+
+Root actual CUA baseline on localhost18856: held real HTTP resume response, Close then release => posts1/deletes1/history[]; delayed real capability probe equivalent => posts1/deletes1. Screenshots preserved outside source under next-five-batch3/web-red-{resume,capability}.png. These are synthetic API response boundaries with production player/modules; they do not claim BFF/provider resolution or the old report #723 cause.
+
+Fixture: `node test-support/playback-cancel-fixture.cjs`, http://localhost:18856/fixture.html?mode=resume|capability|post|normal. Each navigation resets counters and releases old held requests; use one fixture tab at a time. Start source picker, select the triangle, close the dialog while pending, release the response and refresh counters. Resume/capability must admit0 sessions; post mode has already admitted1 and must delete1 after the late response. Normal uses actual generated HLS: decode then Close must save position/history and delete1.
+
+Generate only test-owned media in /private/tmp/movly-web-cancel-media with FFmpeg lavfi testsrc2 160x90@15 and sine440,8seconds,libx264/AAC,HLS. No production provider/media or user state. The fixture's capability seam delays the real browser decodingInfo call and does not fabricate support. The module's playback owner/context is synthetic1/2. All fixture modules stay outside production imports.
+
+Focused Node tests load actual player source with dependency stubs for six cancel/new-immutable-owner/delayed-close cases across both asynchronous boundaries. CUA rendered acceptance, full existing tests and syntax/ES5 receipts are retained outside the checkout. No deployment/client release; parent Movly#723 remains open without original scenario identity.

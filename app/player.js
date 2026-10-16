@@ -736,7 +736,15 @@ async function play(
       }
       handle.telemetry.stage("resume_lookup", performance.now()-resumeStartedAt);
     }
+    // A cancelled/replaced player must not admit new provider/session work
+    // after either asynchronous prerequisite finishes. Already-admitted POSTs
+    // still reach the existing late-response session cleanup below.
+    const admitted = () => !handle.cancelled && current === handle && dialog.open
+      && scope?.generation === playbackOwner()?.generation;
+    if (!admitted()) return false;
     const prepareStartedAt = performance.now();
+    const capabilities = await browserMediaCapabilities();
+    if (!admitted()) return false;
     const session = await api("playback", {
       method: "POST", expectedOwner: scope, playbackAttempt: handle.telemetry,
       body: {
@@ -747,7 +755,7 @@ async function play(
         ...(restoreTracks ? { audio_selector: saved.audio.key, subtitle_selector: saved.subtitle.key } : {}),
         ...mediaPreferences,
         ...(inParty ? { playback_rate: 1 } : {}),
-        capabilities: await browserMediaCapabilities(),
+        capabilities,
       },
     });
     handle.telemetry.stage("session_prepare", performance.now()-prepareStartedAt);
