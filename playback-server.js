@@ -335,6 +335,10 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
       .createHash("sha256")
       .update(`${s.token}:${s.device}:${s.profile.id}:${s.grant}`)
       .digest("hex");
+  // Jedno přihlášení v jednom prohlížeči (token + zařízení) přehrává vždy
+  // nejvýš jednu relaci; relace jeho dřívějšího profilu je opuštěná.
+  const browser = (s) =>
+    crypto.createHash("sha256").update(`${s.token}:${s.device}`).digest("hex");
   async function stop(p) {
     if (!p) return;
     sessions.delete(p.id);
@@ -527,6 +531,7 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
     const p = {
       id: crypto.randomBytes(24).toString("hex"),
       owner: owner(s),
+      browser: browser(s),
       url,
       mediaOptions: { ...options, credentialHost: new URL(url).hostname },
       resources: new Map(),
@@ -548,8 +553,9 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
         429,
         "Jiné přehrávání se právě připravuje. Zkus to za chvíli.",
       );
-    const who = owner(s);
-    if ([...sessions.values()].some((p) => p.owner !== who))
+    const who = owner(s),
+      from = browser(s);
+    if ([...sessions.values()].some((p) => p.browser !== from))
       throw fail(
         429,
         "Webový přehrávač právě využívá jiný uživatel. Zkus to za chvíli.",
@@ -565,6 +571,9 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
       p = {
         id: crypto.randomBytes(24).toString("hex"),
         owner: who,
+        browser: from,
+        // Klientský klíč dovolí uklidit relaci, jejíž odpověď prohlížeč zahodil.
+        clientKey: /^[0-9a-f]{32}$/.test(options.clientKey || "") ? options.clientKey : null,
         url,
         mediaOptions: {
           trustedProvider: options.trustedProvider === true,
@@ -892,7 +901,23 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
     for (const p of sessions.values()) await stop(p);
     if (proxy) await new Promise((resolve) => proxy.close(resolve));
   }
-  return { start, analyze, handle, close };
+  // Úklid při změně profilu nebo odhlášení: jen relace téhož vlastníka.
+  async function stopOwner(s) {
+    if (!s?.profile) return 0;
+    const who = owner(s);
+    const owned = [...sessions.values()].filter((p) => !p.analyzing && p.owner === who);
+    await Promise.all(owned.map(stop));
+    return owned.length;
+  }
+  // Úklid relace, jejíž vytvoření klient zrušil až po dokončení odpovědi.
+  async function stopPending(s, clientKey) {
+    if (!s?.profile || !/^[0-9a-f]{32}$/.test(clientKey || "")) return false;
+    const who = owner(s);
+    const p = [...sessions.values()].find((p) => p.owner === who && p.clientKey === clientKey);
+    await stop(p);
+    return !!p;
+  }
+  return { start, analyze, handle, close, stopOwner, stopPending };
 }
 module.exports = {
   rewritePlaylist,

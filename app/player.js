@@ -749,10 +749,14 @@ async function play(
     const capabilities = await browserMediaCapabilities();
     if (!admitted()) return false;
     handle.createController = new AbortController();
+    // Zrušený start, jehož odpověď už server dokončil, by jinak nechal relaci
+    // bez ID; klíč dovolí uklidit právě ji pod původním vlastníkem.
+    const clientKey = crypto.randomUUID().replaceAll("-", "");
     const session = await api("playback", {
       method: "POST", expectedOwner: scope, playbackAttempt: handle.telemetry,
       signal: handle.createController.signal,
       body: {
+        client_key: clientKey,
         ...selection,
         offset,
         audio,
@@ -762,6 +766,10 @@ async function play(
         ...(inParty ? { playback_rate: 1 } : {}),
         capabilities,
       },
+    }).catch((error) => {
+      if (error?.name === "AbortError")
+        void api(`playback/pending/${clientKey}`, { method: "DELETE", expectedOwner: scope }).catch(() => {});
+      throw error;
     });
     handle.createController = null;
     handle.telemetry.stage("session_prepare", performance.now()-prepareStartedAt);
