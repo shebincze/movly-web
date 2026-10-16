@@ -332,3 +332,41 @@
 
 .pk-intro-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .pk-intro-controls[hidden] { display:none; }
+
+/* ---------- Vlastní ovládání přehrávače ---------- */
+.pk-screen { display: flex; flex-direction: column; gap: 8px; }
+.pk-player .video-player { cursor: pointer; }
+.pk-transport { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.pk-icon-control { width: 44px; padding: 0; justify-content: center; }
+.pk-icon-control:disabled { color: var(--muted); cursor: not-allowed; background: transparent; }
+.pk-play-toggle svg { width: 22px; height: 22px; }
+.pk-volume-group { display: inline-flex; align-items: center; gap: 4px; }
+.pk-volume {
+  -webkit-appearance: none; appearance: none; width: 96px; min-height: 0; height: 24px;
+  margin: 0; padding: 0; border: 0; background: transparent; cursor: pointer;
+}
+.pk-volume:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 3px; border: 0; padding: 0; }
+.pk-volume::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .3); }
+.pk-volume::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .3); }
+.pk-volume::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--text); }
+.pk-volume::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5px; border-radius: 50%; background: #fff; }
+.pk-volume::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #fff; }
+.pk-next {
+  position: absolute; right: 16px; bottom: 16px; max-width: calc(100% - 32px);
+  display: flex; flex-direction: column; gap: 10px; padding: 14px 16px;
+  border-radius: var(--radius-md); background: rgba(10, 10, 18, .88); border: 1px solid var(--line-strong);
+}
+.pk-next[hidden] { display: none; }
+.pk-next-text { font-weight: 700; }
+.pk-next-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Celá obrazovka: video vyplní plochu, ovládání zůstane dole. */
+.pk-screen:fullscreen, .pk-screen:-webkit-full-screen { background: #000; padding: 12px 24px 16px; justify-content: flex-end; }
+.pk-screen:fullscreen .pk-stage { flex: 1; min-height: 0; display: flex; border-radius: 0; }
+.pk-screen:-webkit-full-screen .pk-stage { flex: 1; min-height: 0; display: flex; border-radius: 0; }
+.pk-screen:fullscreen .video-player { max-height: none; height: 100%; aspect-ratio: auto; }
+.pk-screen:-webkit-full-screen .video-player { max-height: none; height: 100%; aspect-ratio: auto; }
+@media (max-width: 650px) {
+  .pk-volume { width: 72px; }
+  .pk-transport .pk-spacer { flex: 1; display: block; }
+  .pk-next { position: static; max-width: none; }
+}

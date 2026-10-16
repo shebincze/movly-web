@@ -33,6 +33,7 @@ import { playbackOwner, recalledPlayback, rememberPlayback, samePlaybackSource }
 import Hls from "./vendor/hls.mjs";
 import { nextReleasedEpisode, episodeReleaseState } from "./episode-policy.js";
 import { saveOffline } from "./offline.js";
+import { mountPlayerControls, seekPlan, nextCountdown, CONTINUE_PROMPT_AFTER } from "./player-controls.js";
 let mediaPreferences = {
   video_mode: "compatible",
   audio_mode: "stereo",
@@ -75,6 +76,8 @@ let current = null;
 let playRevision = 0;
 // Poslední automatická obnova relace (viz recoverSession), proti smyčce obnov.
 let lastRecovery = { key: "", at: 0 };
+// Počet dílů spuštěných automaticky bez zásahu diváka (viz CONTINUE_PROMPT_AFTER).
+let autoplayChain = 0;
 const time = (n) =>
   `${Math.floor(n / 3600) ? `${Math.floor(n / 3600)}:` : ""}${String(Math.floor(n / 60) % 60).padStart(2, "0")}:${String(Math.floor(n) % 60).padStart(2, "0")}`;
 export async function providerSettings() {
@@ -785,7 +788,6 @@ async function play(
       return;
     }
     const video = el("video", {
-      controls: true,
       playsinline: true,
       preload: "auto",
       class: "video-player",
@@ -848,7 +850,7 @@ async function play(
         const mediaReady = video.readyState >= 3 && !video.error;
         const ready = mediaReady && !video.seeking && (!waiting || Math.abs(video.currentTime + offset - target) <= 0.5);
         reportPartyReady(ready, handle.partyPlayback);
-        video.controls = !waiting;
+        handle.controls?.update();
         if (!mediaReady) return;
         applying = true;
         if (Math.abs(video.currentTime + offset - target) > 0.5) {
@@ -1027,14 +1029,18 @@ async function play(
       });
     };
     handle.history = history;
-    position.addEventListener("change", () =>
-      inParty
-        ? partyTransport(
-            partyState().status === "playing",
-            Number(position.value),
-          ).catch((e) => toast(e.message))
-        : play(t, episode, selection, Number(position.value), audio, subtitle),
-    );
+    // Posun v rámci načtené relace je okamžitý; mimo ni se relace otevře znovu.
+    const seekTo = (target) => {
+      if (inParty)
+        return partyTransport(
+          partyState().status === "playing",
+          Math.max(0, Math.min(session.duration, target)),
+        ).catch((e) => toast(e.message));
+      const plan = seekPlan(target, { offset, duration: session.duration, seekable: video.seekable });
+      if (plan.restart) return play(t, episode, selection, plan.position, audio, subtitle);
+      video.currentTime = plan.local;
+    };
+    position.addEventListener("change", () => seekTo(Number(position.value)));
     const changeTracks = (nextAudio, nextSubtitle) => {
       audio = nextAudio;
       subtitle = nextSubtitle;
@@ -1212,6 +1218,72 @@ async function play(
       machine:introMachine,seek:(target,machine)=>inParty
         ? partyTransport(partyState().status==="playing",target)
         : play(t,episode,selection,target,audio,subtitle,machine)});
+    // Další díl se dohledá jednou (odpočet, konec dílu i tlačítko ho sdílí).
+    const nextLookup = () =>
+      (handle.nextLookup ||= (async () => {
+        const data = await api(`titles/${t.id}`);
+        const seasons = data.seasons || (await api(`titles/${t.id}/seasons`));
+        return nextReleasedEpisode(array(seasons), episode.id);
+      })().catch((error) => {
+        // Neúspěch se necachuje, další pokus (konec dílu, tlačítko) zkusí znovu.
+        handle.nextLookup = null;
+        throw error;
+      }));
+    const autoplayEnabled = () => localStorage.getItem("movly.autoplayNext") !== "false";
+    const openNext = async (automatic) => {
+      try {
+        const next = await nextLookup();
+        if (!next) return automatic ? undefined : toast(translateUI("Další díl zatím není dostupný."));
+        if (current !== handle || handle.cancelled) return;
+        autoplayChain = automatic ? autoplayChain + 1 : 0;
+        await sources(t, next, { autoPlay: true });
+      } catch (e) {
+        toast(translateUI("Další díl se nepodařilo připravit: {0}", e.message));
+      }
+    };
+    const nextPanel = el("div", { class: "pk-next", hidden: true, "aria-live": "polite" });
+    const showNextPanel = (text, primaryLabel, onPrimary, secondaryLabel, onSecondary) => {
+      nextPanel.replaceChildren(
+        el("span", { class: "pk-next-text" }, text),
+        el("div", { class: "pk-next-actions" },
+          button(primaryLabel, onPrimary, "primary small"),
+          button(secondaryLabel, onSecondary, "secondary small"),
+        ),
+      );
+      nextPanel.hidden = false;
+    };
+    const hideNextPanel = () => {
+      nextPanel.hidden = true;
+      nextPanel.replaceChildren();
+      handle.countdownShown = null;
+    };
+    const askToContinue = autoplayChain >= CONTINUE_PROMPT_AFTER;
+    const updateCountdown = () => {
+      if (!episode || inParty || handle.nextCancelled || askToContinue || !autoplayEnabled()) {
+        if (handle.countdownShown != null) hideNextPanel();
+        return;
+      }
+      const remaining = session.duration - positionNow();
+      if (remaining <= 30 && !handle.nextLookup) nextLookup().then((next) => { handle.nextAvailable = !!next; }, () => {});
+      const seconds = nextCountdown(remaining, { available: handle.nextAvailable === true });
+      if (seconds == null) {
+        if (handle.countdownShown != null) hideNextPanel();
+        return;
+      }
+      if (handle.countdownShown === seconds) return;
+      handle.countdownShown = seconds;
+      showNextPanel(
+        translateUI("Další díl za {0} s", seconds),
+        translateUI("Přehrát teď"),
+        () => void openNext(false),
+        translateUI("Zrušit"),
+        () => {
+          handle.nextCancelled = true;
+          hideNextPanel();
+        },
+      );
+    };
+    video.addEventListener("timeupdate", updateCountdown);
     video.addEventListener("ended", async () => {
       try {
         await history();
@@ -1219,22 +1291,24 @@ async function play(
         toast(translateUI("Historie se neuložila: {0}", e.message));
       }
       status.textContent = translateUI("Přehrávání dokončeno.");
-      if (
-        !episode ||
-        handle.cancelled ||
-        partyState() ||
-        localStorage.getItem("movly.autoplayNext") === "false"
-      )
+      if (!episode || handle.cancelled || partyState() || !autoplayEnabled() || handle.nextCancelled) return;
+      if (askToContinue) {
+        // Po několika dílech bez zásahu diváka se automatické přehrávání zastaví.
+        const next = await nextLookup().catch(() => null);
+        if (!next || current !== handle || handle.cancelled) return;
+        showNextPanel(
+          translateUI("Pokračovat ve sledování?"),
+          translateUI("Pokračovat"),
+          () => void openNext(false),
+          translateUI("Ukončit"),
+          () => {
+            autoplayChain = 0;
+            hideNextPanel();
+          },
+        );
         return;
-      try {
-        const data = await api(`titles/${t.id}`);
-        const seasons = data.seasons || (await api(`titles/${t.id}/seasons`));
-        const next = nextReleasedEpisode(array(seasons), episode.id);
-        if (next && current === handle && !handle.cancelled)
-          await sources(t, next, { autoPlay: true });
-      } catch (e) {
-        toast(translateUI("Další díl se nepodařilo připravit: {0}", e.message));
       }
+      await openNext(true);
     });
     const panelId = `pk-settings-${revision}`;
     const settings = el(
@@ -1295,27 +1369,41 @@ async function play(
             {
               type: "button",
               class: "pk-control",
-              onClick: async () => {
-                try {
-                  const data = await api(`titles/${t.id}`);
-                  const seasons = data.seasons || (await api(`titles/${t.id}/seasons`));
-                  const next = nextReleasedEpisode(array(seasons), episode.id);
-                  if (!next) return toast(translateUI("Další díl zatím není dostupný."));
-                  if (current === handle && !handle.cancelled) await sources(t, next, { autoPlay: true });
-                } catch (e) {
-                  toast(translateUI("Další díl se nepodařilo připravit: {0}", e.message));
-                }
-              },
+              onClick: () => openNext(false),
             },
             svgGlyph(["M5 5v14l10-7zM17 5h2.5v14H17z"], { fill: "currentColor", stroke: "none" }),
             el("span", {}, translateUI("Další epizoda")),
           )
         : null;
     skipIntro.classList.add("pk-skip-intro");
-    showDialog(
-      el(
-        "div",
-        { class: "dialog-body player-body pk-player" },
+    const stage = el("div", { class: "pk-stage" }, video, nextPanel, settings);
+    const seekBar = el(
+      "div",
+      { class: "player-seek pk-seek" },
+      el("div", { class: "pk-seek-track" }, chapterMarks, position),
+      clock,
+    );
+    const screen = el("div", { class: "pk-screen" }, stage, seekBar);
+    const playerRoot = el("div", { class: "dialog-body player-body pk-player" });
+    const controls = mountPlayerControls({
+      el,
+      glyph: svgGlyph,
+      translate: translateUI,
+      video,
+      screen,
+      keyRoot: playerRoot,
+      storage: localStorage,
+      positionNow,
+      seekTo,
+      active: () => current === handle && !handle.cancelled && playerRoot.isConnected && dialog.open,
+      disabled: () => inParty && partyWaiting(),
+      onInteraction: () => {
+        autoplayChain = 0;
+      },
+    });
+    screen.append(controls.element);
+    handle.controls = controls;
+    playerRoot.append(
         el(
           "header",
           { class: "pk-player-top" },
@@ -1342,14 +1430,8 @@ async function play(
               )
             : null,
         ),
-        el("div", { class: "pk-stage" }, video, settings),
+        screen,
         el("div", { class: "pk-status" }, status, reportFailure),
-        el(
-          "div",
-          { class: "player-seek pk-seek" },
-          el("div", { class: "pk-seek-track" }, chapterMarks, position),
-          clock,
-        ),
         el(
           "div",
           { class: "pk-controls" },
@@ -1409,8 +1491,8 @@ async function play(
             .filter(Boolean)
             .map((item) => el("li", {}, item)),
         ),
-      ),
     );
+    showDialog(playerRoot);
     let attempts = 0;
     async function prepare() {
       if (handle.cancelled) return;
@@ -1546,6 +1628,7 @@ export async function stop(reason = "cancelled") {
   handle.createController?.abort();
   handle.createController = null;
   handle.introCleanup?.();
+  handle.controls?.cleanup();
   clearTimeout(handle.prepare);
   clearInterval(handle.timer);
   clearInterval(handle.subtitleTimer);

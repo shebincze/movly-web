@@ -1201,6 +1201,17 @@ test("catalog filter BFF forwards supported country and source filters and rejec
   }
 });
 
+test("catalog filter BFF forwards subtitle languages and rejects malformed codes", async () => {
+  const h = harness();
+  const s = await h.selected();
+  const r = await h.request("titles/filter?subtitle_language=cs,en", { cookie: s.cookie });
+  assert.equal(r.status, 200);
+  assert.match(h.calls.at(-1)[0], /subtitle_language=cs%2Cen/);
+  for (const query of ["subtitle_language=czech", "subtitle_language=cs,,en", "subtitle_language=c1"]) {
+    assert.equal((await h.request(`titles/filter?${query}`, { cookie: s.cookie })).status, 400, query);
+  }
+});
+
 test("effective policy BFF is read-only, selected-profile scoped and closed to arbitrary query", async () => {
   const h = harness();
   const s = await h.selected();
