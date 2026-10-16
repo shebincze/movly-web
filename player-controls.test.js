@@ -125,3 +125,15 @@ test('a reopened session keeps the page fullscreen, element fullscreen is never 
   assert.equal(desktop.controls.pageFullscreen(),false);
  }finally{delete globalThis.document;}
 });
+test('a refusal arriving after the player closed does not lock the page',async()=>{
+ let refuse;
+ const late=await mountFake({screenApi:{requestFullscreen:()=>new Promise((_,reject)=>{refuse=reject;})}});
+ try{
+  late.button.click();
+  late.controls.cleanup();
+  refuse(new TypeError('not allowed'));
+  await new Promise(r=>setImmediate(r));
+  assert.equal(late.screen.classList.contains('pk-page-fullscreen'),false);
+  assert.equal(late.doc.documentElement.classList.contains('pk-page-fullscreen-open'),false);
+ }finally{delete globalThis.document;}
+});

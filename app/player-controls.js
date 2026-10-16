@@ -139,7 +139,7 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
   // <video>. Ten ale zná jen aktuální HLS relaci (začíná na offsetu a teprve
   // roste), takže by ukazoval a posouval jen její úsek. Místo něj přehrávač
   // i s vlastní lištou roztáhneme přes celé okno; posun pak jde po celém titulu.
-  let pageFullscreen = false;
+  let pageFullscreen = false, disposed = false;
   const setPageFullscreen = (on) => {
     pageFullscreen = on;
     screen.classList.toggle("pk-page-fullscreen", on);
@@ -154,7 +154,7 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
     }
     const request = screen.requestFullscreen || screen.webkitRequestFullscreen;
     if (!request) return setPageFullscreen(true);
-    request.call(screen)?.catch?.(() => setPageFullscreen(true));
+    request.call(screen)?.catch?.(() => !disposed && setPageFullscreen(true));
   };
   const togglePip = () => {
     if (!pipSupported(video)) return;
@@ -273,6 +273,7 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
     update,
     pageFullscreen: () => pageFullscreen,
     cleanup() {
+      disposed = true;
       clearTimeout(clickTimer);
       for (const [target, name, handler] of listeners) target.removeEventListener(name, handler);
       if (pageFullscreen) setPageFullscreen(false);
