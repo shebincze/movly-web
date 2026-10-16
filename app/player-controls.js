@@ -90,9 +90,11 @@ function pipSupported(video) {
 }
 
 // Lišta ovládání. `screen` je prvek, který jde na celou obrazovku (video
-// i ovládání), `keyRoot` přijímá klávesové zkratky. `seekTo` dostává
-// absolutní pozici titulu, `disabled` vrací true během čekání Watch Party.
-export function mountPlayerControls({ el, glyph, translate, video, screen, keyRoot, storage, positionNow, seekTo, disabled = () => false, onInteraction = () => {} }) {
+// i ovládání), `keyRoot` je oblast přehrávače (interakce myší). Zkratky se
+// čtou z celého dokumentu, dokud `active()` platí: fokus po otevření dialogu
+// stojí na zavíracím tlačítku mimo přehrávač. `seekTo` dostává absolutní
+// pozici titulu, `disabled` vrací true během čekání Watch Party.
+export function mountPlayerControls({ el, glyph, translate, video, screen, keyRoot, storage, positionNow, seekTo, active = () => true, disabled = () => false, onInteraction = () => {} }) {
   const saved = readVolume(storage);
   video.volume = saved.volume;
   video.muted = saved.muted;
@@ -208,6 +210,7 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
     update();
   };
   const onKey = (event) => {
+    if (!active()) return;
     const action = playerKeyAction(event);
     if (!action) return;
     event.preventDefault();
@@ -223,9 +226,19 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
       pip: togglePip,
     })[action]();
   };
-  const onVideoClick = () => {
+  // Dvojklik je celá obrazovka; jednoduchý klik přepne přehrávání až po
+  // krátké prodlevě, aby dvojklik nepozastavil a znovu nespustil video
+  // (ve Watch Party by to byly dvě změny stavu místnosti).
+  let clickTimer = null;
+  const onVideoClick = (event) => {
     onInteraction();
-    toggle();
+    clearTimeout(clickTimer);
+    if (event.detail > 1) return;
+    clickTimer = setTimeout(toggle, 250);
+  };
+  const onVideoDoubleClick = () => {
+    clearTimeout(clickTimer);
+    toggleFullscreen();
   };
   const onPointer = () => onInteraction();
   const listeners = [
@@ -234,10 +247,10 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
     [video, "ended", update],
     [video, "volumechange", onVolume],
     [video, "click", onVideoClick],
-    [video, "dblclick", toggleFullscreen],
+    [video, "dblclick", onVideoDoubleClick],
     [document, "fullscreenchange", update],
     [document, "webkitfullscreenchange", update],
-    [keyRoot, "keydown", onKey],
+    [document, "keydown", onKey],
     [keyRoot, "pointerdown", onPointer],
   ];
   for (const [target, name, handler] of listeners) target.addEventListener(name, handler);
@@ -246,6 +259,7 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
     element,
     update,
     cleanup() {
+      clearTimeout(clickTimer);
       for (const [target, name, handler] of listeners) target.removeEventListener(name, handler);
       if (fullscreenElement() === screen) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)?.catch?.(() => {});
     },

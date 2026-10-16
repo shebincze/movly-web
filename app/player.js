@@ -1218,7 +1218,11 @@ async function play(
         const data = await api(`titles/${t.id}`);
         const seasons = data.seasons || (await api(`titles/${t.id}/seasons`));
         return nextReleasedEpisode(array(seasons), episode.id);
-      })());
+      })().catch((error) => {
+        // Neúspěch se necachuje, další pokus (konec dílu, tlačítko) zkusí znovu.
+        handle.nextLookup = null;
+        throw error;
+      }));
     const autoplayEnabled = () => localStorage.getItem("movly.autoplayNext") !== "false";
     const openNext = async (automatic) => {
       try {
@@ -1228,7 +1232,6 @@ async function play(
         autoplayChain = automatic ? autoplayChain + 1 : 0;
         await sources(t, next, { autoPlay: true });
       } catch (e) {
-        handle.nextLookup = null;
         toast(translateUI("Další díl se nepodařilo připravit: {0}", e.message));
       }
     };
@@ -1386,6 +1389,7 @@ async function play(
       storage: localStorage,
       positionNow,
       seekTo,
+      active: () => current === handle && !handle.cancelled && playerRoot.isConnected && dialog.open,
       disabled: () => inParty && partyWaiting(),
       onInteraction: () => {
         autoplayChain = 0;
