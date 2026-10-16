@@ -1631,10 +1631,10 @@ function createAppHandler({
           json(res, 200, { url: `/api/app/download/${id}`, filename: name });
           return true;
         }
-        json(
-          res,
-          200,
-          await timed("bff_session_prepare", () => playback.start(s, link, {
+        // Request-body close is normal. Only an aborted request or a destroyed
+        // response abandons creation; keep the original validated owner for cleanup.
+        if (req.aborted || res.destroyed) return true;
+        const created = await timed("bff_session_prepare", () => playback.start(s, link, {
             workTiming,
             ...mediaOptions,
             offset: body.offset,
@@ -1669,8 +1669,13 @@ function createAppHandler({
                 (key) => [key, body.capabilities?.[key] === true],
               ),
             ),
-          })),
-        );
+          }));
+        if (req.aborted || res.destroyed) {
+          // Internal owner-checked engine cleanup, never the changed browser cookie.
+          await playback.handle(s, { method: "DELETE" }, res, created.id).catch(() => {});
+          return true;
+        }
+        json(res, 200, created);
         return true;
       }
       const playing =

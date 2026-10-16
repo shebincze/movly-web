@@ -745,8 +745,10 @@ async function play(
     const prepareStartedAt = performance.now();
     const capabilities = await browserMediaCapabilities();
     if (!admitted()) return false;
+    handle.createController = new AbortController();
     const session = await api("playback", {
       method: "POST", expectedOwner: scope, playbackAttempt: handle.telemetry,
+      signal: handle.createController.signal,
       body: {
         ...selection,
         offset,
@@ -758,6 +760,7 @@ async function play(
         capabilities,
       },
     });
+    handle.createController = null;
     handle.telemetry.stage("session_prepare", performance.now()-prepareStartedAt);
     handle.session = session;
     audio = session.selected_audio ?? audio;
@@ -1508,6 +1511,7 @@ async function play(
     prepare();
     return true;
   } catch (e) {
+    handle.createController = null;
     if (!handle.cancelled && current === handle && dialog.open) {
       void handle.reportTelemetry(playbackDiagnostics(e.body?.diagnostic_stage || "source_resolve", selection.diagnostic_provider, e));
       showDialog(
@@ -1536,6 +1540,8 @@ export async function stop(reason = "cancelled") {
   handle.telemetry?.dispose(reason);
   current = null;
   handle.cancelled = true;
+  handle.createController?.abort();
+  handle.createController = null;
   handle.introCleanup?.();
   clearTimeout(handle.prepare);
   clearInterval(handle.timer);
