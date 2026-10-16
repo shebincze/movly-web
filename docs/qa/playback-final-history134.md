@@ -26,3 +26,14 @@ The root-owned CUA fixture uses production static player modules, real locally
 generated HLS, and synthetic authenticated API/controlled playback engine. This
 fix does not address completed-response reconciliation (#135/Movly#650) or the
 unknown original Movly#723 report. No deployment or release.
+
+Root actual CUA GREEN at functional442f110: BEFORE EOF, currentTime1.263693s,
+readyState4, endedfalse, moving160×90 video. Destroy observer recorded1.287→0;
+exactly one BFF/upstream history POST had watching/progress1/duration8/profile1,
+validtrue; DELETE1/active[]. Receipt parent batch4/web-history134-preend-green.json.
+Actual owner handoff at1.266s to profile2 produced history[], as intended.
+No rendered local-overlay assertion is claimed; its fence is source/unit proof.
+That already-admitted owner handoff left the original session active (DELETE[]),
+a separate preexisting completed/admitted-session owner cleanup gap tracked in
+#135, not fixed by134. Earlier EOF/completed2-write cohort is excluded from the
+before-EOF proof. Receipt parent batch4/web-history134-owner.json.
