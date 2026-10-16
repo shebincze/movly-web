@@ -994,6 +994,9 @@ async function play(
       return true;
     };
     const history = async () => {
+      const owner = playbackOwner();
+      if (!scope || owner?.accountId !== scope.accountId
+        || owner?.profileId !== scope.profileId || owner?.generation !== scope.generation) return;
       if (!video.currentTime) return;
       // Film: pozice / dokoukáno rovnou do překryvu karet. Stav seriálu je
       // per epizoda, ten řeší detail sám.
@@ -1549,13 +1552,13 @@ export async function stop(reason = "cancelled") {
   clearInterval(handle.partyTimer);
   endPartyPlayback(handle.partyPlayback);
   handle.video?.pause();
+  // HLS detach resets the media clock. Start saving its final snapshot now,
+  // without delaying media teardown while the request is pending.
+  const historySaved = handle.history?.().catch((e) =>
+    toast(translateUI("Historie se neuložila: {0}", e.message)),
+  );
   handle.hls?.destroy();
-  if (handle.history)
-    await handle
-      .history()
-      .catch((e) =>
-        toast(translateUI("Historie se neuložila: {0}", e.message)),
-      );
+  await historySaved;
   if (handle.session)
     await api(`playback/${handle.session.id}`, { method: "DELETE" }).catch(
       () => {},
