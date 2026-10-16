@@ -1,3 +1,4 @@
+import { clientTelemetry } from "./client-telemetry.js";
 import { playbackQuality } from "./playback-quality.js";
 import { translateUI } from "./i18n.js";
 import { api } from "./api.js";
@@ -395,6 +396,10 @@ async function trustedView(signal, refresh) {
 }
 
 export async function admin(params, signal, actions, account) {
+  if (params.get("view") === "client-quality") {
+    if (account?.role !== "admin") throw new Error("Přehled vyžaduje správce.");
+    return clientTelemetry(params, signal);
+  }
   if (params.get("view") === "playback") {
     if (account?.role !== "admin") throw new Error("Přehled vyžaduje správce.");
     return playbackQuality(params, signal);
@@ -439,7 +444,7 @@ export async function admin(params, signal, actions, account) {
   );
   if (!data || !Array.isArray(data.requests))
     throw new Error(translateUI("Server vrátil neplatný seznam nahlášení."));
-  const qualityLink = account?.role === "admin" ? el("a", {href:"#admin?view=playback",class:"button secondary"}, "Start přehrávání") : null;
+  const qualityLink = account?.role === "admin" ? el("span", {}, el("a", {href:"#admin?view=playback",class:"button secondary"}, "Start přehrávání"), el("a", {href:"#admin?view=client-quality",class:"button secondary"}, "Události klientů")) : null;
   const tabs = el(
     "nav",
     {

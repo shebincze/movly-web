@@ -493,7 +493,7 @@ async function render() {
     if (link.dataset.page === navPage) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
-  document.title = `Movly — ${translateUI({ home: translateUI("Home"), movies: translateUI("Filmy"), series: translateUI("Seriály"), lists: translateUI("Moje seznamy"), search: translateUI("Hledání"), collection: translateUI("Katalog"), history: translateUI("Historie"), friends: translateUI("Přátelé"), stats: translateUI("Statistiky"), admin: translateUI("Nahlášené streamy") }[route] || { premium: "Premium", hidden: "Skryté tituly", feedback: "Vylepšujeme Movly" }[route])}`;
+  document.title = `Movly — ${translateUI({ home: translateUI("Home"), movies: translateUI("Filmy"), series: translateUI("Seriály"), lists: translateUI("Moje seznamy"), search: translateUI("Hledání"), collection: translateUI("Katalog"), history: translateUI("Historie"), friends: translateUI("Přátelé"), stats: translateUI("Statistiky"), admin: params.get("view") === "client-quality" ? "Události klientů" : translateUI("Nahlášené streamy") }[route] || { premium: "Premium", hidden: "Skryté tituly", feedback: "Vylepšujeme Movly" }[route])}`;
   content.replaceChildren(loading());
   try {
     const result = await (route === "feedback" ? feedback(params, signal, session.account) : route === "premium"
