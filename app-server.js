@@ -875,6 +875,12 @@ function createAppHandler({
         json(res, req.method === "POST" && (feedbackTarget === "feedback/items" || feedbackTarget === "feedback/handoffs") ? 201 : 200, result ?? {});
         return true;
       }
+      if (target === "admin/telemetry/client" && req.method === "GET") {
+        res.setHeader("Cache-Control", "private, no-store");
+        if (account.role !== "admin") throw new HttpError(403, "K této akci nemáš oprávnění.");
+        const query = cleanQuery(url, ["client_app", "day"], language);
+        json(res, 200, await call(s, target + query)); return true;
+      }
       if (target === "admin/telemetry/playback-attempts" && req.method === "GET") {
         if (account.role !== "admin") throw new HttpError(403, "K této akci nemáš oprávnění.");
         const query = cleanQuery(url, ["client_app", "platform", "hours"], language);
