@@ -771,7 +771,8 @@ function createAppHandler({
         });
       if (target === "logout" && req.method === "POST") {
         await call(s, "auth/logout", "POST");
-        writeSession(res, null, s);
+        // Zastaralé odhlášení nesmí ukončit přehrávání novější relace.
+        if (writeSession(res, null, s) !== false) await playback.stopOwner?.(s).catch(() => {});
         json(res, 200, { ok: true });
         return true;
       }
@@ -986,6 +987,9 @@ function createAppHandler({
         next.grant = selected.grant_token || null;
         next.grantExpiresAt = selected.grant_token ? selected.grant_expires_at : null;
         writeSession(res, next, s);
+        // Relace dřívějšího vlastníka už po přepnutí nikdo neukončí (jiný owner).
+        if (s.profile && (s.profile.id !== next.profile.id || (s.grant || null) !== next.grant))
+          await playback.stopOwner?.(s).catch(() => {});
         json(res, 200, { profile: next.profile });
         return true;
       }
@@ -1648,6 +1652,7 @@ function createAppHandler({
             offlineExport: body.offline_export === true,
             cookieless: body.cookieless_media === true,
             maxBytes: body.max_bytes,
+            clientKey: typeof body.client_key === "string" ? body.client_key : undefined,
             playbackRate: [0.5, 0.75, 1, 1.25, 1.5, 2].includes(
               body.playback_rate,
             )
@@ -1679,6 +1684,11 @@ function createAppHandler({
           return true;
         }
         json(res, 200, created);
+        return true;
+      }
+      const pendingKey = /^playback\/pending\/([a-f0-9]{32})$/.exec(target);
+      if (pendingKey && req.method === "DELETE") {
+        json(res, 200, { stopped: (await playback.stopPending?.(s, pendingKey[1])) === true });
         return true;
       }
       const playing =
