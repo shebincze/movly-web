@@ -27,7 +27,7 @@ function streamUploadPayload({ title, episode, provider, providerID, ident, file
     video_hdr: Boolean(hdr), hdr_type: hdr, audio_codec: audio.codec_name, audio_format: audio.codec_name,
     audio_channels: audio.channels, audio_channel_layout: audio.channel_layout, audio_bitrate: finite(audio.bit_rate),
     audio_language: resolved[primary], audio_languages: languages,
-    audio_streams: audios.map((t, i) => ({ track_index: i, audio_codec: t.codec_name, audio_channels: t.channels,
+    audio_streams: audios.map((t, i) => ({ track_index: Number.isInteger(t.index) && t.index >= 0 ? t.index : i, audio_codec: t.codec_name, audio_channels: t.channels,
       audio_channel_layout: t.channel_layout, audio_bitrate: finite(t.bit_rate), audio_language: resolved[i],
       title: t.tags?.title, default_track: t.disposition?.default === 1, forced_track: t.disposition?.forced === 1 })),
     tags: ["user-added", "ffprobe-analyzed", ...(unknown.length ? ["user-audio-confirmed"] : [])] };

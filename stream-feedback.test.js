@@ -47,3 +47,11 @@ test("manual audio fills only unknown tracks and never promotes file hints", () 
   for (const confirmedAudioLanguages of [["cs"], ["cs", "sk", "en"], ["und", "sk"]])
     assert.throws(() => streamUploadPayload({ ...input, confirmedAudioLanguages }), { code: "audio_confirmation_required" });
 });
+test("audio track_index is the ffprobe stream index with ordinal fallback", () => {
+  const body = streamUploadPayload({ title: { id: 5 }, provider: "Webshare", providerID: 1, ident: "fixture", analysis: { streams: [
+    { codec_type: "video", index: 0, height: 1080 },
+    { codec_type: "subtitle", index: 1, tags: { language: "cze" } },
+    { codec_type: "audio", index: 2, tags: { language: "cze" } },
+    { codec_type: "audio", tags: { language: "eng" } } ] } });
+  assert.deepEqual(body.audio_streams.map(t => t.track_index), [2, 1]);
+});
