@@ -2,7 +2,6 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { offlineSigner } = require('./offline-grant');
-const policyFixtures = require('./test-support/effective-policy-v1.fixtures.json');
 
 function installIndexedDB() {
   const stores = new Map(['files', 'chunks', 'settings', 'history', 'downloads'].map(name => [name, new Map()]));
@@ -28,7 +27,7 @@ function installIndexedDB() {
   return stores;
 }
 
-test('a stale offline-grant 403 cannot revoke a newer active receipt through the real download caller', async () => {
+test('web offline saving is app-only: no grant request, the active receipt stays untouched', async () => {
   const previous = { window: globalThis.window, document: globalThis.document, CustomEvent: globalThis.CustomEvent,
     indexedDB: globalThis.indexedDB, fetch: globalThis.fetch };
   const window = new EventTarget();
@@ -36,8 +35,8 @@ test('a stale offline-grant 403 cannot revoke a newer active receipt through the
   globalThis.document = {};
   globalThis.CustomEvent = class extends Event {};
   const stores = installIndexedDB();
-  const { api, invalidateApiContext } = await import('./app/api.js');
-  const { put, get, storeFreshOfflineGrant, verifiedGrant } = await import('./app/offline-store.js');
+  const { invalidateApiContext } = await import('./app/api.js');
+  const { put, get, verifiedGrant } = await import('./app/offline-store.js');
   await import('./app/offline.js'); // Installs the real movly-offline-revoked listener that clears active.
   const { queueOffline } = await import('./app/offline-downloads.js');
   const now = Date.now(), signer = offlineSigner('offline-download-owner-race-test');
@@ -45,23 +44,17 @@ test('a stale offline-grant 403 cannot revoke a newer active receipt through the
     premium_until: new Date(now + 86400000).toISOString() };
   const profile = { id: 2, name: 'Adult', is_kids: false, has_pin: false, max_certification: 18, allow_unrated: true };
   const oldReceipt = signer.issue(user, profile, { token: 'old', device: 'browser' }, now);
-  const newReceipt = signer.issue(user, profile, { token: 'new', device: 'browser' }, now + 1);
   await put('settings', oldReceipt, 'active');
   invalidateApiContext({ accountId: 1, profile: { id: 2 } });
-  const policy = policyFixtures.cases.find(item => item.name === 'ordinary_default').effective;
-  globalThis.fetch = async url => {
-    if (url.endsWith('/profiles/effective-content-policy')) return { ok: true, status: 200, json: async () => policy };
-    if (url.endsWith('/offline-grant')) {
-      await put('settings', newReceipt, 'active'); // Owner changes while the old request is in flight.
-      return { ok: false, status: 403, json: async () => ({ code: 'upstream_forbidden' }) };
-    }
-    throw new Error(`Unexpected request ${url}`);
-  };
+  const requests = [];
+  globalThis.fetch = async url => { requests.push(url); throw new Error(`Unexpected request ${url}`); };
   try {
-    await assert.rejects(queueOffline({ id: 8, type: 'movie', title: 'Fixture' }, null, {}), { status: 403 });
+    // Offline kopie by vznikala na serveru; video ale přes server nesmí jít (#153).
+    await assert.rejects(queueOffline({ id: 8, type: 'movie', title: 'Fixture' }, null, {}), /aplikaci Movly/);
+    assert.deepEqual(requests, []);
     const active = await get('settings', 'active');
-    assert.equal(active.payload, newReceipt.payload, 'stale 403 leaves the newer signed receipt active');
-    assert.ok(await verifiedGrant(active), 'new receipt remains valid');
+    assert.equal(active.payload, oldReceipt.payload);
+    assert.ok(await verifiedGrant(active));
   } finally {
     globalThis.fetch = previous.fetch;
     globalThis.document = previous.document;

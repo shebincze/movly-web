@@ -1009,12 +1009,15 @@
     var errorBox = h("div", { className: "tv-player-error" });
     errorBox.hidden = true;
     var el = h("section", { className: "tv-player" }, [video, osd, errorBox]);
-    var session = null, offset = 0, hls = null, stopped = false, progressTimer = null, prepareTimer = null,
-      osdTimer = null, seekTimer = null, seekTarget = null, attempts = 0, generation = 0, lastSaved = -1, played = false;
+    // Video jde přímo od poskytovatele, ne přes server (#153): délku a pozici
+    // zná jen přehrávač televizoru.
+    var session = null, offset = 0, hls = null, stopped = false, progressTimer = null, openTimer = null,
+      osdTimer = null, seekTimer = null, seekTarget = null, generation = 0, lastSaved = -1, played = false, loaded = false;
 
-    function position() { return session ? Math.min(session.duration, offset + (video.currentTime || 0)) : offset; }
+    function duration() { return isFinite(video.duration) && video.duration > 0 ? video.duration : 0; }
+    function position() { return loaded ? video.currentTime || 0 : offset; }
     function paint() {
-      var dur = session ? session.duration : 0, pos = seekTarget !== null ? seekTarget : position();
+      var dur = duration(), pos = seekTarget !== null ? seekTarget : position();
       timeText.textContent = clock(pos) + " / " + clock(dur);
       fill.style.width = (dur > 0 ? Math.min(100, (pos / dur) * 100) : 0) + "%";
     }
@@ -1026,7 +1029,6 @@
     function say(text) { info.textContent = text || ""; showOsd(Boolean(text)); }
     function fail(text) {
       diag("fail", { stage: "playback", engine: el.getAttribute("data-engine") });
-      // Uvolní relaci na serveru (webový server zvládá jen omezený počet přehrávání).
       var at = position();
       saveHistory();
       teardown();
@@ -1042,16 +1044,16 @@
     }
     // Ukládání pozice stejně jako player.js (každých 20 s a při ukončení).
     function saveHistory() {
-      if (!session || !(video.currentTime > 0)) return;
+      if (!session || !loaded || !(video.currentTime > 0) || !duration()) return;
       var pos = Math.floor(position());
       if (pos === lastSaved) return;
       lastSaved = pos;
       var body = {
         title_id: t.id,
         type: t.type,
-        watch_status: video.ended || pos >= session.duration * 0.85 ? "completed" : "watching",
+        watch_status: video.ended || pos >= duration() * 0.85 ? "completed" : "watching",
         progress_seconds: pos,
-        duration_seconds: Math.floor(session.duration)
+        duration_seconds: Math.floor(duration())
       };
       if (episode) { body.season_number = episode.season_number; body.episode_number = episode.episode_number; }
       api("watch-history", { method: "POST", body: body, quiet: true }, function (err) {
@@ -1062,62 +1064,41 @@
       });
     }
     function teardown() {
-      clearTimeout(prepareTimer);
       clearInterval(progressTimer);
+      clearTimeout(openTimer);
       clearTimeout(seekTimer);
       if (hls) { try { hls.destroy(); } catch (e) { /* ignorovat */ } hls = null; }
       try { video.pause(); } catch (e) { /* ignorovat */ }
       video.removeAttribute("src");
       try { video.load(); } catch (e) { /* ignorovat */ }
-      if (session) {
-        api("playback/" + session.id, { method: "DELETE", quiet: true }, null);
-        session = null;
-      }
+      session = null;
+      loaded = false;
     }
     function start(at) {
       var mine = ++generation;
       if (session) { saveHistory(); }
       teardown();
       seekTarget = null;
-      attempts = 0;
+      offset = Math.max(0, Math.floor(at || 0));
       say("Připravuji video…");
-      var body = {
-        offset: Math.max(0, Math.floor(at || 0)), audio: 0, subtitle: -1,
-        video_mode: "compatible", audio_mode: "stereo",
-        max_width: Math.max(window.screen.width || 0, window.screen.height || 0) >= 1920 ? 1920 : 1280,
-        playback_rate: 1, audio_delay: 0,
-        // Staré TV: H.264 + stereo AAC, server případně převede.
-        capabilities: { hevc: false, dolbyVision: false, aacMultichannel: false, ac3: false, eac3: false },
-        // Nativní přehrávač TV stahuje video bez cookie: server vrátí adresu s klíčem.
-        cookieless_media: true
-      };
+      var body = {};
       for (var k in selection) if (Object.prototype.hasOwnProperty.call(selection, k)) body[k] = selection[k];
       api("playback", { method: "POST", body: body }, function (err, data) {
-        if (stopped || mine !== generation) { if (!err && data && data.id) api("playback/" + data.id, { method: "DELETE", quiet: true }, null); return; }
-        if (err) { fail(err.status === 0 ? NETWORK_ERROR : "Zdroj se nepodařilo připravit: " + err.message); return; }
-        if (!data || typeof data.id !== "string" || !/^\/api\/app\/playback\/[a-f0-9]{48}\/(?:index|master)\.m3u8$/.test(data.playlist || "")) { fail("Server vrátil neplatnou relaci přehrávání."); return; }
-        session = data;
-        diag("session", { offset: data.offset, duration: data.duration, playlist: /master/.test(data.playlist) ? "master" : "index", media: Boolean(data.media_playlist) });
-        offset = typeof data.offset === "number" ? data.offset : body.offset;
-        paint();
-        prepare(mine);
-      });
-    }
-    function prepare(mine) {
-      api("playback/" + session.id + "/status", {}, function (err, state) {
         if (stopped || mine !== generation) return;
-        if (err) { fail(err.message); return; }
-        if (state && state.error) { fail(state.error); return; }
-        if (!state || !state.ready) {
-          if (++attempts > 40) { fail("Příprava videa trvá příliš dlouho. Vyber jiný zdroj."); return; }
-          prepareTimer = setTimeout(function () { prepare(mine); }, 1000);
+        if (err) {
+          fail(err.code === "app_required"
+            ? "Tento zdroj nejde na televizoru přehrát přímo. Otevři ho v aplikaci Movly, nebo zkus jiný zdroj."
+            : err.status === 0 ? NETWORK_ERROR : "Zdroj se nepodařilo připravit: " + err.message);
           return;
         }
+        if (!data || data.direct !== true || typeof data.url !== "string" || !/^https:\/\//.test(data.url) || (data.kind !== "file" && data.kind !== "hls")) { fail("Server vrátil neplatný zdroj přehrávání."); return; }
+        session = data;
+        diag("session", { kind: data.kind, offset: offset });
+        paint();
         attach(mine);
       });
     }
     function attach(mine, skipNative) {
-      var playlist = session.playlist;
       function go() {
         var p = video.play();
         if (p && typeof p.then === "function") p.then(null, function () { say("Stiskni OK pro přehrání."); });
@@ -1125,12 +1106,16 @@
       clearInterval(progressTimer);
       progressTimer = setInterval(function () { saveHistory(); }, 20000);
       played = false;
-      if (!skipNative && canNativeHls(video)) {
-        el.setAttribute("data-engine", "native");
-        diag("engine", { e: "native" });
-        var media = session.media_playlist;
-        video.src = typeof media === "string" && /^\/api\/app\/tv-media\/[a-f0-9]{48}\/[a-f0-9]{48}\/index\.m3u8$/.test(media)
-          ? location.protocol + "//" + location.host + media : playlist;
+      // Některé televizory nepodporovaný kontejner ani nenahlásí jako chybu.
+      clearTimeout(openTimer);
+      openTimer = setTimeout(function () {
+        if (stopped || mine !== generation || loaded || video.error) return;
+        fail("Televizor tento zdroj neotevřel. Zkus jiný zdroj, nebo ho otevři v aplikaci Movly.");
+      }, 25000);
+      if (session.kind === "file" || (!skipNative && canNativeHls(video))) {
+        el.setAttribute("data-engine", session.kind === "file" ? "file" : "native");
+        diag("engine", { e: el.getAttribute("data-engine") });
+        video.src = session.url;
         go();
         return;
       }
@@ -1141,15 +1126,15 @@
         if (!Hls || !Hls.isSupported()) { fail("Tento televizor neumí přehrát video ve formátu HLS (hls.js zde není podporováno)."); return; }
         el.setAttribute("data-engine", "hls.js");
         diag("engine", { e: "hls.js" });
-        hls = new Hls({ enableWorker: false, liveSyncDurationCount: 3, startPosition: 0, maxBufferLength: 24 });
+        hls = new Hls({ enableWorker: false, startPosition: offset, maxBufferLength: 24 });
         hls.on(Hls.Events.ERROR, function (_event, data) {
           if (data) diag("hls-error", { type: data.type, fatal: Boolean(data.fatal), code: data.response && data.response.code });
           if (!data || !data.fatal || stopped || mine !== generation) return;
           if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !hls.__recovered) { hls.__recovered = true; hls.recoverMediaError(); return; }
-          fail(data.type === Hls.ErrorTypes.NETWORK_ERROR ? "Přehrávání se přerušilo kvůli chybě sítě." : "Televizor nedokáže toto video dekódovat. Zkus jiný zdroj.");
+          fail(data.type === Hls.ErrorTypes.NETWORK_ERROR ? "Poskytovatel nedovoluje přehrát tento stream v prohlížeči televizoru. Zkus jiný zdroj nebo aplikaci Movly." : "Televizor nedokáže toto video dekódovat. Zkus jiný zdroj.");
         });
         hls.on(Hls.Events.MANIFEST_PARSED, go);
-        hls.loadSource(playlist);
+        hls.loadSource(session.url);
         hls.attachMedia(video);
       });
     }
@@ -1159,25 +1144,27 @@
       else video.pause();
       showOsd();
     }
-    // Posun: v připraveném úseku přímo, jinak nová relace od cílové pozice (jako player.js).
+    // Posun v přímém souboru zvládne přehrávač sám.
     function seek(delta) {
-      if (!session || !errorBox.hidden) return;
-      seekTarget = Math.max(0, Math.min(session.duration - 5, (seekTarget !== null ? seekTarget : position()) + delta));
+      if (!session || !loaded || !errorBox.hidden) return;
+      seekTarget = Math.max(0, Math.min(duration() - 5, (seekTarget !== null ? seekTarget : position()) + delta));
       paint();
       showOsd(true);
       clearTimeout(seekTimer);
       seekTimer = setTimeout(function () {
-        var target = seekTarget, local = target - offset, inside = false;
+        var target = seekTarget;
         seekTarget = null;
-        try {
-          for (var i = 0; i < video.seekable.length; i++)
-            if (local >= video.seekable.start(i) && local <= video.seekable.end(i) - 1) inside = true;
-        } catch (e) { inside = false; }
-        if (inside) { video.currentTime = local; showOsd(); }
-        else start(target);
+        video.currentTime = target;
+        showOsd();
       }, 800);
     }
     video.addEventListener("timeupdate", paint, false);
+    video.addEventListener("loadedmetadata", function () {
+      if (loaded || !session) return;
+      loaded = true;
+      if (offset > 0 && session.kind === "file") { try { video.currentTime = offset; } catch (e) { /* ignorovat */ } }
+      paint();
+    }, false);
     function syncPlayButton() { playButton.textContent = video.paused ? "Přehrát" : "Pozastavit"; }
     video.addEventListener("play", syncPlayButton, false);
     video.addEventListener("pause", syncPlayButton, false);
@@ -1267,7 +1254,7 @@
         return false;
       },
       // Pro testy a diagnostiku.
-      state: function () { return { session: session ? session.id : null, offset: offset, engine: el.getAttribute("data-engine") }; }
+      state: function () { return { session: session ? session.kind : null, offset: offset, engine: el.getAttribute("data-engine") }; }
     };
   }
 

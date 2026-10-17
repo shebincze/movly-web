@@ -120,20 +120,6 @@ test("Webshare adapter handles XML file names including CDATA", async (t) => {
   assert.equal(items[0].file_name, "Film & Friends.mkv");
   assert.equal(items[0].source_stream_id, "abc123");
 });
-test("media URLs accept observed Hellspy CDN and reject lookalike hosts", () => {
-  const { allowedURL } = require("./playback-server");
-  assert.equal(
-    allowedURL("https://sixseven.onecdn1.net/file").hostname,
-    "sixseven.onecdn1.net",
-  );
-  for (const url of [
-    "https://sixseven.onecdn1.net.evil.test/file",
-    "https://evil.onecdn1.net/file",
-    "https://hellspy.to.evil.test/file",
-  ])
-    assert.throws(() => allowedURL(url));
-});
-
 test("resume references survive session/grant renewal but remain bound to account and profile", () => {
   const t = tickets("secret", {resumable: true});
   const session = {accountId: 7, profile: {id: 2}, token: "old", grant: "old"};

@@ -15,7 +15,6 @@ function harness({
   production = false,
   override,
   providerClient,
-  playbackEngine,
   nativeResolver,
   partyStream,
 } = {}) {
@@ -24,7 +23,6 @@ function harness({
   const handler = createAppHandler({
     production,
     providerClient,
-    playbackEngine,
     nativeResolver,
     partyStream,
     secret: "test-secret-for-isolated-app-only",
@@ -344,12 +342,9 @@ test("playback and provider access revalidate profile grant", async () => {
     }),
     s = await h.selected();
   revoked = true;
-  for (const path of [
-    "providers/webshare",
-    "download/" + "a".repeat(48),
-    "playback/" + "a".repeat(48) + "/status",
-  ])
-    assert.equal((await h.request(path, { cookie: s.cookie })).status, 403);
+  assert.equal((await h.request("providers/webshare", { cookie: s.cookie })).status, 403);
+  for (const path of ["download", "playback"])
+    assert.equal((await h.request(path, { method: "POST", cookie: s.cookie, body: { title_id: 1, source: "human", stream_id: 11 } })).status, 403);
 });
 test("rating request preserves privacy and rejects invalid values", async () => {
   const h = harness({
@@ -404,7 +399,6 @@ test("native Home, detail and filmography use canonical expanded endpoints", asy
   );
 });
 test("live sources require profile, isolate signed selection and reject foreign episodes", async () => {
-  const played = [];
   const h = harness({
       providerClient: {
         searchFiles: async () => [
@@ -415,12 +409,6 @@ test("live sources require profile, isolate signed selection and reject foreign 
             available: true,
           },
         ],
-      },
-      playbackEngine: {
-        start: async (s, url) => {
-          played.push(url);
-          return { id: "test" };
-        },
       },
     }),
     s = await h.selected();
@@ -465,13 +453,15 @@ test("live sources require profile, isolate signed selection and reject foreign 
     body: { source: "live", title_id: 1, ticket },
   });
   assert.equal(ok.status, 200);
-  assert.deepEqual(played, [
-    "https://api.hellspy.to/gw/video/42/hash/download",
-  ]);
+  // Video jde přímo od poskytovatele, ne přes server (#153).
+  assert.deepEqual(ok.body, {
+    direct: true,
+    url: "https://api.hellspy.to/gw/video/42/hash/download",
+    kind: "file",
+  });
 });
 
-test("stream download resolves the selected source without transcoding and binds link to its session", async () => {
-  let transcodes = 0;
+test("stream download hands the browser the provider link and stays bound to the selecting profile", async () => {
   const h = harness({
     providerClient: {
       searchFiles: async () => [
@@ -482,12 +472,6 @@ test("stream download resolves the selected source without transcoding and binds
           available: true,
         },
       ],
-    },
-    playbackEngine: {
-      start: async () => {
-        transcodes++;
-        return {};
-      },
     },
   });
   const selected = await h.selected();
@@ -500,21 +484,15 @@ test("stream download resolves the selected source without transcoding and binds
     body: { source: "live", title_id: 1, ticket: found.body.streams[0].ticket },
   });
   assert.equal(result.status, 200);
-  assert.match(result.body.url, /^\/api\/app\/download\/[a-f0-9]{48}$/);
-  assert.equal(transcodes, 0);
-  assert.equal(
-    (await h.request(result.body.url.replace("/api/app/", ""))).status,
-    401,
-  );
+  assert.deepEqual(result.body, {
+    direct: true,
+    url: "https://api.hellspy.to/gw/video/42/hash/download",
+    kind: "file",
+    filename: "Duna Cast druha 2024.mkv",
+  });
+  // Serverová proxy stahování už neexistuje.
+  assert.equal((await h.request("download/" + "a".repeat(48), { cookie: selected.cookie })).status, 404);
   const other = await h.selected();
-  assert.equal(
-    (
-      await h.request(result.body.url.replace("/api/app/", ""), {
-        cookie: other.cookie,
-      })
-    ).status,
-    404,
-  );
   assert.equal(
     (
       await h.request("download", {
@@ -655,6 +633,7 @@ test("v2 readiness forwards typed round mismatch without cookie mutation or repl
 
 test("native provider tickets keep URLs/credentials server-side and reports bind the canonical table", async () => {
   const resolved = [];
+  let resolvedHeaders = { Referer: "https://provider.test/" };
   const h = harness({
     nativeResolver: async (request) => {
       resolved.push(request);
@@ -662,11 +641,11 @@ test("native provider tickets keep URLs/credentials server-side and reports bind
         return {
           streams: [
             {
-              id: "ct|123",
-              provider_name: "ČT",
+              id: "sk|123",
+              provider_name: "SKTorrent",
               source_stream_id: "123",
               file_name: "Test",
-              origin: "Ceskatelevize",
+              origin: "SkTorrent",
               direct_url: "https://provider.test/private",
               headers: { Cookie: "private" },
             },
@@ -675,19 +654,8 @@ test("native provider tickets keep URLs/credentials server-side and reports bind
         };
       return {
         url: "https://provider.test/stream.m3u8",
-        headers: { Referer: "https://provider.test/" },
+        headers: resolvedHeaders,
       };
-    },
-    playbackEngine: {
-      start: async (_s, url, options) => ({
-        url,
-        trusted: options.trustedProvider,
-      }),
-      analyze: async () => ({
-        streams: [
-          { codec_type: "video", codec_name: "h264", width: 320, height: 180 },
-        ],
-      }),
     },
     override: (path, method, body) => {
       if (path.startsWith("v1/streaming/titles/1/streams"))
@@ -720,13 +688,23 @@ test("native provider tickets keep URLs/credentials server-side and reports bind
     source: "live",
     ticket: sources.body.streams[0].ticket,
   };
+  // Prohlížeč neumí poslat Referer poskytovatele: zdroj je jen pro aplikaci.
+  const headerBound = await h.request("playback", {
+    method: "POST",
+    cookie: selected.cookie,
+    body: selection,
+  });
+  assert.equal(headerBound.status, 422);
+  assert.equal(headerBound.body.code, "app_required");
+  assert.equal(JSON.stringify(headerBound.body).includes("provider.test"), false);
+  resolvedHeaders = undefined;
   const playback = await h.request("playback", {
     method: "POST",
     cookie: selected.cookie,
     body: { ...selection, url: "https://evil.test" },
   });
   assert.equal(playback.status, 200);
-  assert.equal(playback.body.trusted, true);
+  assert.deepEqual(playback.body, { direct: true, url: "https://provider.test/stream.m3u8", kind: "hls" });
   assert.equal(
     resolved.at(-1).source.direct_url,
     "https://provider.test/private",
@@ -756,82 +734,27 @@ test("native provider tickets keep URLs/credentials server-side and reports bind
   ]);
 });
 
-test("stream upload uses analyzed metadata and accepts only identified duplicate success", async () => {
-  let duplicate = false;
+test("stream upload is app-only because verifying audio would read the video on the server", async () => {
+  let resolves = 0;
   const h = harness({
-    nativeResolver: async (request) =>
-      request.action === "search"
-        ? {
-            streams: [
-              {
-                id: "pt|123",
-                provider_name: "Přehraj.to",
-                source_stream_id: "123",
-                file_name: "Duna",
-                origin: "PrehrajTo",
-              },
-            ],
-            warnings: [],
-          }
-        : { url: "https://provider.test/video.mp4" },
-    playbackEngine: {
-      analyze: async () => ({
-        format: { size: "1234" },
-        streams: [
-          {
-            codec_type: "video",
-            codec_name: "hevc",
-            width: 1920,
-            height: 1080,
-          },
-          { codec_type: "audio", tags: { language: "eng" } },
-        ],
-      }),
-    },
-    override: (path, method, body) => {
-      if (path === "v1/streaming/providers")
-        return { payload: [{ id: 12, name: "Přehraj.to" }] };
-      if (path === "v1/streaming/streams") {
-        if (duplicate)
-          throw Object.assign(new Error("Already exists"), {
-            status: 409,
-            payload: { existing_stream_id: 50 },
-          });
-        return { payload: { id: 50 } };
-      }
+    nativeResolver: async (request) => {
+      if (request.action !== "search") resolves++;
+      return request.action === "search"
+        ? { streams: [{ id: "pt|123", provider_name: "Přehraj.to", source_stream_id: "123", file_name: "Duna", origin: "PrehrajTo" }], warnings: [] }
+        : { url: "https://provider.test/video.mp4" };
     },
   });
   const selected = await h.selected();
-  const found = await h.request("sources/1/native", {
-    cookie: selected.cookie,
-  });
-  const selection = {
-    title_id: 1,
-    source: "live",
-    ticket: found.body.streams[0].ticket,
-  };
+  const found = await h.request("sources/1/native", { cookie: selected.cookie });
   const result = await h.request("streams/upload", {
     method: "POST",
     cookie: selected.cookie,
-    body: { ...selection, video_height: 9999 },
+    body: { title_id: 1, source: "live", ticket: found.body.streams[0].ticket },
   });
-  assert.equal(result.status, 200);
-  assert.equal(result.body.id, 50);
-  const stored = h.calls.find((c) => c[0] === "v1/streaming/streams")[2];
-  assert.equal(stored.video_height, 1080);
-  assert.equal(stored.file_size, 1234);
-  assert.equal(stored.provider_id, 12);
-  duplicate = true;
-  assert.equal(
-    (
-      await h.request("streams/upload", {
-        method: "POST",
-        cookie: selected.cookie,
-        body: selection,
-      })
-    ).body.id,
-    50,
-  );
+  assert.equal(result.status, 422);
+  assert.equal(result.body.code, "app_required");
+  assert.equal(resolves, 0);
+  assert.equal(h.calls.some((c) => c[0] === "v1/streaming/streams"), false);
 });
 
 test("tracking uses selected profile and never forwards browser credentials or scope", async () => {
@@ -1282,7 +1205,7 @@ test("Home refuses a policy change during load and carries scope even on upstrea
 });
 
 test("remembered live source survives a fresh BFF/session without another provider search and rejects another profile/title", async () => {
-  let searches = 0; const played = [];
+  let searches = 0;
   const first = harness({providerClient: {searchFiles: async () => { searches++; return [{provider_name: "Hellspy",
     source_stream_id: "42/hash", file_name: "Duna Cast druha 2024 1080p.mkv", available: true}]; }}});
   const selected = await first.selected();
@@ -1291,50 +1214,20 @@ test("remembered live source survives a fresh BFF/session without another provid
   const ticket = found.body.streams[0].resume_ticket;
   assert.equal(typeof ticket, "string");
   const beforeResume = searches;
-  const restarted = harness({playbackEngine: {start: async (_s, url, options) => {
-    played.push({url, options}); return {id: "resumed"}; }}});
+  const restarted = harness();
   const fresh = await restarted.selected();
   const response = await restarted.request("playback", {method: "POST", cookie: fresh.cookie,
     body: {source: "resume", title_id: 1, ticket, offset: 123, audio: 1, subtitle: -1, audio_selector: "remembered-audio", subtitle_selector: "off"}});
   assert.equal(response.status, 200);
   assert.equal(searches, beforeResume);
-  assert.equal(played[0].url, "https://api.hellspy.to/gw/video/42/hash/download");
-  assert.equal(played[0].options.offset, 123); assert.equal(played[0].options.audioSelector, "remembered-audio");
-  assert.equal(played[0].options.subtitleSelector, "off");
+  assert.equal(response.body.url, "https://api.hellspy.to/gw/video/42/hash/download");
   const otherProfile = await restarted.request("profile", {method: "POST", cookie: fresh.cookie, body: {id: 2, pin: "1234"}});
   assert.equal(otherProfile.status, 200);
   for (const [cookie, title_id, altered] of [[otherProfile.cookie, 1, ticket], [fresh.cookie, 2, ticket], [fresh.cookie, 1, ticket + "A"]]) {
     const denied = await restarted.request("playback", {method: "POST", cookie, body: {source: "resume", title_id, ticket: altered}});
     assert.equal(denied.status, 403);
   }
-  assert.equal(played.length, 1);
 });
-test("manual audio review is bound to profile/source and reuses the measured tracks", async () => {
-  let probes = 0;
-  let stored;
-  const h = harness({
-    nativeResolver: async request => request.action === "search" ? { streams: [{ id: "pt|123", provider_name: "Přehraj.to", source_stream_id: "123", file_name: "fixture", origin: "PrehrajTo" }], warnings: [] } : { url: "https://provider.test/video.mp4" },
-    playbackEngine: { analyze: async () => { probes++; return { streams: [{ codec_type: "video", width: 1920, height: 1080 }, { codec_type: "audio", index: 1, tags: { language: "eng" } }, { codec_type: "audio", index: 2, tags: { language: "und" } }] }; } },
-    override: (path, method, body) => {
-      if (path === "v1/streaming/providers") return { payload: [{ id: 12, name: "Přehraj.to" }] };
-      if (path === "v1/streaming/streams") { stored = body; return { payload: { id: 50 } }; }
-    }
-  });
-  const session = await h.selected();
-  const found = await h.request("sources/1/native", { cookie: session.cookie });
-  const selection = { title_id: 1, source: "live", ticket: found.body.streams[0].ticket };
-  const first = await h.request("streams/upload", { method: "POST", cookie: session.cookie, body: selection });
-  assert.equal(first.status, 409); assert.equal(first.body.code, "audio_confirmation_required"); assert.deepEqual(first.body.unknown_audio_tracks, [2]); assert.equal(stored, undefined);
-  const confirmation = { ...selection, audio_review_id: first.body.audio_review_id, confirmed_audio_languages: ["cs"] };
-  const forged = await h.request("streams/upload", { method: "POST", cookie: session.cookie, body: { ...confirmation, audio_review_id: "forged" } });
-  assert.equal(forged.status, 403); assert.equal(stored, undefined);
-  const result = await h.request("streams/upload", { method: "POST", cookie: session.cookie, body: confirmation });
-  assert.equal(result.status, 200); assert.equal(probes, 1);
-  assert.deepEqual(stored.audio_streams.map(t => t.audio_language), ["eng", "cze"]);
-  const reused = await h.request("streams/upload", { method: "POST", cookie: session.cookie, body: confirmation });
-  assert.equal(reused.status, 403);
-});
-
 test("authorized child selection without a management grant clears the adult grant", async () => {
   const h = harness({ override: (path, method, body, token, device, headers) => {
     if (path === "v1/profiles/2/select") {
@@ -1451,19 +1344,15 @@ test("title facts and season watched use closed, validated upstream calls", asyn
   assert.equal(h.calls.filter((c) => c[0].split("?")[0] === "v1/watch-history/season").length, 1);
   assert.ok(h.calls.length >= count);
 });
-test("playback segments reuse account validation for 60 s, other playback calls always validate", async () => {
-  const handled = [];
-  const h = harness({ playbackEngine: { handle: async (_s, _req, _res, id, file) => { handled.push(file); return file === "status" ? { ready: true } : null; } } });
+test("no route serves video bytes: playlists, segments, TV media, exports and download proxy are gone", async () => {
+  const h = harness();
   const selected = await h.selected();
   const id = "c".repeat(48);
-  const validations = () => h.calls.filter(([p]) => p.startsWith("v1/watchlists")).length;
-  const before = validations();
-  for (const file of ["index.m3u8", "index0.ts", "index1.ts", "index2.ts"])
-    await h.request(`playback/${id}/${file}`, { cookie: selected.cookie });
-  assert.equal(validations() - before, 1);
-  await h.request(`playback/${id}/status`, { cookie: selected.cookie });
-  assert.equal(validations() - before, 2);
-  assert.deepEqual(handled, ["index.m3u8", "index0.ts", "index1.ts", "index2.ts", "status"]);
+  for (const path of [`playback/${id}/index.m3u8`, `playback/${id}/index0.ts`, `playback/${id}/status`,
+    `playback/${id}/export.mp4`, `download/${id}`])
+    assert.equal((await h.request(path, { cookie: selected.cookie })).status, 404, path);
+  assert.equal((await h.request(`tv-media/${id}/${id}/index.m3u8`)).status, 401);
+  assert.equal((await h.request(`playback/${id}`, { method: "DELETE", cookie: selected.cookie })).status, 404);
 });
 
 test("intro preferences and segment lookup remain bound to the selected profile", async()=>{

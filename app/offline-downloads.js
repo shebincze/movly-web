@@ -1,82 +1,13 @@
 import { translateUI } from "./i18n.js";
-import { api } from "./api.js";
-import { effectiveContentPolicy } from "./effective-policy.js";
-import {
-  allFiles,
-  allEntries,
-  get,
-  put,
-  remove,
-  removeFile,
-  verifiedGrant,
-  storeFreshOfflineGrant,
-  denyOfflineGrant,
-  CHUNK_BYTES,
-  commitDownload,
-} from "./offline-store.js";
-import { sameOfflineOwner, captureOfflineBase } from "./offline-history.js";
-import { episodeReleaseState } from "./episode-policy.js";
+import { allEntries, get, put, remove, removeFile } from "./offline-store.js";
+import { sameOfflineOwner } from "./offline-history.js";
 let running = false,
-  wake = false,
-  controller;
+  wake = false;
 const announce = () =>
   window.dispatchEvent(new Event("movly-downloads-changed"));
-window.addEventListener("movly-offline-revoked", () => controller?.abort());
-window.addEventListener("offline", () => controller?.abort());
-export async function queueOffline(title, episode, selection) {
-  if (episode && episodeReleaseState(episode.air_date) === "upcoming")
-    throw new Error(translateUI("Epizoda ještě neměla premiéru."));
-  let policy = null;
-  try { policy = await effectiveContentPolicy({ refresh: true }); } catch { /* Offline metadata is optional for online actions. */ }
-  const activeBefore = await get("settings", "active");
-  let receipt;
-  try { receipt = await api("offline-grant", { method: "POST", body: {} }); }
-  catch (error) {
-    if (error.status === 403) await denyOfflineGrant(activeBefore).catch(() => false);
-    throw error;
-  }
-  if (!(await verifiedGrant(receipt)))
-    throw new Error(translateUI("Server nevydal platné offline oprávnění."));
-  await storeFreshOfflineGrant(receipt, policy);
-  const identity = {
-    titleId: title.id,
-    type: title.type,
-    season: episode?.season_number ?? null,
-    episode: episode?.episode_number ?? null,
-  };
-  const previous = (await allEntries("downloads")).find(
-    (job) =>
-      JSON.stringify(job.identity) === JSON.stringify(identity) &&
-      job.receipt.payload === receipt.payload,
-  );
-  // A renewed receipt can resume the same owner's queue, but never another profile.
-  let owned = previous;
-  if (!owned)
-    for (const job of await allEntries("downloads"))
-      if (
-        JSON.stringify(job.identity) === JSON.stringify(identity) &&
-        (await sameOfflineOwner(job.receipt, receipt))
-      ) {
-        owned = job;
-        break;
-      }
-  if (owned && ["queued", "running"].includes(owned.state)) return owned.id;
-  const job = {
-    ...owned,
-    id: owned?.id || crypto.randomUUID(),
-    title,
-    episode,
-    identity,
-    selection,
-    receipt,
-    state: "queued",
-    error: null,
-    createdAt: owned?.createdAt || Date.now(),
-  };
-  await put("downloads", job);
-  announce();
-  void runDownloads();
-  return job.id;
+const APP_ONLY = translateUI("Offline sledování je dostupné v aplikaci Movly.");
+export async function queueOffline() {
+  throw new Error(APP_ONLY);
 }
 export async function changeDownload(id, action) {
   const job = await get("downloads", id);
@@ -86,239 +17,23 @@ export async function changeDownload(id, action) {
   )
     throw new Error(translateUI("Vyber původní profil stažení."));
   if (action === "cancel") {
-    if (controller?.jobId === id) controller.abort();
     await remove("downloads", id);
     await removeFile(id);
   } else {
     job.state = action === "pause" ? "paused" : "queued";
     job.error = null;
     await put("downloads", job);
-    if (action === "pause" && controller?.jobId === id) controller.abort();
   }
   announce();
   if (action === "resume") void runDownloads();
 }
-async function permitted(job) {
-  const current = await get("downloads", job.id);
-  if (
-    !current ||
-    ["paused", "failed"].includes(current.state) ||
-    !(await sameOfflineOwner(job.receipt, await get("settings", "active")))
-  )
-    throw new DOMException(
-      translateUI("Stažení bylo pozastaveno."),
-      "AbortError",
-    );
-  controller.signal.throwIfAborted();
-}
+// Offline kopie vznikala exportem na serveru; video ale přes server nesmí
+// jít (#153). Rozpracované stažení skončí s odkazem na aplikaci.
 async function download(job) {
-  controller = new AbortController();
-  controller.jobId = job.id;
-  let session;
-  const expectedOwner = await verifiedGrant(job.receipt, Date.now(), {
-    ownershipOnly: true,
-  });
-  const ownedAPI = (path, options = {}) =>
-    api(path, { ...options, expectedOwner });
-  try {
-    await permitted(job);
-    let policy = null;
-    try { policy = await effectiveContentPolicy({ refresh: true }); } catch { /* Existing lease remains governed by its signed expiry. */ }
-    let receipt;
-    try {
-      receipt = await ownedAPI("offline-grant", { method: "POST", body: {} });
-    } catch (error) {
-      if (error.status === 403) await denyOfflineGrant(job.receipt).catch(() => false);
-      throw error;
-    }
-    if (!(await sameOfflineOwner(job.receipt, receipt)))
-      throw new Error(translateUI("Stažení patří k jinému profilu."));
-    await storeFreshOfflineGrant(receipt, policy);
-    const base = await captureOfflineBase(api, job.identity, receipt);
-    const maxBytes =
-      Number(await get("settings", "fileLimit")) || 2 * 1024 ** 3;
-    session = await ownedAPI("playback", {
-      method: "POST",
-      body: {
-        ...job.selection,
-        offline_export: true,
-        offset: 0,
-        max_bytes: maxBytes,
-      },
-      signal: controller.signal,
-    });
-    let state;
-    while (true) {
-      await permitted(job);
-      state = await ownedAPI("playback/" + session.id + "/status", {
-        signal: controller.signal,
-      });
-      if (state.error) throw new Error(state.error);
-      if (state.ready) break;
-      await new Promise((resolve) => {
-        const timer = setTimeout(resolve, 1000);
-        controller.signal.addEventListener(
-          "abort",
-          () => {
-            clearTimeout(timer);
-            resolve();
-          },
-          { once: true },
-        );
-      });
-    }
-    if (
-      !Number.isSafeInteger(state.size) ||
-      state.size <= 0 ||
-      !/^[a-f0-9]{64}$/.test(state.etag || "")
-    )
-      throw new Error(translateUI("Server nepotvrdil úplnost stažení."));
-    let file = await get("files", job.id);
-    if (
-      file &&
-      (file.etag !== state.etag || file.size > state.size || file.complete)
-    ) {
-      await removeFile(job.id);
-      file = null;
-    }
-    const used = (await allFiles())
-      .filter((f) => f.id !== job.id)
-      .reduce((n, f) => n + f.size, 0);
-    const limit = Number(await get("settings", "limit")) || 4 * 1024 ** 3,
-      estimate = await navigator.storage.estimate();
-    if (
-      used + state.size > limit ||
-      (estimate.quota &&
-        state.size - (file?.size || 0) > estimate.quota - (estimate.usage || 0))
-    )
-      throw new Error(
-        translateUI(
-          "V offline knihovně není dost místa. Zvyš limit nebo odstraň starší stažení.",
-        ),
-      );
-    if (!file) {
-      file = {
-        id: job.id,
-        title: job.title.title,
-        episode: job.episode
-          ? "S" + job.identity.season + " E" + job.identity.episode
-          : null,
-        identity: job.identity,
-        syncBase: base,
-        receipt,
-        key: await crypto.subtle.generateKey(
-          { name: "AES-GCM", length: 256 },
-          false,
-          ["encrypt", "decrypt"],
-        ),
-        etag: state.etag,
-        size: 0,
-        complete: false,
-        position: 0,
-        createdAt: Date.now(),
-      };
-      await permitted(job);
-      await commitDownload(job, file);
-    }
-    // Resume only bytes from the identical, fully hashed export. A new export
-    // with different bytes restarts instead of mixing two MP4 files.
-    if (file.size === state.size) {
-      await permitted(job);
-      file.complete = true;
-      await commitDownload(job, file);
-      return;
-    }
-    if (file.size % CHUNK_BYTES) {
-      file.size -= file.size % CHUNK_BYTES;
-      await commitDownload(job, file);
-    }
-    const response = await fetch(
-      "/api/app/playback/" + session.id + "/export.mp4",
-      {
-        signal: controller.signal,
-        credentials: "same-origin",
-        headers: file.size
-          ? {
-              Range: "bytes=" + file.size + "-",
-              "If-Range": '"' + file.etag + '"',
-            }
-          : {},
-      },
-    );
-    if (
-      !response.ok ||
-      !response.body ||
-      response.headers.get("etag") !== '"' + file.etag + '"' ||
-      (file.size &&
-        (response.status !== 206 ||
-          response.headers.get("content-range") !==
-            "bytes " + file.size + "-" + (state.size - 1) + "/" + state.size))
-    )
-      throw new Error(
-        translateUI("Server nepotvrdil pokračování stejného souboru."),
-      );
-    const reader = response.body.getReader();
-    let pending = new Uint8Array(),
-      index = file.size / CHUNK_BYTES;
-    if (!Number.isInteger(index))
-      throw new Error(translateUI("Neplatný bod obnovení stažení."));
-    async function save(bytes) {
-      await permitted(job);
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const data = await crypto.subtle.encrypt(
-        {
-          name: "AES-GCM",
-          iv,
-          additionalData: new TextEncoder().encode(file.id + ":" + index),
-        },
-        file.key,
-        bytes,
-      );
-      await permitted(job);
-      file.size += bytes.length;
-      await commitDownload(job, file, {
-        id: file.id,
-        index: index++,
-        iv,
-        data,
-      });
-      announce();
-    }
-    while (true) {
-      await permitted(job);
-      const { value, done } = await reader.read();
-      if (done) break;
-      const joined = new Uint8Array(pending.length + value.length);
-      joined.set(pending);
-      joined.set(value, pending.length);
-      pending = joined;
-      while (pending.length >= CHUNK_BYTES) {
-        await save(pending.slice(0, CHUNK_BYTES));
-        pending = pending.slice(CHUNK_BYTES);
-      }
-    }
-    if (pending.length) await save(pending);
-    if (file.size !== state.size)
-      throw new Error(translateUI("Stažení není úplné."));
-    await permitted(job);
-    file.complete = true;
-    await commitDownload(job, file);
-    await navigator.storage.persist?.();
-  } catch (error) {
-    const remaining = await get("downloads", job.id);
-    if (remaining && remaining.state !== "paused") {
-      remaining.state = error.name === "AbortError" ? "queued" : "failed";
-      remaining.error = error.name === "AbortError" ? null : error.message;
-      await put("downloads", remaining);
-    }
-  } finally {
-    if (session)
-      await ownedAPI("playback/" + session.id, { method: "DELETE" }).catch(
-        () => {},
-      );
-    controller = null;
-    announce();
-  }
+  job.state = "failed";
+  job.error = APP_ONLY;
+  await put("downloads", job);
+  announce();
 }
 export async function runDownloads() {
   if (!navigator.onLine || !navigator.locks) return;
