@@ -1011,7 +1011,7 @@
     var el = h("section", { className: "tv-player" }, [video, osd, errorBox]);
     // Video jde přímo od poskytovatele, ne přes server (#153): délku a pozici
     // zná jen přehrávač televizoru.
-    var session = null, offset = 0, hls = null, stopped = false, progressTimer = null,
+    var session = null, offset = 0, hls = null, stopped = false, progressTimer = null, openTimer = null,
       osdTimer = null, seekTimer = null, seekTarget = null, generation = 0, lastSaved = -1, played = false, loaded = false;
 
     function duration() { return isFinite(video.duration) && video.duration > 0 ? video.duration : 0; }
@@ -1065,6 +1065,7 @@
     }
     function teardown() {
       clearInterval(progressTimer);
+      clearTimeout(openTimer);
       clearTimeout(seekTimer);
       if (hls) { try { hls.destroy(); } catch (e) { /* ignorovat */ } hls = null; }
       try { video.pause(); } catch (e) { /* ignorovat */ }
@@ -1105,6 +1106,12 @@
       clearInterval(progressTimer);
       progressTimer = setInterval(function () { saveHistory(); }, 20000);
       played = false;
+      // Některé televizory nepodporovaný kontejner ani nenahlásí jako chybu.
+      clearTimeout(openTimer);
+      openTimer = setTimeout(function () {
+        if (stopped || mine !== generation || loaded || video.error) return;
+        fail("Televizor tento zdroj neotevřel. Zkus jiný zdroj, nebo ho otevři v aplikaci Movly.");
+      }, 25000);
       if (session.kind === "file" || (!skipNative && canNativeHls(video))) {
         el.setAttribute("data-engine", session.kind === "file" ? "file" : "native");
         diag("engine", { e: el.getAttribute("data-engine") });

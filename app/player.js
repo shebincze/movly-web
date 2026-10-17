@@ -47,6 +47,7 @@ try {
 } catch {}
 let current = null;
 let playRevision = 0;
+const OPEN_TIMEOUT_MS = 20000;
 // Počet dílů spuštěných automaticky bez zásahu diváka (viz CONTINUE_PROMPT_AFTER).
 let autoplayChain = 0;
 const time = (n) =>
@@ -1384,6 +1385,13 @@ async function play(
         });
     };
     video.addEventListener("loadedmetadata", begin, { once: true });
+    // Safari/WebKit MKV neotevře a ani nenahlásí chybu; bez metadat po 20 s
+    // nabídneme jiný zdroj nebo aplikaci.
+    handle.openWatchdog = setTimeout(() => {
+      if (handle.cancelled || video.readyState >= 1 || video.error) return;
+      captureFailure("playback", {}, "browser_open_timeout");
+      offerApp(translateUI("Prohlížeč tento zdroj neotevřel (formát nebo poskytovatel). Zkus jiný zdroj, nebo ho otevři v aplikaci."), true);
+    }, OPEN_TIMEOUT_MS);
     const nativeHls = video.canPlayType("application/vnd.apple.mpegurl");
     if (source.kind === "file" || nativeHls) {
       handle.telemetry.setEngine(source.kind === "file" ? "direct_file" : "native_hls");
@@ -1454,6 +1462,7 @@ export async function stop(reason = "cancelled") {
   handle.introCleanup?.();
   handle.controls?.cleanup();
   clearInterval(handle.timer);
+  clearTimeout(handle.openWatchdog);
   clearInterval(handle.subtitleTimer);
   clearInterval(handle.partyTimer);
   endPartyPlayback(handle.partyPlayback);
