@@ -2036,7 +2036,7 @@ async function route(req, res) {
   const pathname = url.pathname;
 
   if (pathname.startsWith('/app')) {
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://image.tmdb.org https://res.cloudinary.com/dsnzqq6kh/; connect-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://image.tmdb.org https://res.cloudinary.com/dsnzqq6kh/; connect-src 'self'; media-src 'self' blob: https:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
   }
   if (await handleApp(req, res, url)) return;
 

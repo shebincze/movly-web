@@ -200,6 +200,11 @@
   background: var(--danger-tint); border: 1px solid rgba(248, 113, 113, .35);
 }
 .pk-status.is-error .player-status { color: var(--danger-soft); font-weight: 600; }
+.pk-handoff-slot { flex: 1 1 100%; }
+.pk-handoff-slot:empty { display: none; }
+.pk-app-handoff { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+.pk-app-handoff p { margin: 0; flex: 1 1 260px; color: var(--text-2); }
+.pk-app-handoff-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .player-seek.pk-seek { margin: 0; gap: 16px; }
 .pk-seek-track { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; height: 24px; }
 .pk-seek input[type="range"] {

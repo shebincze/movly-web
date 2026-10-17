@@ -34,7 +34,7 @@ sh scripts/build-provider-resolver.sh linux-x64
 COPYFILE_DISABLE=1 tar --no-xattrs -czf "$tarball" \
   --exclude='._*' --exclude='.git' --exclude='node_modules' --exclude='downloads-local' \
   --exclude='design' --exclude='*.zip' --exclude='.DS_Store' \
-  server.js http-request.js app-server.js providers-server.js sources-server.js playback-server.js native-providers.js offline-grant.js stream-feedback.js provider-resolver support.js package.json \
+  server.js http-request.js app-server.js providers-server.js sources-server.js direct-media.js native-providers.js offline-grant.js stream-feedback.js provider-resolver support.js package.json \
   index.html privacy.html delete-account.html party.html activate.html devices.html \
   activate.css devices.css activate.js devices.js \
   assets en app .well-known
@@ -62,8 +62,7 @@ previous=\$(readlink -f /srv/movly/web)
 mkdir -p "\$dir"
 tar -xzf "/tmp/\$release.tar.gz" -C "\$dir" --no-same-owner
 cd "\$dir"
-for source in server.js http-request.js app-server.js providers-server.js sources-server.js playback-server.js app/*.js; do node --check "\$source"; done
-command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
+for source in server.js http-request.js app-server.js providers-server.js sources-server.js direct-media.js app/*.js; do node --check "\$source"; done
 printf '%s' '{"action":"status"}' | ./provider-resolver/Movly.ProviderResolver
 switched=0
 rollback() {

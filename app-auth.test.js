@@ -47,23 +47,3 @@ test("TV lite diagnostics are logged locally, bounded and never forwarded upstre
   assert.equal(calls.length, 0);
   assert.deepEqual(logs, ['[Movly TV] anon keydown {"at":1.5,"d":{"k":461}}']);
 });
-test("TV media route needs no session but passes the URL key to the playback engine", async () => {
-  const handled = [];
-  const handler = createAppHandler({ api: async () => { throw new Error("no upstream"); },
-    json: (res, status, body) => Object.assign(res, { status, body }), readBody: async req => req.body,
-    HttpError, secret: "synthetic-test-secret", production: false,
-    playbackEngine: { handle: async (s, req, _res, id, file, token) => { handled.push([s, req.method, id, file, token]); return null; } } });
-  const id = "a".repeat(48), key = "b".repeat(48);
-  const original = console.log;
-  console.log = () => {};
-  try {
-    for (const file of ["index.m3u8", "index12.ts"]) {
-      const res = { setHeader() {} };
-      assert.equal(await handler({ method: "GET", headers: { host: "localhost" } }, res, new URL(`http://localhost/api/app/tv-media/${id}/${key}/${file}`)), true);
-    }
-    const res = { setHeader() {} };
-    await handler({ method: "GET", headers: { host: "localhost" } }, res, new URL(`http://localhost/api/app/tv-media/${id}/${key}/index_vtt.m3u8`));
-    assert.equal(res.status, 401);
-  } finally { console.log = original; }
-  assert.deepEqual(handled, [[null, "GET", id, "index.m3u8", key], [null, "GET", id, "index12.ts", key]]);
-});

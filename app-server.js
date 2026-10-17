@@ -6,9 +6,8 @@ const tvDiagnosticPolicy = require("./app/tv/diagnostics.js");
 const crypto = require("node:crypto");
 const providers = require("./providers-server");
 const liveSources = require("./sources-server");
-const { createPlayback, mediaRequest } = require("./playback-server");
+const { directSource, appRequired } = require("./direct-media");
 const nativeProviders = require("./native-providers");
-const { streamUploadPayload } = require("./stream-feedback");
 const { offlineSigner } = require("./offline-grant");
 
 function feedbackPremiumActive(value, now = Date.now()) {
@@ -31,17 +30,12 @@ function createAppHandler({
   production,
   offlineEnvironment = "local",
   providerClient = providers,
-  playbackEngine,
   nativeResolver = nativeProviders.run,
   partyStream,
-  downloadMedia = mediaRequest,
 }) {
-  const playback = playbackEngine || createPlayback();
   const sourceTickets = liveSources.tickets(secret);
   const resumeTickets = liveSources.tickets(secret, { resumable: true });
   const sourceSearches = new Map();
-  const downloads = new Map();
-  const pendingAudioReviews = new Map();
   const nativeSelections = new Map();
   const offline = offlineSigner(secret, offlineEnvironment);
   const cookieName = production ? "__Host-movly-app" : "movly-app";
@@ -622,8 +616,6 @@ function createAppHandler({
     ],
   ];
   let tvDiagnostics = { windowStart: 0, count: 0 };
-  const tvMediaSeen = new Set();
-  const validatedPlayback = new Map();
   return async function handle(req, res, url) {
     if (!url.pathname.startsWith("/api/app/")) return false;
     res.setHeader("Cache-Control", "no-store");
@@ -753,26 +745,13 @@ function createAppHandler({
         res.end();
         return true;
       }
-      // HLS pro přehrávače TV bez cookie: přístup jen s tajným klíčem relace.
-      const tvMedia =
-        /^tv-media\/([a-f0-9]{48})\/([a-f0-9]{48})\/(index\.m3u8|index\d+\.ts)$/.exec(target);
-      if (tvMedia && ["GET", "HEAD"].includes(req.method)) {
-        if (tvMedia[3] === "index.m3u8" && !tvMediaSeen.has(tvMedia[1])) {
-          if (tvMediaSeen.size > 200) tvMediaSeen.clear();
-          tvMediaSeen.add(tvMedia[1]);
-          console.log(`[Movly TV] media-playlist cookie=${s ? "yes" : "no"}`);
-        }
-        await playback.handle(null, { ...req, method: "GET", headers: req.headers }, res, tvMedia[1], tvMedia[3], tvMedia[2]);
-        return true;
-      }
       if (!s)
         throw new HttpError(401, "Přihlas se svým účtem Movly.", {
           code: "app_session_required",
         });
       if (target === "logout" && req.method === "POST") {
         await call(s, "auth/logout", "POST");
-        // Zastaralé odhlášení nesmí ukončit přehrávání novější relace.
-        if (writeSession(res, null, s) !== false) await playback.stopOwner?.(s).catch(() => {});
+        writeSession(res, null, s);
         json(res, 200, { ok: true });
         return true;
       }
@@ -987,9 +966,6 @@ function createAppHandler({
         next.grant = selected.grant_token || null;
         next.grantExpiresAt = selected.grant_token ? selected.grant_expires_at : null;
         writeSession(res, next, s);
-        // Relace dřívějšího vlastníka už po přepnutí nikdo neukončí (jiný owner).
-        if (s.profile && (s.profile.id !== next.profile.id || (s.grant || null) !== next.grant))
-          await playback.stopOwner?.(s).catch(() => {});
         json(res, 200, { profile: next.profile });
         return true;
       }
@@ -1047,27 +1023,9 @@ function createAppHandler({
         target.startsWith("providers/") ||
         target.startsWith("streams/") ||
         target === "download" ||
-        target.startsWith("download/") ||
-        target === "playback" ||
-        target.startsWith("playback/")
-      ) {
-        // Segmenty chodí každé 4 s; ověření účtu u každého by přehrávání
-        // zbytečně zdržovalo a při výpadku API sekalo. Platí 60 s na relaci.
-        const playbackFile =
-          req.method === "GET" &&
-          /^playback\/[a-f0-9]{48}\/(?:(?:index|index_vtt|master)\.m3u8|index\d+\.(?:ts|vtt|m4s)|init\.mp4)$/.test(target);
-        const validKey = crypto
-          .createHash("sha256")
-          .update(`${s.token}:${s.device}:${s.profile.id}:${s.grant}`)
-          .digest("hex");
-        if (!playbackFile || !((validatedPlayback.get(validKey) || 0) > Date.now())) {
-          await call(s, "watchlists?lang=cs");
-          if (playbackFile) {
-            if (validatedPlayback.size > 500) validatedPlayback.clear();
-            validatedPlayback.set(validKey, Date.now() + 60000);
-          }
-        }
-      }
+        target === "playback"
+      )
+        await call(s, "watchlists?lang=cs");
       if (target === "sync/device" && req.method === "GET") {
         if (!s.managedDeviceId) {
           const bootstrap = await call(s, "auth/bootstrap", "GET", null, {
@@ -1358,51 +1316,6 @@ function createAppHandler({
         });
         return true;
       }
-      const downloadMatch = /^download\/([a-f0-9]{48})$/.exec(target);
-      if (downloadMatch && req.method === "GET") {
-        const entry = downloads.get(downloadMatch[1]);
-        if (
-          !entry ||
-          entry.expires < Date.now() ||
-          entry.owner !== s.token ||
-          entry.device !== s.device ||
-          entry.profile !== s.profile.id
-        )
-          throw new HttpError(
-            404,
-            "Odkaz ke stažení vypršel. Vyber zdroj znovu.",
-          );
-        const range = req.headers.range;
-        if (range && !/^bytes=\d+-\d*$/.test(range))
-          throw new HttpError(416, "Neplatný rozsah souboru.");
-        const upstream = await downloadMedia(
-          entry.link,
-          range,
-          entry.mediaOptions,
-        );
-        if (![200, 206].includes(upstream.statusCode)) {
-          upstream.destroy();
-          throw new HttpError(502, "Poskytovatel soubor neposkytl.");
-        }
-        res.statusCode = upstream.statusCode;
-        res.setHeader("Content-Type", "application/octet-stream");
-        res.setHeader(
-          "Content-Disposition",
-          `attachment; filename="movly-video"; filename*=UTF-8''${encodeURIComponent(entry.name)}`,
-        );
-        res.setHeader("Cache-Control", "private, no-store");
-        for (const header of [
-          "content-length",
-          "content-range",
-          "accept-ranges",
-        ])
-          if (upstream.headers[header])
-            res.setHeader(header, upstream.headers[header]);
-        res.on("close", () => upstream.destroy());
-        upstream.on("error", () => res.destroy());
-        upstream.pipe(res);
-        return true;
-      }
       if (
         ["playback", "download", "streams/report", "streams/upload"].includes(
           target,
@@ -1410,6 +1323,11 @@ function createAppHandler({
         req.method === "POST"
       ) {
         const body = objectBody(await readBody(req, 4096));
+        // Ověření zvukových stop by vyžadovalo číst video na serveru (#153).
+        if (target === "streams/upload")
+          throw Object.assign(appRequired("stream_upload"), {
+            message: "Přidání zdroje do databáze je dostupné v aplikaci Movly.",
+          });
         if (!integer(body.title_id))
           throw new HttpError(400, "Vyber platný titul.");
         if (body.episode_id !== undefined && !integer(body.episode_id))
@@ -1492,7 +1410,6 @@ function createAppHandler({
           return true;
         }
         let link, resolvedHeaders;
-        let trustedProvider = false;
         if (provider === "webshare") {
           if (!s.webshare?.token)
             throw new HttpError(
@@ -1524,191 +1441,22 @@ function createAppHandler({
           })).catch(error => { error.diagnosticStage = "source_resolve"; throw error; });
           link = resolved.url;
           resolvedHeaders = resolved.headers;
-          trustedProvider = true;
         }
-        const mediaOptions = {
-          headers: resolvedHeaders,
-          trustedProvider,
-          credentialHost: new URL(link).hostname,
-        };
-        if (target === "streams/upload") {
-          if (body.source !== "live")
-            throw new HttpError(400, "Zdroj už je uložený v databázi.");
-          // Canonical source and current title permissions were verified above.
-          const fullTitle = await call(
-            s,
-            `titles/${body.title_id}?lang=${language}&expand=seasons`,
-          );
-          let episode = null;
-          for (const season of fullTitle.seasons || [])
-            for (const e of season.episodes || [])
-              if (e.id === body.episode_id)
-                episode = { ...e, season_number: season.season_number };
-          if (fullTitle.type === "tv" && !episode)
-            throw new HttpError(400, "Epizoda nepatří k tomuto titulu.");
-          const providerList = await call(s, "streaming/providers");
-          const providerRow = providerList.find(
-            (p) =>
-              (p.name || "").toLowerCase() === provider.toLowerCase() ||
-              (p.identifier || "").toLowerCase() === provider.toLowerCase() ||
-              (/voe|mixdrop|streamtape|bombuj|doodstream|streamwish|vidhide|lulustream/i.test(
-                provider,
-              ) &&
-                /bombuj/i.test(p.name || p.identifier || "")),
-          );
-          const fixedID = {
-            webshare: 1,
-            hellspy: 2,
-            fastshare: 3,
-            sktorrent: 4,
-            sosáč: 5,
-            sosac: 5,
-          }[provider.toLowerCase()];
-          const providerID = fixedID || providerRow?.id;
-          if (!providerID)
-            throw new HttpError(
-              422,
-              "Poskytovatel není zaregistrovaný pro ukládání streamů.",
-            );
-          const owner = JSON.stringify([s.token, s.profile.id, s.grant, body.title_id, body.episode_id || null, body.ticket]);
-          for (const [id, review] of pendingAudioReviews) if (review.expires < Date.now()) pendingAudioReviews.delete(id);
-          let analysis;
-          if (body.audio_review_id !== undefined) {
-            const review = pendingAudioReviews.get(body.audio_review_id);
-            if (!review || review.owner !== owner) throw new HttpError(403, "Potvrzení audia patří k jinému zdroji nebo už vypršelo.");
-            analysis = review.analysis;
-          } else {
-            if (body.confirmed_audio_languages !== undefined) throw new HttpError(400, "Nejdřív ověř zvukové stopy tohoto zdroje.");
-            analysis = await playback.analyze(s, link, mediaOptions);
-          }
-          let payload;
-          try {
-            payload = streamUploadPayload({ title: fullTitle, episode, provider, providerID, ident, fileName, analysis,
-              confirmedAudioLanguages: body.confirmed_audio_languages || [] });
-          } catch (error) {
-            if (error.code !== "audio_confirmation_required") throw error;
-            if (!body.audio_review_id && pendingAudioReviews.size >= 1000) throw new HttpError(503, "Označení audia je vytížené.");
-            const id = body.audio_review_id || crypto.randomBytes(24).toString("hex");
-            pendingAudioReviews.set(id, { owner, analysis, expires: Date.now() + 5 * 60 * 1000 });
-            json(res, 409, { message: error.message, code: error.code, audio_review_id: id, unknown_audio_tracks: error.unknownTracks });
-            return true;
-          }
-          let saved;
-          try {
-            saved = await call(s, "streaming/streams", "POST", payload);
-          } catch (error) {
-            const existingID =
-              error.payload?.existing_stream_id ??
-              error.payload?.detail?.existing_stream_id;
-            if (error.status !== 409 || !integer(existingID)) throw error;
-            if (body.audio_review_id) pendingAudioReviews.delete(body.audio_review_id);
-            json(res, 200, {
-              id: Number(existingID),
-              message: "Stream již existuje v databázi.",
-            });
-            return true;
-          }
-          if (!integer(saved?.id))
-            throw new HttpError(502, "Server nepotvrdil ID uloženého streamu.");
-          if (body.audio_review_id) pendingAudioReviews.delete(body.audio_review_id);
-          json(res, 200, {
-            id: saved.id,
-            message: saved.message || "Stream byl přidán do databáze.",
-          });
-          return true;
+        let direct;
+        try {
+          direct = directSource(link, resolvedHeaders, provider);
+        } catch (error) {
+          error.diagnosticStage = "source_resolve";
+          throw error;
         }
         if (target === "download") {
-          for (const [id, item] of downloads)
-            if (item.expires < Date.now()) downloads.delete(id);
-          if (downloads.size >= 5000)
-            throw new HttpError(503, "Stahování je dočasně vytížené.");
-          const id = crypto.randomBytes(24).toString("hex");
-          const name = (fileName || `${title.title || "movly-video"}.mkv`)
+          const filename = (fileName || `${title.title || "movly-video"}.mkv`)
             .replace(/[\x00-\x1f\x7f/\\]/g, "_")
             .slice(0, 240);
-          downloads.set(id, {
-            link,
-            mediaOptions,
-            name,
-            owner: s.token,
-            device: s.device,
-            profile: s.profile.id,
-            expires: Date.now() + 15 * 60 * 1000,
-          });
-          json(res, 200, { url: `/api/app/download/${id}`, filename: name });
+          json(res, 200, { ...direct, filename });
           return true;
         }
-        // Request-body close is normal. Only an aborted request or a destroyed
-        // response abandons creation; keep the original validated owner for cleanup.
-        if (req.aborted || res.destroyed) return true;
-        const created = await timed("bff_session_prepare", () => playback.start(s, link, {
-            workTiming,
-            ...mediaOptions,
-            offset: body.offset,
-            audio: body.audio,
-            subtitle: body.subtitle,
-            audioSelector: body.audio_selector,
-            subtitleSelector: body.subtitle_selector,
-            offlineExport: body.offline_export === true,
-            cookieless: body.cookieless_media === true,
-            party: body.party === true && body.offline_export !== true,
-            maxBytes: body.max_bytes,
-            clientKey: typeof body.client_key === "string" ? body.client_key : undefined,
-            playbackRate: [0.5, 0.75, 1, 1.25, 1.5, 2].includes(
-              body.playback_rate,
-            )
-              ? body.playback_rate
-              : 1,
-            audioDelay:
-              Number.isSafeInteger(body.audio_delay) &&
-              Math.abs(body.audio_delay) <= 10000
-                ? body.audio_delay
-                : 0,
-            videoMode: body.video_mode === "native" ? "native" : "compatible",
-            audioMode: ["native", "surround", "stereo"].includes(
-              body.audio_mode,
-            )
-              ? body.audio_mode
-              : "stereo",
-            maxWidth: [1280, 1920, 3840].includes(body.max_width)
-              ? body.max_width
-              : 1280,
-            capabilities: Object.fromEntries(
-              ["hevc", "dolbyVision", "aacMultichannel", "ac3", "eac3"].map(
-                (key) => [key, body.capabilities?.[key] === true],
-              ),
-            ),
-          }));
-        if (req.aborted || res.destroyed) {
-          // Internal owner-checked engine cleanup, never the changed browser cookie.
-          await playback.handle(s, { method: "DELETE" }, res, created.id).catch(() => {});
-          return true;
-        }
-        json(res, 200, created);
-        return true;
-      }
-      const pendingKey = /^playback\/pending\/([a-f0-9]{32})$/.exec(target);
-      if (pendingKey && req.method === "DELETE") {
-        json(res, 200, { stopped: (await playback.stopPending?.(s, pendingKey[1])) === true });
-        return true;
-      }
-      const playing =
-        /^playback\/([a-f0-9]{48})(?:\/((?:index|index_vtt|master)\.m3u8|index\d+\.(?:ts|vtt|m4s)|init\.mp4|export\.mp4|status))?$/.exec(
-          target,
-        );
-      if (
-        playing &&
-        ((req.method === "GET" && playing[2]) ||
-          (req.method === "DELETE" && !playing[2]))
-      ) {
-        const result = await playback.handle(
-          s,
-          req,
-          res,
-          playing[1],
-          playing[2],
-        );
-        if (result) json(res, 200, result);
+        json(res, 200, direct);
         return true;
       }
       if (
