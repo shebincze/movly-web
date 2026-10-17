@@ -34,10 +34,28 @@ sh scripts/build-provider-resolver.sh linux-x64
 COPYFILE_DISABLE=1 tar --no-xattrs -czf "$tarball" \
   --exclude='._*' --exclude='.git' --exclude='node_modules' --exclude='downloads-local' \
   --exclude='design' --exclude='*.zip' --exclude='.DS_Store' \
-  server.js http-request.js app-server.js providers-server.js sources-server.js direct-media.js native-providers.js offline-grant.js stream-feedback.js provider-resolver support.js package.json \
+  server.js http-request.js app-server.js providers-server.js sources-server.js direct-media.js native-providers.js offline-grant.js playback-attempt-policy.js playback-work-timing.js provider-resolver support.js package.json \
   index.html privacy.html delete-account.html party.html activate.html devices.html \
   activate.css devices.css activate.js devices.js \
   assets en app .well-known
+# Preflight before upload: every local require() of the packed server modules
+# must be inside the tarball (the allowlist once missed newly added modules).
+check_dir=$(mktemp -d /tmp/movly-web-preflight.XXXXXX)
+tar -xzf "$tarball" -C "$check_dir"
+preflight=0
+(cd "$check_dir" && node -e '
+const fs = require("fs"), path = require("path");
+let missing = 0;
+for (const file of fs.readdirSync(".").filter((f) => f.endsWith(".js")))
+  for (const [, target] of fs.readFileSync(file, "utf8").matchAll(/require\(\s*["\x27](\.\/[^"\x27]+)["\x27]\s*\)/g))
+    if (![target, target + ".js", target + ".json"].some((c) => fs.existsSync(path.join(".", c)))) {
+      console.error(`missing ${target} (required by ${file})`);
+      missing = 1;
+    }
+process.exit(missing);
+') || preflight=$?
+rm -rf "$check_dir"
+if (( preflight )); then rm -f "$tarball"; echo 'preflight failed: tarball misses a required module' >&2; exit 1; fi
 size=$(stat -f %z "$tarball")
 sum=$(shasum -a 256 "$tarball" | cut -d' ' -f1)
 printf 'release %s (%s bytes, sha256 %s)\n' "$release" "$size" "$sum"
@@ -62,7 +80,7 @@ previous=\$(readlink -f /srv/movly/web)
 mkdir -p "\$dir"
 tar -xzf "/tmp/\$release.tar.gz" -C "\$dir" --no-same-owner
 cd "\$dir"
-for source in server.js http-request.js app-server.js providers-server.js sources-server.js direct-media.js app/*.js; do node --check "\$source"; done
+for source in server.js http-request.js app-server.js providers-server.js sources-server.js direct-media.js playback-attempt-policy.js playback-work-timing.js app/*.js; do node --check "\$source"; done
 printf '%s' '{"action":"status"}' | ./provider-resolver/Movly.ProviderResolver
 switched=0
 rollback() {
