@@ -10,6 +10,8 @@ const path = require("node:path");
 const os = require("node:os");
 const { md5crypt } = require("./providers-server");
 const {
+  bufferableSegment,
+  readSegment,
   createPlayback,
   allowedURL,
   publicIPv4,
@@ -73,6 +75,48 @@ test("VOD HLS through the protected proxy retains segment extensions and probes 
     assert.ok(info.streams.some(s => s.codec_type === "video" && s.codec_name === "h264"));
     assert.ok(info.streams.some(s => s.codec_type === "audio" && s.codec_name === "aac"));
     assert.ok(requests.some(name => name.endsWith(".ts")));
+  } finally { await engine.close(); await fs.rm(dir, { recursive: true, force: true }); }
+});
+test("HLS segments are buffered whole and independent of the FFmpeg read pace (#145)", async () => {
+  const { Readable } = require("node:stream");
+  const upstream = (bytes, headers = {}, statusCode = 200) => Object.assign(Readable.from([Buffer.alloc(bytes, 1)]),
+    { statusCode, headers: { "content-length": String(bytes), ...headers } });
+  assert.equal(bufferableSegment(upstream(10), undefined), true);
+  assert.equal(bufferableSegment(upstream(10), "bytes=0-"), true);
+  assert.equal(bufferableSegment(upstream(10, { "content-range": "bytes 0-9/10" }, 206), "bytes=0-"), true);
+  assert.equal(bufferableSegment(upstream(10), "bytes=5-"), false, "a resumed Range read stays streamed");
+  assert.equal(bufferableSegment(upstream(10, { "content-range": "bytes 5-9/10" }, 206), undefined), false);
+  assert.equal(bufferableSegment(upstream(10, { "content-length": "" }), undefined), false, "unknown size stays streamed");
+  assert.equal(bufferableSegment(upstream(11), undefined, 10), false, "over the limit stays streamed");
+  assert.equal(bufferableSegment(upstream(10, {}, 404), undefined), false);
+  assert.equal((await readSegment(upstream(3 * 1024 * 1024))).length, 3 * 1024 * 1024);
+  const short = Object.assign(Readable.from([Buffer.alloc(5)]), { statusCode: 200, headers: { "content-length": "10" } });
+  await assert.rejects(readSegment(short), /předčasně/);
+});
+test("a provider that drops a HLS segment midway is retried once and FFmpeg receives the whole segment (#145)", async () => {
+  const { Readable } = require("node:stream");
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "movly-hls-drop-"));
+  const segmentRequests = new Map();
+  const engine = createPlayback({ requestMedia: async url => {
+    const name = path.basename(new URL(url).pathname), file = path.join(dir, name);
+    const data = await fs.readFile(file), headers = { "content-type": name.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : "video/mp2t", "content-length": String(data.length) };
+    const count = (segmentRequests.get(name) || 0) + 1;
+    if (name.endsWith(".ts")) segmentRequests.set(name, count);
+    // The first read of each segment ends prematurely, as the ČT CDN did for a paced reader.
+    const body = name.endsWith(".ts") && count === 1 ? data.subarray(0, Math.floor(data.length / 2)) : data;
+    return Object.assign(Readable.from([body]), { statusCode: 200, headers });
+  } });
+  try {
+    const generated = spawnSync("ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "testsrc=size=320x180:rate=24",
+      "-f", "lavfi", "-i", "sine=frequency=440", "-t", "2", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+      "-threads", "1", "-g", "24", "-c:a", "aac", "-f", "hls", "-hls_time", "1", "-hls_playlist_type", "vod",
+      path.join(dir, "index.m3u8")], { timeout: 15000 });
+    assert.equal(generated.status, 0, generated.stderr?.toString());
+    const info = await engine.analyze({ token: "local", device: "local", profile: { id: 1 } },
+      "https://provider.test/index.m3u8", { trustedProvider: true });
+    assert.ok(info.streams.some(s => s.codec_type === "audio" && s.codec_name === "aac"));
+    assert.ok(segmentRequests.size > 0);
+    for (const [name, count] of segmentRequests) assert.equal(count, 2, `${name} retried exactly once`);
   } finally { await engine.close(); await fs.rm(dir, { recursive: true, force: true }); }
 });
 for (const [codec, withSubs, native = false] of [
