@@ -1,0 +1,6368 @@
+{
+  "version": 1,
+  "tables": {
+    "tolerance": 1e-06,
+    "bitrateCenters": [
+      2.5,
+      6.5,
+      12.5,
+      20,
+      32.5,
+      100
+    ],
+    "bitrateSigmas": [
+      1.5,
+      3,
+      5,
+      8,
+      15,
+      50
+    ],
+    "adaptationRatios": [
+      0.9,
+      0.85,
+      0.8,
+      0.75,
+      0.72,
+      0.7
+    ],
+    "safeRatio": 0.8,
+    "overloadRatio": 0.9,
+    "closenessTolerance": 0.3,
+    "closenessBonus": 3,
+    "tierPenalty": 2,
+    "overloadPenalty": 5,
+    "bitrateMinMbps": 0.1,
+    "bitrateMaxMbps": 200,
+    "durationMinSeconds": 60,
+    "durationMaxSeconds": 86400,
+    "filterPenalty": -200,
+    "forcedLanguageScore": 1100,
+    "primaryLanguageScore": 100,
+    "secondaryLanguageScore": 50,
+    "recommendedLimit": 3,
+    "weights": [
+      0,
+      1,
+      2,
+      4,
+      8
+    ],
+    "criteria": [
+      "quality",
+      "bitrate",
+      "size",
+      "sizeSmall",
+      "audioLanguage",
+      "subtitleLanguage",
+      "forcedSubtitles",
+      "audioChannels",
+      "audioCodecPreference",
+      "videoCodecPreference",
+      "hdr",
+      "sdr",
+      "recommendedScore",
+      "bitrateFit",
+      "adaptation",
+      "database",
+      "durationMatch"
+    ],
+    "dynamicRangeScores": {
+      "DV": 1,
+      "HDR10+": 0.8,
+      "HDR10": 0.6,
+      "HLG": 0.5,
+      "SDR": 0
+    },
+    "languageCodes": {
+      "cz": "cs",
+      "cze": "cs",
+      "ces": "cs",
+      "czech": "cs",
+      "cesky": "cs",
+      "ceske": "cs",
+      "sk": "sk",
+      "slo": "sk",
+      "slk": "sk",
+      "svk": "sk",
+      "slovensky": "sk",
+      "slovak": "sk",
+      "en": "en",
+      "eng": "en",
+      "english": "en",
+      "anglicky": "en",
+      "ger": "de",
+      "deu": "de",
+      "german": "de",
+      "nemecky": "de",
+      "fre": "fr",
+      "fra": "fr",
+      "french": "fr",
+      "spa": "es",
+      "esp": "es",
+      "spanish": "es",
+      "ita": "it",
+      "italian": "it",
+      "rus": "ru",
+      "russian": "ru",
+      "polish": "pl",
+      "polski": "pl",
+      "hun": "hu",
+      "hungarian": "hu",
+      "ukr": "uk",
+      "jpn": "ja",
+      "jap": "ja",
+      "kor": "ko",
+      "chi": "zh",
+      "zho": "zh",
+      "dan": "da",
+      "swe": "sv",
+      "nor": "no",
+      "fin": "fi",
+      "dut": "nl",
+      "nld": "nl",
+      "por": "pt",
+      "tur": "tr",
+      "ara": "ar",
+      "heb": "he",
+      "hin": "hi",
+      "tha": "th",
+      "gre": "el",
+      "ell": "el",
+      "rum": "ro",
+      "ron": "ro",
+      "bul": "bg",
+      "srp": "sr",
+      "hrv": "hr",
+      "slv": "sl",
+      "lit": "lt",
+      "lav": "lv",
+      "est": "et"
+    }
+  },
+  "settings": {
+    "EMPTY": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "BASIC_CS": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": "cs",
+      "secondaryLanguage": "en",
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "LINK50_AUTO": {
+      "linkSpeedMbps": 50,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": "cs",
+      "secondaryLanguage": "en",
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "LINK20_CAP2": {
+      "linkSpeedMbps": 20,
+      "qualityCap": 2,
+      "displayMaxRank": 4,
+      "primaryLanguage": "cs",
+      "secondaryLanguage": "sk",
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "LINK2_AUTO": {
+      "linkSpeedMbps": 2,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "FORCED_SK": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": "cs",
+      "secondaryLanguage": "en",
+      "forcedLanguage": "sk",
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "DISPLAY_MAX1": {
+      "linkSpeedMbps": null,
+      "qualityCap": 4,
+      "displayMaxRank": 1,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "CODECS": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [
+        "TrueHD Atmos",
+        "E-AC-3",
+        "AC-3"
+      ],
+      "audioCodecBlacklist": [
+        "AAC"
+      ],
+      "videoCodecWhitelist": [
+        "AV1",
+        "HEVC",
+        "H.264"
+      ],
+      "videoCodecBlacklist": [
+        "MPEG-2",
+        "XviD"
+      ],
+      "preferHDR": true,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "HDR_BOTH": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [
+        "AVC"
+      ],
+      "videoCodecBlacklist": [
+        "H.264"
+      ],
+      "preferHDR": true,
+      "excludeHDR": true,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "EXCLUDE_HDR": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": true,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "VIDEO_WL7": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [
+        "av1",
+        "hevc",
+        "h264",
+        "vp9",
+        "mpeg4",
+        "xvid",
+        "divx"
+      ],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "FILTER_BR_GT5000": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": ">5000",
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "FILTER_BR_LT2000": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": "<2000",
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "FILTER_BR_RANGE": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": "5000:6000",
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "FILTER_SIZE_RANGE": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": "1000000000:4000000000",
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "FILTER_HEVC": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": true,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "FILTER_3D": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": true,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "FILTER_ATMOS": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": true
+      },
+      "runtimeMinutes": null
+    },
+    "FILTER_COMBO": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": true,
+        "exclude3D": true,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "FILTER_RANGE_31": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": "3:1",
+        "sizeRangeBytes": "3:1",
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "FILTER_INVALID": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": null,
+      "secondaryLanguage": null,
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": ">",
+        "sizeRangeBytes": "abc",
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": null
+    },
+    "RUNTIME_120": {
+      "linkSpeedMbps": null,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": "cs",
+      "secondaryLanguage": "en",
+      "forcedLanguage": null,
+      "audioCodecWhitelist": [],
+      "audioCodecBlacklist": [],
+      "videoCodecWhitelist": [],
+      "videoCodecBlacklist": [],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": 120
+    },
+    "SORT_PREFS": {
+      "linkSpeedMbps": 50,
+      "qualityCap": null,
+      "displayMaxRank": null,
+      "primaryLanguage": "cs",
+      "secondaryLanguage": "en",
+      "forcedLanguage": "sk",
+      "audioCodecWhitelist": [
+        "TrueHD Atmos",
+        "E-AC-3"
+      ],
+      "audioCodecBlacklist": [
+        "AAC"
+      ],
+      "videoCodecWhitelist": [
+        "AV1",
+        "HEVC",
+        "H.264"
+      ],
+      "videoCodecBlacklist": [
+        "XviD"
+      ],
+      "preferHDR": false,
+      "excludeHDR": false,
+      "filters": {
+        "bitrateRangeKbps": null,
+        "sizeRangeBytes": null,
+        "excludeHEVC": false,
+        "exclude3D": false,
+        "atmosOnly": false
+      },
+      "runtimeMinutes": 120
+    }
+  },
+  "languageCode": [
+    {
+      "token": "CZ",
+      "expected": "cs"
+    },
+    {
+      "token": " cze ",
+      "expected": "cs"
+    },
+    {
+      "token": "Czech",
+      "expected": "cs"
+    },
+    {
+      "token": "cs-CZ",
+      "expected": "cs"
+    },
+    {
+      "token": "cz-CZ",
+      "expected": "cs"
+    },
+    {
+      "token": "en_US",
+      "expected": "en"
+    },
+    {
+      "token": "ces_CZ",
+      "expected": "cs"
+    },
+    {
+      "token": "ger",
+      "expected": "de"
+    },
+    {
+      "token": "de",
+      "expected": "de"
+    },
+    {
+      "token": "sk",
+      "expected": "sk"
+    },
+    {
+      "token": "slovensky",
+      "expected": "sk"
+    },
+    {
+      "token": "pt-BR",
+      "expected": "pt"
+    },
+    {
+      "token": "xx",
+      "expected": "xx"
+    },
+    {
+      "token": "und",
+      "expected": null
+    },
+    {
+      "token": "",
+      "expected": null
+    },
+    {
+      "token": "c",
+      "expected": null
+    },
+    {
+      "token": "1",
+      "expected": null
+    },
+    {
+      "token": "en-us",
+      "expected": "en"
+    },
+    {
+      "token": "english",
+      "expected": "en"
+    },
+    {
+      "token": "en-",
+      "expected": null
+    }
+  ],
+  "codecKey": [
+    {
+      "value": "E-AC-3",
+      "expected": "eac3"
+    },
+    {
+      "value": "H.265",
+      "expected": "h265"
+    },
+    {
+      "value": "TrueHD Atmos",
+      "expected": "truehdatmos"
+    },
+    {
+      "value": "DD+ 5.1",
+      "expected": "dd51"
+    },
+    {
+      "value": "AAC",
+      "expected": "aac"
+    },
+    {
+      "value": "",
+      "expected": ""
+    },
+    {
+      "value": "x265 10bit",
+      "expected": "x26510bit"
+    },
+    {
+      "value": "Dolby Digital Plus",
+      "expected": "dolbydigitalplus"
+    },
+    {
+      "value": "HEVC/H.265",
+      "expected": "hevch265"
+    }
+  ],
+  "dynamicRange": [
+    {
+      "hdr": "Dolby Vision",
+      "expected": "DV"
+    },
+    {
+      "hdr": "DoVi",
+      "expected": "DV"
+    },
+    {
+      "hdr": "DV",
+      "expected": "DV"
+    },
+    {
+      "hdr": "dv",
+      "expected": "DV"
+    },
+    {
+      "hdr": "HDR10+",
+      "expected": "HDR10+"
+    },
+    {
+      "hdr": "HDR10Plus",
+      "expected": "HDR10+"
+    },
+    {
+      "hdr": "hdr10+ hlg",
+      "expected": "HDR10+"
+    },
+    {
+      "hdr": "HLG",
+      "expected": "HLG"
+    },
+    {
+      "hdr": "HLG HDR",
+      "expected": "HLG"
+    },
+    {
+      "hdr": "HDR10",
+      "expected": "HDR10"
+    },
+    {
+      "hdr": "HDR",
+      "expected": "HDR10"
+    },
+    {
+      "hdr": "SDR",
+      "expected": "SDR"
+    },
+    {
+      "hdr": null,
+      "expected": "SDR"
+    },
+    {
+      "hdr": "",
+      "expected": "SDR"
+    },
+    {
+      "hdr": "Advanced",
+      "expected": "SDR"
+    },
+    {
+      "hdr": "DV HDR10",
+      "expected": "HDR10"
+    },
+    {
+      "hdr": "Dolby Vision HDR10+",
+      "expected": "DV"
+    }
+  ],
+  "channelsFromName": [
+    {
+      "name": "Film.2020.1080p.DDP5.1.mkv",
+      "expected": 6
+    },
+    {
+      "name": "Movie.2019.2160p.TrueHD.7.1.Atmos.mkv",
+      "expected": 8
+    },
+    {
+      "name": "Stereo.2.0.AAC.mp4",
+      "expected": 2
+    },
+    {
+      "name": "Film.2020.TrueHD.Atmos.mkv",
+      "expected": 8
+    },
+    {
+      "name": "Film.2020.1080p.x264.mkv",
+      "expected": null
+    },
+    {
+      "name": "Film.10.1.mkv",
+      "expected": null
+    },
+    {
+      "name": "Film.2.1.and.5.1.mkv",
+      "expected": 3
+    },
+    {
+      "name": "DTS-HD.MA.7.1.mkv",
+      "expected": 8
+    },
+    {
+      "name": "Film.5.12.mkv",
+      "expected": null
+    },
+    {
+      "name": "Film.v1.5.2.mkv",
+      "expected": 6
+    },
+    {
+      "name": "ATMOS 5.1",
+      "expected": 6
+    }
+  ],
+  "effectiveBitrate": [
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 12500,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": 12.5
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 4500000000,
+        "durationSeconds": 7200,
+        "bitrateKbps": 0,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": 5.0
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 4500000000,
+        "durationSeconds": 7200,
+        "bitrateKbps": 8000,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": 8.0
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 4500000000,
+        "durationSeconds": 7200,
+        "bitrateKbps": -1,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": 5.0
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 750000,
+        "durationSeconds": 59,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": null
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 750000,
+        "durationSeconds": 60,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": 0.1
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 1080000000,
+        "durationSeconds": 86400,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": 0.1
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 1080000000,
+        "durationSeconds": 86401,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": null
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 0,
+        "durationSeconds": 7200,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": null
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 4500000000,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": null
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 250000,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": null
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 200000,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": 200.0
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 200001,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": null
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 50,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": null
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 100,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": 0.1
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 1000000,
+        "durationSeconds": 7200,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": null
+    },
+    {
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": null
+    }
+  ],
+  "parseRange": [
+    {
+      "spec": ">5000",
+      "expected": {
+        "min": 5000,
+        "max": null
+      }
+    },
+    {
+      "spec": "<2000",
+      "expected": {
+        "min": null,
+        "max": 2000
+      }
+    },
+    {
+      "spec": "100:200",
+      "expected": {
+        "min": 100,
+        "max": 200
+      }
+    },
+    {
+      "spec": " 3:1 ",
+      "expected": {
+        "min": 3,
+        "max": 1
+      }
+    },
+    {
+      "spec": "> 5000",
+      "expected": {
+        "min": 5000,
+        "max": null
+      }
+    },
+    {
+      "spec": "3 : 1",
+      "expected": {
+        "min": 3,
+        "max": 1
+      }
+    },
+    {
+      "spec": ">",
+      "expected": null
+    },
+    {
+      "spec": "abc",
+      "expected": null
+    },
+    {
+      "spec": "5:",
+      "expected": null
+    },
+    {
+      "spec": ":5",
+      "expected": null
+    },
+    {
+      "spec": "",
+      "expected": null
+    },
+    {
+      "spec": "5000",
+      "expected": null
+    },
+    {
+      "spec": ">-5",
+      "expected": null
+    },
+    {
+      "spec": "1.5:3",
+      "expected": null
+    },
+    {
+      "spec": ">=5",
+      "expected": null
+    },
+    {
+      "spec": "5:6:7",
+      "expected": null
+    }
+  ],
+  "score": [
+    {
+      "id": "s01-1080p-v-pasmu-auto-link50",
+      "settings": "LINK50_AUTO",
+      "candidate": {
+        "qualityRank": 2,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 12500,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "cs",
+            "codec": "E-AC-3",
+            "channels": 6
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 3,
+        "bitrate": 10.0,
+        "adaptation": 0.0,
+        "language": 100,
+        "audio": 3,
+        "video": 0,
+        "filters": 0,
+        "total": 116.0
+      },
+      "note": "ruční výpočet: quality auto = 2+1 = 3; bitrate: b = 12.5, safe = 50×0.8 = 40, b ≤ safe → g = 10·exp(0) = 10, v pásmu 7.5..17.5 → 11, strop 10; adaptation: rec = 4 (32.5 ≤ 50×0.72 = 36; 100 > 35), rank 2 ≤ 4 → 0, d = |12.5−32.5|/9.75 = 2.05 > 1 → 0, 12.5 ≤ 45 → 0; language cs primární = 100; audio kanály 6 → 6−3 = 3; video 0; filters 0; total 116"
+    },
+    {
+      "id": "s02-tesne-nad-safe",
+      "settings": "LINK20_CAP2",
+      "candidate": {
+        "qualityRank": 2,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 17000,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "sk",
+            "codec": "AAC",
+            "channels": 2
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 4,
+        "bitrate": 8.75,
+        "adaptation": 0.0,
+        "language": 50,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 62.75
+      },
+      "note": "ruční výpočet: quality rank 2 ≤ displayMaxRank 4, rank 2 ≤ cap 2 → 2+2 = 4; bitrate: safe = 20×0.8 = 16, b = 17 > 16 → 10 − 20×(17−16)/16 = 10 − 1.25 = 8.75; adaptation: rec = 2 (12.5 ≤ 20×0.80 = 16; 20 > 15), rank 2 = rec → 0, d = 4.5/3.75 = 1.2 > 1 → 0, 17 ≤ 18 → 0; language sk sekundární = 50; audio kanály 2 → 0; total 62.75"
+    },
+    {
+      "id": "s03-presne-na-safe",
+      "settings": "LINK20_CAP2",
+      "candidate": {
+        "qualityRank": 2,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 16000,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "cs",
+            "codec": "AAC",
+            "channels": 2
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 4,
+        "bitrate": 8.827045,
+        "adaptation": 0.2,
+        "language": 100,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 113.027045
+      },
+      "note": "ruční výpočet: b = 16 = safe, není > safe → Gauss rank 2: g = 10·exp(−(16−12.5)²/(2·25)) = 10·exp(−0.245) = 7.827045, v pásmu 7.5..17.5 → +1 = 8.827045; adaptation: rec = 2, target 12.5, d = 3.5/3.75 = 0.933333 → 3×(1−0.933333) = 0.2; 16 ≤ 18 → bez −5; quality 4; language 100; total 113.027045"
+    },
+    {
+      "id": "s04-nad-90-procent-linky-cap",
+      "settings": "LINK20_CAP2",
+      "candidate": {
+        "qualityRank": 3,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 19000,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 6.25,
+        "adaptation": -7.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": -0.75
+      },
+      "note": "ruční výpočet: quality rank 3 > cap 2 → 0; bitrate: 19 > 16 → 10 − 20×3/16 = 6.25; adaptation: rec = 2, rank 3 → −2×1 = −2, d = 6.5/3.75 > 1 → 0, 19 > 0.9×20 = 18 → −5, celkem −7; language 0 (žádné audio); total 6.25 − 7 = −0.75"
+    },
+    {
+      "id": "s05-bonus-blizkosti-na-hranici-d1",
+      "settings": "LINK50_AUTO",
+      "candidate": {
+        "qualityRank": 4,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 42250,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "en",
+            "codec": "AC3",
+            "channels": 6
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 5,
+        "bitrate": 8.875,
+        "adaptation": 0.0,
+        "language": 50,
+        "audio": 3,
+        "video": 0,
+        "filters": 0,
+        "total": 66.875
+      },
+      "note": "ruční výpočet: quality auto = 5; bitrate: safe 40, b = 42.25 > 40 → 10 − 20×2.25/40 = 8.875; adaptation: rec = 4, target 32.5, d = 9.75/(0.3×32.5) = 1 → bonus 3×(1−1) = 0, 42.25 ≤ 45 → 0, rank 4 = rec → 0; language en sekundární = 50; audio 6 kanálů → 3; total 66.875"
+    },
+    {
+      "id": "s06-pasmo-dolni-hranice-bez-linky",
+      "settings": "BASIC_CS",
+      "candidate": {
+        "qualityRank": 1,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 3500,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "cz",
+            "codec": "AAC",
+            "channels": 2
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 2,
+        "bitrate": 7.065307,
+        "adaptation": 0.0,
+        "language": 100,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 109.065307
+      },
+      "note": "ruční výpočet: quality auto = 2; bitrate (rychlost neznámá): rank 1 → c = 6.5, σ = 3, b = 3.5 = c − σ → g = 10·exp(−9/18) = 10·e^−0.5 = 6.065307, v pásmu (včetně meze) → 7.065307; adaptation 0 (linkSpeed null); language: cz → cs primární = 100; audio 0; total 109.065307"
+    },
+    {
+      "id": "s07-forced-1100-prebije-primarni",
+      "settings": "FORCED_SK",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "cs",
+            "codec": "AC3",
+            "channels": 6
+          },
+          {
+            "language": "sk",
+            "codec": "AAC",
+            "channels": 2
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 1100,
+        "audio": 3,
+        "video": 0,
+        "filters": 0,
+        "total": 1103.0
+      },
+      "note": "ruční výpočet: quality 0 (rank null); bitrate 0 (b null); language: forced sk ∈ {cs, sk} → 1100 (primární cs se nepoužije); audio: max(6−3 = 3, 0) = 3; total 1103"
+    },
+    {
+      "id": "s08-audio-max-pres-stopy-blacklist-neprebije",
+      "settings": "CODECS",
+      "candidate": {
+        "qualityRank": 2,
+        "hdr": "HDR10",
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": "HEVC",
+        "audioTracks": [
+          {
+            "language": "en",
+            "codec": "AAC",
+            "channels": 2
+          },
+          {
+            "language": "en",
+            "codec": "E-AC-3",
+            "channels": 6
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 3,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 4,
+        "video": 5,
+        "filters": 0,
+        "total": 12.0
+      },
+      "note": "ruční výpočet: quality auto = 3; audio: stopa AAC = blacklist −10 + kanály 2 → −10; stopa E-AC-3 = whitelist +1 (eac3 obsahuje 'eac3') + 6−3 = 4; max = 4; video: hevc = whitelist index 1 → max(1, 5−1) = 4, blacklist ne, HDR10 ≠ SDR a preferHDR → +1 = 5; language 0 (primární null); total 12"
+    },
+    {
+      "id": "s09-video-whitelist-i-blacklist-hdr-obe-volby",
+      "settings": "HDR_BOTH",
+      "candidate": {
+        "qualityRank": 4,
+        "hdr": "Dolby Vision",
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": "H.264/AVC",
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 5,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": -14,
+        "filters": 0,
+        "total": -9.0
+      },
+      "note": "ruční výpočet: quality auto = 5; video: codecKey 'h264avc' obsahuje whitelist 'avc' (index 0 → 5) i blacklist 'h264' (−10) → −5; DV ≠ SDR: excludeHDR −10, preferHDR +1 → video = −14; total −9"
+    },
+    {
+      "id": "s10-dva-filtry-minus-400",
+      "settings": "FILTER_COMBO",
+      "candidate": {
+        "qualityRank": 2,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": "x265",
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": true,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 3,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": -400,
+        "total": -397.0
+      },
+      "note": "ruční výpočet: quality auto = 3; excludeHEVC a 'x265' → −200; exclude3D a is3D → −200; filters −400; total −397"
+    },
+    {
+      "id": "s11-display-max-rank-nizsi-bitrate-ze-size",
+      "settings": "DISPLAY_MAX1",
+      "candidate": {
+        "qualityRank": 2,
+        "hdr": null,
+        "sizeBytes": 4500000000,
+        "durationSeconds": 7200,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 3.246525,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 3.246525
+      },
+      "note": "ruční výpočet: quality: rank 2 > displayMaxRank 1 → 0 (cap 4 se neuplatní); b = 4.5e9×8/7200/1e6 = 5.0 Mbps; bez linky → Gauss rank 2: 10·exp(−(5−12.5)²/50) = 10·exp(−1.125) = 3.246525, mimo pásmo 7.5..17.5; total 3.246525"
+    },
+    {
+      "id": "s12-neznama-kvalita-bonus-blizkosti",
+      "settings": "LINK50_AUTO",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 30000,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "de",
+            "codec": "AC3",
+            "channels": 2
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 2.230769,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 2.230769
+      },
+      "note": "ruční výpočet: quality 0 (rank null); bitrate: b = 30 ≤ safe 40, rank null → 0; adaptation: rec = 4, target 32.5, d = 2.5/9.75 = 0.256410 → 3×0.743590 = 2.230769; 30 ≤ 45; bez penalizace stupňů (rank null); language de → 0; total 2.230769"
+    },
+    {
+      "id": "s13-zadny-stupen-nevyhovuje-link2",
+      "settings": "LINK2_AUTO",
+      "candidate": {
+        "qualityRank": 0,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 1500,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 1,
+        "bitrate": 9.007374,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 10.007374
+      },
+      "note": "ruční výpočet: quality auto = 1; bitrate: safe = 1.6, b = 1.5 ≤ safe → Gauss rank 0: 10·exp(−1/4.5) = 8.007374, v pásmu 1..4 → 9.007374; adaptation: 2.5 > 2×0.9 = 1.8 → žádný stupeň → 0; total 10.007374"
+    },
+    {
+      "id": "s14-penalizace-tri-stupne-nad-display",
+      "settings": "LINK20_CAP2",
+      "candidate": {
+        "qualityRank": 5,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": -6.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": -6.0
+      },
+      "note": "ruční výpočet: quality rank 5 > displayMaxRank 4 → 0; adaptation: rec = 2, rank 5 → −2×3 = −6, b null → bez bonusu i −5; total −6"
+    },
+    {
+      "id": "s15-pasmo-horni-hranice-strop-10",
+      "settings": "BASIC_CS",
+      "candidate": {
+        "qualityRank": 4,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 47500,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 5,
+        "bitrate": 7.065307,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 12.065307
+      },
+      "note": "ruční výpočet: quality 5; rank 4: c = 32.5, σ = 15, b = 47.5 = c + σ → 10·e^−0.5 + 1 = 7.065307; total 12.065307"
+    },
+    {
+      "id": "s16-bitrate-mimo-rozsah-null",
+      "settings": "LINK50_AUTO",
+      "candidate": {
+        "qualityRank": 2,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 250000,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 3,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 3.0
+      },
+      "note": "b = 250 > 200 → null: bitrate 0, adaptation bez bonusu/penalizace (rec 4 ≥ rank 2); total 3"
+    },
+    {
+      "id": "s17-bitrate-pod-minimem-null",
+      "settings": "BASIC_CS",
+      "candidate": {
+        "qualityRank": 2,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 50,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 3,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 3.0
+      },
+      "note": "b = 0.05 < 0.1 → null → bitrate 0; total 3"
+    },
+    {
+      "id": "s18-nad-safe-az-na-nulu",
+      "settings": "LINK20_CAP2",
+      "candidate": {
+        "qualityRank": 2,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 30000,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 4,
+        "bitrate": 0.0,
+        "adaptation": -5.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": -1.0
+      },
+      "note": "safe 16, b = 30 → 10 − 20×14/16 = −7.5 → max(0, …) = 0; adaptation: rec 2, d > 1, 30 > 18 → −5; quality 4; total −1"
+    },
+    {
+      "id": "s19-cap-rovna-se-rank",
+      "settings": "LINK20_CAP2",
+      "candidate": {
+        "qualityRank": 2,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 4,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 4.0
+      },
+      "note": "rank 2 ≤ cap 2 → 4; total 4"
+    },
+    {
+      "id": "s20-cap-rank-nizsi",
+      "settings": "LINK20_CAP2",
+      "candidate": {
+        "qualityRank": 0,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 2,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 2.0
+      },
+      "note": "rank 0 ≤ cap 2 → 0+2 = 2; adaptation rec 2 ≥ 0 → 0; total 2"
+    },
+    {
+      "id": "s21-jazyk-primarni-bez-forced-shody",
+      "settings": "FORCED_SK",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "cs",
+            "codec": null,
+            "channels": null
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 100,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 100.0
+      },
+      "note": "forced sk není v A → primární cs → 100"
+    },
+    {
+      "id": "s22-jazyk-regionalni-kod",
+      "settings": "BASIC_CS",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "cs-CZ",
+            "codec": "AAC",
+            "channels": 2
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 100,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 100.0
+      },
+      "note": "cs-CZ → cs → 100"
+    },
+    {
+      "id": "s23-titulky-nejsou-audio",
+      "settings": "BASIC_CS",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "en",
+            "codec": "AAC",
+            "channels": 2
+          }
+        ],
+        "subtitleTracks": [
+          {
+            "language": "cs",
+            "forced": false
+          }
+        ],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 50,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 50.0
+      },
+      "note": "language jen z audio stop: en sekundární → 50"
+    },
+    {
+      "id": "s24-jazyk-neznamy-token",
+      "settings": "BASIC_CS",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "und",
+            "codec": "AAC",
+            "channels": 2
+          },
+          {
+            "language": null,
+            "codec": "AAC",
+            "channels": 2
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 0.0
+      },
+      "note": "und → null, null → vynecháno; A prázdná → 0"
+    },
+    {
+      "id": "s25-audio-whitelist-bez-kanalu",
+      "settings": "CODECS",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "en",
+            "codec": "AC-3",
+            "channels": null
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 1,
+        "video": 0,
+        "filters": 0,
+        "total": 1.0
+      },
+      "note": "ac3 ve whitelistu → +1, kanály null → 0; audio 1"
+    },
+    {
+      "id": "s26-audio-kanaly-3-a-4",
+      "settings": "EMPTY",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "en",
+            "codec": "AAC",
+            "channels": 3
+          },
+          {
+            "language": "en",
+            "codec": "AAC",
+            "channels": 4
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 1,
+        "video": 0,
+        "filters": 0,
+        "total": 1.0
+      },
+      "note": "3 → 0, 4 → 1; max 1"
+    },
+    {
+      "id": "s27-audio-blacklist-jedina-stopa",
+      "settings": "CODECS",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "en",
+            "codec": "AAC",
+            "channels": 8
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": -5,
+        "video": 0,
+        "filters": 0,
+        "total": -5.0
+      },
+      "note": "blacklist −10 + (8−3) = −5"
+    },
+    {
+      "id": "s28-video-whitelist-index-0",
+      "settings": "VIDEO_WL7",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": "AV1",
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 5,
+        "filters": 0,
+        "total": 5.0
+      },
+      "note": "index 0 → max(1, 5) = 5"
+    },
+    {
+      "id": "s29-video-whitelist-index-3",
+      "settings": "VIDEO_WL7",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": "VP9",
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 2,
+        "filters": 0,
+        "total": 2.0
+      },
+      "note": "index 3 → max(1, 2) = 2"
+    },
+    {
+      "id": "s30-video-whitelist-index-4",
+      "settings": "VIDEO_WL7",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": "MPEG-4",
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 1,
+        "filters": 0,
+        "total": 1.0
+      },
+      "note": "index 4 → max(1, 1) = 1"
+    },
+    {
+      "id": "s31-video-whitelist-index-5",
+      "settings": "VIDEO_WL7",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": "XviD",
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 1,
+        "filters": 0,
+        "total": 1.0
+      },
+      "note": "index 5 → max(1, 0) = 1"
+    },
+    {
+      "id": "s32-video-whitelist-index-6",
+      "settings": "VIDEO_WL7",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": "DivX",
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 1,
+        "filters": 0,
+        "total": 1.0
+      },
+      "note": "index 6 → max(1, −1) = 1"
+    },
+    {
+      "id": "s33-video-blacklist-jen",
+      "settings": "CODECS",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": "MPEG-2 Video",
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": -10,
+        "filters": 0,
+        "total": -10.0
+      },
+      "note": "blacklist → −10; whitelist nic"
+    },
+    {
+      "id": "s34-prefer-hdr-hlg",
+      "settings": "CODECS",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": "HLG",
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 1,
+        "filters": 0,
+        "total": 1.0
+      },
+      "note": "HLG ≠ SDR, preferHDR → +1"
+    },
+    {
+      "id": "s35-prefer-hdr-sdr-nic",
+      "settings": "CODECS",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": "SDR",
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 0.0
+      },
+      "note": "SDR → bez bonusu"
+    },
+    {
+      "id": "s36-exclude-hdr-hdr10plus",
+      "settings": "EXCLUDE_HDR",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": "HDR10+",
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": -10,
+        "filters": 0,
+        "total": -10.0
+      },
+      "note": "excludeHDR a HDR10+ → −10"
+    },
+    {
+      "id": "s37-exclude-hdr-sdr-nic",
+      "settings": "EXCLUDE_HDR",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 0.0
+      },
+      "note": "null → SDR → 0"
+    },
+    {
+      "id": "s38-filtr-bitrate-gt-hranice-porusen",
+      "settings": "FILTER_BR_GT5000",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 5000,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": -200,
+        "total": -200.0
+      },
+      "note": "b×1000 = 5000, není ostře > 5000 → −200"
+    },
+    {
+      "id": "s39-filtr-bitrate-gt-tesne-nad",
+      "settings": "FILTER_BR_GT5000",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 5001,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 0.0
+      },
+      "note": "5001 > 5000 → 0"
+    },
+    {
+      "id": "s40-filtr-bitrate-neznamy-neporusuje",
+      "settings": "FILTER_BR_GT5000",
+      "candidate": {
+        "qualityRank": 2,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 3,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 3.0
+      },
+      "note": "b null → filtr se nevyhodnotí; total 3"
+    },
+    {
+      "id": "s41-filtr-bitrate-lt-hranice",
+      "settings": "FILTER_BR_LT2000",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 2000,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": -200,
+        "total": -200.0
+      },
+      "note": "2000 není ostře < 2000 → −200"
+    },
+    {
+      "id": "s42-filtr-bitrate-rozsah-vcetne-mezi",
+      "settings": "FILTER_BR_RANGE",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 5000,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 0.0
+      },
+      "note": "5000 ∈ [5000, 6000] → 0"
+    },
+    {
+      "id": "s43-filtr-bitrate-rozsah-ze-size",
+      "settings": "FILTER_BR_RANGE",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 4500000000,
+        "durationSeconds": 7200,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 0.0
+      },
+      "note": "b = 5.0 Mbps = 5000 kbps → v rozsahu → 0"
+    },
+    {
+      "id": "s44-filtr-size-porusen",
+      "settings": "FILTER_SIZE_RANGE",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 5000000000,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": -200,
+        "total": -200.0
+      },
+      "note": "5e9 > 4e9 → −200"
+    },
+    {
+      "id": "s45-filtr-size-v-rozsahu",
+      "settings": "FILTER_SIZE_RANGE",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 4000000000,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 0.0
+      },
+      "note": "mez včetně → 0"
+    },
+    {
+      "id": "s46-filtr-size-nula-neporusuje",
+      "settings": "FILTER_SIZE_RANGE",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 0,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 0.0
+      },
+      "note": "sizeBytes > 0 neplatí → 0"
+    },
+    {
+      "id": "s47-filtr-size-neznamy",
+      "settings": "FILTER_SIZE_RANGE",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 0.0
+      },
+      "note": "null → 0"
+    },
+    {
+      "id": "s48-filtr-hevc-h265",
+      "settings": "FILTER_HEVC",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": "H.265",
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": -200,
+        "total": -200.0
+      },
+      "note": "h265 → −200"
+    },
+    {
+      "id": "s49-filtr-hevc-h264-ok",
+      "settings": "FILTER_HEVC",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": "H.264",
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 0.0
+      },
+      "note": "není HEVC → 0"
+    },
+    {
+      "id": "s50-filtr-3d-neporusen",
+      "settings": "FILTER_3D",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 0.0
+      },
+      "note": "is3D false → 0"
+    },
+    {
+      "id": "s51-filtr-3d-porusen",
+      "settings": "FILTER_3D",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": true,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": -200,
+        "total": -200.0
+      },
+      "note": "→ −200"
+    },
+    {
+      "id": "s52-filtr-atmos-chybi",
+      "settings": "FILTER_ATMOS",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "en",
+            "codec": "E-AC-3",
+            "channels": 6
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 3,
+        "video": 0,
+        "filters": -200,
+        "total": -197.0
+      },
+      "note": "bez atmos → −200"
+    },
+    {
+      "id": "s53-filtr-atmos-splnen",
+      "settings": "FILTER_ATMOS",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [
+          {
+            "language": "en",
+            "codec": "AAC",
+            "channels": 2
+          },
+          {
+            "language": "en",
+            "codec": "TrueHD Atmos",
+            "channels": 8
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 5,
+        "video": 0,
+        "filters": 0,
+        "total": 5.0
+      },
+      "note": "atmos v některé stopě → 0; audio 5"
+    },
+    {
+      "id": "s54-filtr-rozsah-3-1-porusi-vse",
+      "settings": "FILTER_RANGE_31",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 2,
+        "durationSeconds": null,
+        "bitrateKbps": 2000,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": -400,
+        "total": -400.0
+      },
+      "note": "min 3 > max 1: 2000 > 1 i 2 > 1 → oba −200 = −400"
+    },
+    {
+      "id": "s55-filtr-rozsah-3-1-nezname-hodnoty",
+      "settings": "FILTER_RANGE_31",
+      "candidate": {
+        "qualityRank": 1,
+        "hdr": null,
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": null,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 2,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 2.0
+      },
+      "note": "b i size null → 0; total 2"
+    },
+    {
+      "id": "s56-filtr-invalidni-ignorovan",
+      "settings": "FILTER_INVALID",
+      "candidate": {
+        "qualityRank": null,
+        "hdr": null,
+        "sizeBytes": 1,
+        "durationSeconds": null,
+        "bitrateKbps": 100,
+        "videoCodec": null,
+        "audioTracks": [],
+        "subtitleTracks": [],
+        "is3D": false,
+        "isDatabase": false
+      },
+      "expected": {
+        "quality": 0,
+        "bitrate": 0.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 0,
+        "video": 0,
+        "filters": 0,
+        "total": 0.0
+      },
+      "note": "'>' i 'abc' → null → bez penalizace"
+    },
+    {
+      "id": "s57-prazdne-nastaveni-plny-kandidat",
+      "settings": "EMPTY",
+      "candidate": {
+        "qualityRank": 5,
+        "hdr": "DV",
+        "sizeBytes": null,
+        "durationSeconds": null,
+        "bitrateKbps": 90000,
+        "videoCodec": "AV1",
+        "audioTracks": [
+          {
+            "language": "cs",
+            "codec": "TrueHD Atmos",
+            "channels": 8
+          }
+        ],
+        "subtitleTracks": [],
+        "is3D": true,
+        "isDatabase": true
+      },
+      "expected": {
+        "quality": 6,
+        "bitrate": 10.0,
+        "adaptation": 0.0,
+        "language": 0,
+        "audio": 5,
+        "video": 0,
+        "filters": 0,
+        "total": 21.0
+      },
+      "note": "bez linky: Gauss rank 5 (c 100, σ 50): b = 90 → 10·exp(−100/5000) + 1 (v pásmu 50..150) = 10·exp(−0.02)+1 = 10.80 → strop 10; quality 6; audio 5; total 21"
+    }
+  ],
+  "sort": [
+    {
+      "id": "o01-quality-rank-pak-size-null-posledni",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "quality"
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": 1000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": null,
+          "sizeBytes": 500,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 9000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": 3000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "b",
+        "d",
+        "a",
+        "e",
+        "c"
+      ],
+      "note": "rank sestupně, při shodě size sestupně, null size za známou, null rank úplně poslední"
+    },
+    {
+      "id": "o02-quality-stabilita",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "quality"
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": 1000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": 1000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": 1000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "a",
+        "b",
+        "c"
+      ],
+      "note": "shodné položky zachovají pořadí vstupu"
+    },
+    {
+      "id": "o03-size-sestupne-null-posledni",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "size"
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 100,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 300,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 300,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 200,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "c",
+        "d",
+        "e",
+        "b",
+        "a"
+      ]
+    },
+    {
+      "id": "o04-recommended-total-rank-size",
+      "settings": "BASIC_CS",
+      "spec": {
+        "mode": "recommended"
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": 1000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 1,
+          "hdr": null,
+          "sizeBytes": 5000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": 9000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": 2000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 3,
+          "hdr": null,
+          "sizeBytes": 1,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "d",
+        "a",
+        "b",
+        "c",
+        "e"
+      ],
+      "note": "total: a 103, d 103, b 102, c 53, e 4; shoda a/d → size; weights/normalization se ignorují"
+    },
+    {
+      "id": "o05-recommended-ignoruje-weights",
+      "settings": "BASIC_CS",
+      "spec": {
+        "mode": "recommended",
+        "normalization": "weighted",
+        "weights": {
+          "sizeSmall": 8
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 1,
+          "hdr": null,
+          "sizeBytes": 100,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 3,
+          "hdr": null,
+          "sizeBytes": 900,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "b",
+        "a"
+      ]
+    },
+    {
+      "id": "o06-custom-lex-quality-pak-size",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "weights": {
+          "quality": 8,
+          "size": 2
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": 1000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": null,
+          "sizeBytes": 10,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": 5000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 99999,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "b",
+        "c",
+        "a",
+        "d"
+      ],
+      "note": "normalization chybí → lexicographic; d má quality null → za známými"
+    },
+    {
+      "id": "o07-custom-lex-shoda-vah-poradi-criteria",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "normalization": "lexicographic",
+        "weights": {
+          "sizeSmall": 4,
+          "quality": 4
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 1,
+          "hdr": null,
+          "sizeBytes": 100,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 3,
+          "hdr": null,
+          "sizeBytes": 900,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": 3,
+          "hdr": null,
+          "sizeBytes": 400,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "c",
+        "b",
+        "a"
+      ],
+      "note": "stejná váha → quality dřív než sizeSmall (pořadí v tables.criteria); shoda quality → menší velikost první"
+    },
+    {
+      "id": "o08-custom-weighted-relativni",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "normalization": "weighted",
+        "weights": {
+          "quality": 4,
+          "size": 4
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 5,
+          "hdr": null,
+          "sizeBytes": 1000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 3,
+          "hdr": null,
+          "sizeBytes": 9000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": 4,
+          "hdr": null,
+          "sizeBytes": 5000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "b",
+        "c",
+        "a"
+      ],
+      "note": "relativní size přes {1000, 5000, 9000}: a: 4×(5/5) + 4×0 = 4; b: 4×0.6 + 4×1 = 6.4; c: 4×0.8 + 4×0.5 = 5.2"
+    },
+    {
+      "id": "o09-weighted-null-je-nula-max-rovno-min",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "normalization": "weighted",
+        "weights": {
+          "bitrate": 4,
+          "quality": 1
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 5,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 0,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": 8000,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": 1,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": 8000,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "c",
+        "b",
+        "a"
+      ],
+      "note": "bitrate známé jen u b, c a max == min → n = 1 pro obě (4 body); a má null → 0; a: 1×1 = 1; b: 4 + 0; c: 4 + 0.2"
+    },
+    {
+      "id": "o10-lex-null-za-znamou-durationMatch",
+      "settings": "RUNTIME_120",
+      "spec": {
+        "mode": "custom",
+        "weights": {
+          "durationMatch": 8,
+          "size": 1
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 9000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 100,
+          "durationSeconds": 6000,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 50,
+          "durationSeconds": 7200,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 70,
+          "durationSeconds": 14400,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "c",
+        "b",
+        "d",
+        "a"
+      ],
+      "note": "runtime 120 min = 7200 s: c → 1, b → 1 − 1200/7200 = 0.833, d → 1 − min(1, 1) = 0, a null → poslední (size ji nezachrání)"
+    },
+    {
+      "id": "o11-durationMatch-bez-runtime-vse-null",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "weights": {
+          "durationMatch": 8,
+          "size": 1
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 100,
+          "durationSeconds": 7200,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 300,
+          "durationSeconds": 7200,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 200,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "b",
+        "c",
+        "a"
+      ],
+      "note": "runtimeMinutes null → durationMatch null pro všechny → rozhoduje size"
+    },
+    {
+      "id": "o12-sizeSmall-vs-size",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "weights": {
+          "sizeSmall": 8
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 3000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 1000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 0,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 2000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "b",
+        "d",
+        "a",
+        "c"
+      ],
+      "note": "sizeSmall = −size, relativně: nejmenší první; sizeBytes 0 → null → poslední"
+    },
+    {
+      "id": "o13-size-kriterium-nula-je-null",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "weights": {
+          "size": 8
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 0,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 1000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": 2000,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "d",
+        "b",
+        "a",
+        "c"
+      ],
+      "note": "size > 0 jinak null; a i c null → pořadí vstupu"
+    },
+    {
+      "id": "o14-vahy-zaokrouhleni-3-na-2",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "normalization": "weighted",
+        "weights": {
+          "quality": 3,
+          "sdr": 2
+        }
+      },
+      "candidates": [
+        {
+          "id": "b",
+          "qualityRank": 0,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "a",
+          "qualityRank": 5,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "b",
+        "a"
+      ],
+      "note": "3 → 2: a = 2×1 + 2×0 = 2, b = 0 + 2×1 = 2 → shoda → pořadí vstupu (s nezaokrouhlenou 3 by vyhrálo a)"
+    },
+    {
+      "id": "o15-vahy-zaokrouhleni-9-na-8-5-na-4",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "normalization": "weighted",
+        "weights": {
+          "quality": 9,
+          "bitrate": 5,
+          "size": 5
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 5,
+          "hdr": null,
+          "sizeBytes": 100,
+          "durationSeconds": null,
+          "bitrateKbps": 1000,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 0,
+          "hdr": null,
+          "sizeBytes": 900,
+          "durationSeconds": null,
+          "bitrateKbps": 9000,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "a",
+        "b"
+      ],
+      "note": "9 → 8, 5 → 4: a = 8×1 = 8, b = 4 + 4 = 8 → shoda → vstup (nezaokrouhleno by b = 10 > 9)"
+    },
+    {
+      "id": "o16-vaha-mimo-rozsah-100-a-zaporna",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "weights": {
+          "size": 100,
+          "quality": -1
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 5,
+          "hdr": null,
+          "sizeBytes": 1,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 0,
+          "hdr": null,
+          "sizeBytes": 2,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "b",
+        "a"
+      ],
+      "note": "100 → 8; −1 → 0 (quality se nepoužije)"
+    },
+    {
+      "id": "o17-jazykova-kriteria",
+      "settings": "SORT_PREFS",
+      "spec": {
+        "mode": "custom",
+        "weights": {
+          "audioLanguage": 8,
+          "subtitleLanguage": 4,
+          "forcedSubtitles": 2
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "sk",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "de",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": false
+            },
+            {
+              "language": "cs",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "e",
+        "c",
+        "b",
+        "a",
+        "d"
+      ],
+      "note": "audioLanguage: cs 1 / en 0.5 / de 0; subtitleLanguage: e cs → 1, c sk → 0, b → 0; forcedSubtitles kód = forced sk: c → 1 (e má forced cs → 0)"
+    },
+    {
+      "id": "o18-audio-kriteria",
+      "settings": "SORT_PREFS",
+      "spec": {
+        "mode": "custom",
+        "weights": {
+          "audioCodecPreference": 8,
+          "audioChannels": 4
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": "AAC",
+              "channels": 2
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": "E-AC-3",
+              "channels": 6
+            },
+            {
+              "language": "cs",
+              "codec": "AAC",
+              "channels": 8
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": "TrueHD Atmos",
+              "channels": 8
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": "DTS",
+              "channels": 6
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": "DTS",
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "c",
+        "b",
+        "a",
+        "d",
+        "e"
+      ],
+      "note": "preference: c 5, b 4 (nejlepší stopa), a 0 (blacklist), d/e null → za a; channels: d 6 → 0.75, e null"
+    },
+    {
+      "id": "o19-video-a-hdr-kriteria",
+      "settings": "SORT_PREFS",
+      "spec": {
+        "mode": "custom",
+        "weights": {
+          "videoCodecPreference": 8,
+          "hdr": 4
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": null,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": "H.264",
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": null,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": "HEVC",
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": "HEVC",
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": "XviD",
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": "VP9",
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "c",
+        "b",
+        "a",
+        "d",
+        "e"
+      ],
+      "note": "video: hevc 4, h264 3, xvid blacklist 0, vp9 null; hdr: DV 1 > HLG 0.5 rozhodne c před b"
+    },
+    {
+      "id": "o20-sdr-a-database",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "weights": {
+          "database": 8,
+          "sdr": 4
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": null,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "DV",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": true
+        },
+        {
+          "id": "d",
+          "qualityRank": null,
+          "hdr": "SDR",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": true
+        }
+      ],
+      "expected": [
+        "d",
+        "c",
+        "b",
+        "a"
+      ]
+    },
+    {
+      "id": "o21-weighted-recommendedScore-bitrateFit-adaptation",
+      "settings": "LINK50_AUTO",
+      "spec": {
+        "mode": "custom",
+        "normalization": "weighted",
+        "weights": {
+          "recommendedScore": 4,
+          "bitrateFit": 2,
+          "adaptation": 1
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 4,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": 32500,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": 12500,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": 5,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": 60000,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "b",
+        "a",
+        "c"
+      ],
+      "note": "b: total 113 (3+10+0+100) → recommendedScore 1, bitrateFit 10/10 = 1, adaptation 0; a: total 5+10+3+50 = 68, adaptation 3 (d = 0); c: bitrate nad safe → 0, adaptation −2 −5 = −7, total −1"
+    },
+    {
+      "id": "o22-custom-bez-vah-poradi-vstupu",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "normalization": "weighted",
+        "weights": {
+          "quality": 0
+        }
+      },
+      "candidates": [
+        {
+          "id": "b",
+          "qualityRank": 1,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "a",
+          "qualityRank": 5,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": 3,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "b",
+        "a",
+        "c"
+      ],
+      "note": "žádné aktivní kritérium → stabilní pořadí vstupu"
+    },
+    {
+      "id": "o23-lex-nizsi-vaha-jen-rozhoduje-shody",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "weights": {
+          "quality": 2,
+          "bitrate": 1
+        }
+      },
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 1,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": 50000,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": 1000,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": 3000,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "c",
+        "b",
+        "a"
+      ],
+      "note": "a má nejvyšší bitrate, ale quality rozhoduje dřív"
+    },
+    {
+      "id": "o24-lex-vsechna-kriteria-null-stabilita",
+      "settings": "EMPTY",
+      "spec": {
+        "mode": "custom",
+        "weights": {
+          "videoCodecPreference": 8,
+          "audioChannels": 8
+        }
+      },
+      "candidates": [
+        {
+          "id": "b",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "a",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "expected": [
+        "b",
+        "a",
+        "c"
+      ],
+      "note": "všechny hodnoty null → shoda → pořadí vstupu"
+    }
+  ],
+  "facets": [
+    {
+      "id": "f01-prazdny-filtr-vse",
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [],
+        "resolutions": [],
+        "dynamicRanges": []
+      },
+      "expected": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e"
+      ],
+      "relaxed": false
+    },
+    {
+      "id": "f02-jazyky-or-audio-i-sub",
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [
+          "audio_cs",
+          "sub_cs"
+        ],
+        "resolutions": [],
+        "dynamicRanges": []
+      },
+      "expected": [
+        "a",
+        "b",
+        "d",
+        "e"
+      ],
+      "relaxed": false,
+      "note": "a/d audio cs, b/e titulky cs; c ani jedno"
+    },
+    {
+      "id": "f03-sub-neni-audio",
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [
+          "sub_cs"
+        ],
+        "resolutions": [],
+        "dynamicRanges": []
+      },
+      "expected": [
+        "b",
+        "e"
+      ],
+      "relaxed": false,
+      "note": "a má cs jen v audiu → nevyhoví"
+    },
+    {
+      "id": "f04-audio-neni-sub",
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [
+          "audio_sk"
+        ],
+        "resolutions": [],
+        "dynamicRanges": []
+      },
+      "expected": [
+        "c"
+      ],
+      "relaxed": false,
+      "note": "e má sk jen v titulcích"
+    },
+    {
+      "id": "f05-rozliseni-or-null-nevyhovi",
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [],
+        "resolutions": [
+          2,
+          4
+        ],
+        "dynamicRanges": []
+      },
+      "expected": [
+        "a",
+        "b",
+        "d"
+      ],
+      "relaxed": false,
+      "note": "c má qualityRank null → nevyhoví neprázdné dimenzi"
+    },
+    {
+      "id": "f06-dynamicky-rozsah-or",
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [],
+        "resolutions": [],
+        "dynamicRanges": [
+          "DV",
+          "HDR10+"
+        ]
+      },
+      "expected": [
+        "b",
+        "c"
+      ],
+      "relaxed": false
+    },
+    {
+      "id": "f07-and-mezi-dimenzemi",
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [
+          "audio_cs",
+          "sub_cs"
+        ],
+        "resolutions": [
+          4
+        ],
+        "dynamicRanges": [
+          "DV",
+          "HDR10"
+        ]
+      },
+      "expected": [
+        "b",
+        "d"
+      ],
+      "relaxed": false,
+      "note": "jazyk: a,b,d,e; rozlišení 4: b,d; rozsah: b,d"
+    },
+    {
+      "id": "f08-neprazdny-filtr-prazdny-vysledek-relaxed",
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [
+          "audio_de"
+        ],
+        "resolutions": [],
+        "dynamicRanges": []
+      },
+      "expected": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e"
+      ],
+      "relaxed": true,
+      "note": "nikdo nemá audio de → všichni, relaxed"
+    },
+    {
+      "id": "f09-and-prazdny-prunik-relaxed",
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [
+          "audio_sk"
+        ],
+        "resolutions": [
+          4
+        ],
+        "dynamicRanges": []
+      },
+      "expected": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e"
+      ],
+      "relaxed": true,
+      "note": "audio sk má jen c, ten má rank null"
+    },
+    {
+      "id": "f10-null-rank-projde-prazdnym-rozlisenim",
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [
+          "sub_en"
+        ],
+        "resolutions": [],
+        "dynamicRanges": [
+          "HDR10+"
+        ]
+      },
+      "expected": [
+        "c"
+      ],
+      "relaxed": false
+    },
+    {
+      "id": "f11-neznamy-token-nikdy-nevyhovi",
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [
+          "dub_cs"
+        ],
+        "resolutions": [],
+        "dynamicRanges": []
+      },
+      "expected": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e"
+      ],
+      "relaxed": true,
+      "note": "token bez prefixu audio_/sub_ nikoho nevybere → relaxed"
+    },
+    {
+      "id": "f12-zachovani-poradi",
+      "candidates": [
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [],
+        "resolutions": [
+          1,
+          2,
+          4,
+          5
+        ],
+        "dynamicRanges": []
+      },
+      "expected": [
+        "d",
+        "a",
+        "e",
+        "b"
+      ],
+      "relaxed": false,
+      "note": "vstup d, a, c, e, b → výstup bez c ve stejném pořadí"
+    },
+    {
+      "id": "f13-sdr-facet-z-null-hdr",
+      "candidates": [
+        {
+          "id": "a",
+          "qualityRank": 2,
+          "hdr": null,
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "b",
+          "qualityRank": 4,
+          "hdr": "Dolby Vision",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "c",
+          "qualityRank": null,
+          "hdr": "HDR10+",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "sk",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [
+            {
+              "language": "en",
+              "forced": true
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "d",
+          "qualityRank": 4,
+          "hdr": "HDR10",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [
+            {
+              "language": "cs",
+              "codec": null,
+              "channels": null
+            },
+            {
+              "language": "en",
+              "codec": null,
+              "channels": null
+            }
+          ],
+          "subtitleTracks": [],
+          "is3D": false,
+          "isDatabase": false
+        },
+        {
+          "id": "e",
+          "qualityRank": 1,
+          "hdr": "HLG",
+          "sizeBytes": null,
+          "durationSeconds": null,
+          "bitrateKbps": null,
+          "videoCodec": null,
+          "audioTracks": [],
+          "subtitleTracks": [
+            {
+              "language": "cs",
+              "forced": false
+            },
+            {
+              "language": "sk",
+              "forced": false
+            }
+          ],
+          "is3D": false,
+          "isDatabase": false
+        }
+      ],
+      "filter": {
+        "languages": [],
+        "resolutions": [],
+        "dynamicRanges": [
+          "SDR"
+        ]
+      },
+      "expected": [
+        "a"
+      ],
+      "relaxed": false,
+      "note": "hdr null → SDR"
+    }
+  ]
+}

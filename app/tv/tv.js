@@ -867,11 +867,13 @@
         stream.video_codec, stream.hdr_type, langs.join(", ") || null,
         stream.file_size ? (stream.file_size / 1073741824).toFixed(2) + " GB" : null], Boolean).join(" · ");
     }
+    // „Podobné" (demoted verdikt relevance z resolveru) se automaticky nikdy nevybírají.
+    function demoted(x) { return Boolean(x.relevance && x.relevance.bucket === "demoted"); }
     // Doporučení jako stream-recommendations.js; jinak nejvyšší kvalita jako automatické přehrání v player.js.
     function best() {
       var cap = displayCap(), seen = {}, recommended = [];
       each(results, function (x) {
-        if (x.origin < 2 || !playable(x) || rank(x) > cap || !identityMatches(x, t, episode)) return;
+        if (x.origin < 2 || demoted(x) || !playable(x) || rank(x) > cap || !identityMatches(x, t, episode)) return;
         var key = x.source_stream_id ? String(x.provider_name || "").toLowerCase() + ":" + x.source_stream_id : x.origin + ":" + x.id;
         if (seen[key]) return;
         seen[key] = true;
@@ -879,8 +881,8 @@
       });
       recommended.sort(function (a, b) { return rank(b) - rank(a) || (b.file_size || 0) - (a.file_size || 0); });
       if (recommended.length) return recommended[0];
-      var options = filter(results, function (x) { return playable(x) && rank(x) <= cap; });
-      if (!options.length) options = filter(results, playable);
+      var options = filter(results, function (x) { return !demoted(x) && playable(x) && rank(x) <= cap; });
+      if (!options.length) options = filter(results, function (x) { return !demoted(x) && playable(x); });
       options.sort(function (a, b) { return (b.video_height || 0) - (a.video_height || 0); });
       return options[0] || null;
     }
