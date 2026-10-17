@@ -106,6 +106,37 @@ async function mediaRequest(value, range, options = {}, redirects = 0) {
     req.on("error", reject);
   });
 }
+// FFmpeg čte s -readrate jen rychlostí přehrávání. CDN poskytovatele (ČT/O2)
+// takové pomalé čtení HLS segmentu uprostřed ukončí a výstup má díry ve zvuku,
+// na kterých se MSE přehrávač natrvalo zasekne (#145). Segment HLS proto proxy
+// stáhne celý nezávisle na FFmpegu; větší nebo neznámě velký jde dál proudem.
+const SEGMENT_BUFFER_LIMIT = 48 * 1024 * 1024;
+function bufferableSegment(upstream, range, limit = SEGMENT_BUFFER_LIMIT) {
+  const length = Number(upstream.headers?.["content-length"]);
+  return (
+    [200, 206].includes(upstream.statusCode) &&
+    (!range || range === "bytes=0-") &&
+    !(upstream.statusCode === 206 && !/^bytes 0-/.test(upstream.headers?.["content-range"] || "")) &&
+    Number.isSafeInteger(length) &&
+    length > 0 &&
+    length <= limit
+  );
+}
+async function readSegment(upstream) {
+  const length = Number(upstream.headers["content-length"]);
+  const chunks = [];
+  let bytes = 0;
+  for await (const chunk of upstream) {
+    bytes += chunk.length;
+    if (bytes > length) {
+      upstream.destroy();
+      throw fail(502, "Poskytovatel poslal delší segment, než ohlásil.");
+    }
+    chunks.push(chunk);
+  }
+  if (bytes !== length) throw fail(502, "Poskytovatel ukončil segment předčasně.");
+  return Buffer.concat(chunks, bytes);
+}
 function rewritePlaylist(text, map) {
   if (!text.trimStart().startsWith("#EXTM3U"))
     throw fail(502, "Neplatný HLS playlist.");
@@ -402,7 +433,7 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
           res.writeHead(404).end();
           return;
         }
-        const upstream = await requestMedia(resourceURL, range, p.mediaOptions);
+        let upstream = await requestMedia(resourceURL, range, p.mediaOptions);
         const isPlaylist =
           /mpegurl/i.test(upstream.headers["content-type"] || "") ||
           /\.m3u8(?:[?#]|$)/i.test(resourceURL);
@@ -455,13 +486,41 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
           return;
         }
         const headers = {};
-        for (const k of [
-          "content-length",
-          "content-range",
-          "content-type",
-          "accept-ranges",
-        ])
-          if (upstream.headers[k]) headers[k] = upstream.headers[k];
+        const copyHeaders = () => {
+          for (const k of [
+            "content-length",
+            "content-range",
+            "content-type",
+            "accept-ranges",
+          ])
+            if (upstream.headers[k]) headers[k] = upstream.headers[k];
+        };
+        // Only segments referenced by a rewritten HLS playlist; a progressive
+        // source (resourceID absent) keeps its streamed Range responses.
+        if (resourceID && bufferableSegment(upstream, range)) {
+          let body;
+          for (let attempt = 0; !body; attempt++) {
+            try {
+              body = await readSegment(upstream);
+            } catch (error) {
+              if (attempt >= 1 || !sessions.has(sessionID)) throw error;
+              upstream = await requestMedia(resourceURL, range, p.mediaOptions);
+              if (!bufferableSegment(upstream, range)) {
+                upstream.destroy();
+                throw error;
+              }
+            }
+          }
+          if (!sessions.has(sessionID)) {
+            res.writeHead(404).end();
+            return;
+          }
+          copyHeaders();
+          res.writeHead(upstream.statusCode, headers);
+          res.end(body);
+          return;
+        }
+        copyHeaders();
         res.writeHead(upstream.statusCode, headers);
         upstream.pipe(res);
         res.on("close", () => upstream.destroy());
@@ -920,6 +979,8 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
   return { start, analyze, handle, close, stopOwner, stopPending };
 }
 module.exports = {
+  bufferableSegment,
+  readSegment,
   rewritePlaylist,
   createPlayback,
   allowedURL,
