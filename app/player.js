@@ -1,11 +1,11 @@
 import { playbackAttemptSupported } from "./playback-attempt-support.js";
 import { feedbackAllowed } from "./feedback-access.js";
 import { mountIntroSkip } from "./intro-skip.js";
-import { streamPickerSections } from "./stream-recommendations.js";
+import { demotionLabel, eligible, facetOptions, facetStreams, isDemoted, sortStreams, streamPickerSections } from "./stream-recommendations.js";
 import { createDialog as createFeedbackDialog } from "./feedback.js";
 import { playbackDiagnostics } from "./playback-diagnostics.js";
 import { createPlaybackTelemetryReporter } from "./playback-telemetry.js";
-import { translateUI } from "./i18n.js";
+import { translateUI, uiLanguage } from "./i18n.js";
 import { openProviderSettings } from "./provider-settings.js";
 import { reportStream } from "./stream-feedback.js";
 import {
@@ -162,8 +162,7 @@ export async function sources(
     "aria-label": translateUI("Filtrovat zdroje"),
   });
   // Filtr poskytovatele jako přepínací čipy; stav drží `providerFilter`.
-  let providerFilter = "",
-    qualityFilter = "";
+  let providerFilter = "";
   const providerChips = new Map();
   const allChip = el(
     "button",
@@ -175,31 +174,43 @@ export async function sources(
     { class: "pk-chips", role: "group", "aria-label": translateUI("Poskytovatel") },
     allChip,
   );
-  const qualityButtons = [
-    ["", translateUI("Vše")],
-    ["2160", translateUI("4K")],
-    ["1080", translateUI("Full HD")],
-    ["720", translateUI("HD")],
-  ].map(([value, name]) =>
-    el(
-      "button",
-      { type: "button", "aria-pressed": String(value === qualityFilter), "data-value": value, onClick: () => { qualityFilter = value; render(); } },
-      name,
-    ),
-  );
-  const quality = el(
-    "div",
-    { class: "pk-segmented", role: "group", "aria-label": translateUI("Kvalita") },
-    ...qualityButtons,
-  );
-  const audioFilter = el(
-    "select",
-    { "aria-label": translateUI("Zvuk") },
-    el("option", { value: "" }, translateUI("Jakýkoli")),
-  );
+  // Facety kontraktu Stream scoring: OR uvnitř dimenze, AND mezi dimenzemi;
+  // když nic nenechají, ukáže se vše s poznámkou (relaxed).
+  const facetSelection = { audio: new Set(), subtitles: new Set(), resolutions: new Set(), dynamicRanges: new Set() };
+  const resolutionLabel = (rank) => ["SD", "HD", "Full HD", "1440p", "4K", "8K"][rank];
+  const facetGroups = [
+    ["audio", translateUI("Jazyk audia"), (code) => code.toUpperCase()],
+    ["subtitles", translateUI("Jazyk titulků"), (code) => code.toUpperCase()],
+    ["resolutions", translateUI("Rozlišení"), resolutionLabel],
+    ["dynamicRanges", translateUI("Dynamický rozsah"), (range) => (range === "DV" ? "Dolby Vision" : range)],
+  ].map(([key, label, display]) => {
+    const group = el("div", { class: "pk-segmented pk-facet-options", role: "group", "aria-label": label });
+    return { key, display, group, values: "", field: el("div", { class: "pk-inline-field pk-facet", hidden: true }, el("span", {}, label), group) };
+  });
+  function renderFacets(options) {
+    for (const facet of facetGroups) {
+      const values = options[facet.key];
+      // Dynamický rozsah má smysl až při dvou hodnotách (stejně jako Windows).
+      facet.field.hidden = values.length < (facet.key === "dynamicRanges" ? 2 : 1);
+      if (facet.values !== JSON.stringify(values)) {
+        facet.values = JSON.stringify(values);
+        facet.group.replaceChildren(...values.map((value) => el("button", {
+          type: "button", "data-value": String(value),
+          onClick: () => {
+            const selected = facetSelection[facet.key];
+            if (selected.has(value)) selected.delete(value); else selected.add(value);
+            render();
+          },
+        }, facet.display(value))));
+      }
+      for (const b of facet.group.children)
+        b.setAttribute("aria-pressed", String([...facetSelection[facet.key]].some((v) => String(v) === b.dataset.value)));
+    }
+  }
   const sort = el(
     "select",
     { "aria-label": translateUI("Řazení zdrojů") },
+    el("option", { value: "recommended" }, translateUI("Doporučené")),
     el("option", { value: "quality" }, translateUI("Nejvyšší kvalita")),
     el("option", { value: "small" }, translateUI("Nejmenší soubor")),
     el("option", { value: "large" }, translateUI("Největší soubor")),
@@ -221,8 +232,7 @@ export async function sources(
     el(
       "div",
       { class: "source-filters pk-filters" },
-      quality,
-      el("label", { class: "pk-inline-field" }, el("span", {}, translateUI("Zvuk")), audioFilter),
+      ...facetGroups.map((facet) => facet.field),
       search,
       el("label", { class: "pk-inline-field pk-sort" }, el("span", {}, translateUI("Řadit")), sort),
     ),
@@ -324,6 +334,7 @@ export async function sources(
       ...(Array.isArray(stream.subtitle_languages)
         ? stream.subtitle_languages.map((l) => translateUI("{0} titulky", String(l).toUpperCase()))
         : []),
+      isDemoted(stream) ? translateUI(demotionLabel(stream)) : null,
     ].filter(Boolean);
     const selection = selectionFor(stream);
     const choice = el(
@@ -444,6 +455,20 @@ export async function sources(
       choice,
     );
   }
+  // Stejné Settings pro Doporučené, řazení i auto-výběr (StreamAutoSelector.Context).
+  const scoringContext = {
+    title: t.title, originalTitle: t.original_title,
+    year: t.year || Number(String(t.release_date || "").slice(0, 4)) || null,
+    season: episode?.season_number, episode: episode?.episode_number,
+    runtimeMinutes: episode?.runtime || t.runtime,
+    downlinkMbps: navigator.connection?.downlink,
+    displayMaxRank: (() => {
+      const width = Math.max(screen.width, screen.height) * (window.devicePixelRatio || 1);
+      return width >= 7680 ? 5 : width >= 3840 ? 4 : width >= 2560 ? 3 : width >= 1920 ? 2 : width >= 1280 ? 1 : 0;
+    })(),
+    wideColor: window.matchMedia("(dynamic-range: high)").matches,
+    primaryLanguage: uiLanguage(),
+  };
   function render() {
     const seen = new Set(),
       all = [];
@@ -478,17 +503,11 @@ export async function sources(
     allChip.setAttribute("aria-pressed", String(!providerFilter));
     for (const [name, { chip }] of providerChips)
       chip.setAttribute("aria-pressed", String(providerFilter === name));
-    for (const b of qualityButtons)
-      b.setAttribute("aria-pressed", String(b.dataset.value === qualityFilter));
-    for (const language of new Set(all.flatMap(languagesOf)))
-      if (![...audioFilter.options].some((o) => o.value === language))
-        audioFilter.append(el("option", { value: language }, language));
-    const filtered = all
+    renderFacets(facetOptions(all, scoringContext));
+    const basic = all
       .filter(
         (s) =>
           (!providerFilter || s.provider_name === providerFilter) &&
-          (!qualityFilter || s.video_height === Number(qualityFilter)) &&
-          (!audioFilter.value || languagesOf(s).includes(audioFilter.value)) &&
           (!search.value ||
             JSON.stringify([
               s.file_name,
@@ -499,14 +518,16 @@ export async function sources(
             ])
               .toLowerCase()
               .includes(search.value.toLowerCase())),
-      )
-      .sort((a, b) =>
-        sort.value === "small"
-          ? (a.file_size || Infinity) - (b.file_size || Infinity)
-          : sort.value === "large"
-            ? (b.file_size || 0) - (a.file_size || 0)
-            : (b.video_height || 0) - (a.video_height || 0),
       );
+    const faceted = facetStreams(basic, {
+      languages: [...[...facetSelection.audio].map((code) => `audio_${code}`), ...[...facetSelection.subtitles].map((code) => `sub_${code}`)],
+      resolutions: [...facetSelection.resolutions],
+      dynamicRanges: [...facetSelection.dynamicRanges],
+    }, scoringContext);
+    // Režimy kontraktu: quality, size, recommended; „Nejmenší soubor" = custom sizeSmall.
+    const filtered = sortStreams(faceted.items, sort.value === "small"
+      ? { mode: "custom", normalization: "lexicographic", weights: { sizeSmall: 8 } }
+      : sort.value === "large" ? "size" : sort.value === "quality" ? "quality" : "recommended", scoringContext);
     summary.textContent = translateUI(
       "{0} z {1} zdrojů{2}",
       filtered.length,
@@ -515,18 +536,8 @@ export async function sources(
     );
     progress.classList.toggle("is-pending", pending > 0);
     progressBar.style.width = `${((origins.length - pending) / origins.length) * 100}%`;
-    const sections = streamPickerSections(filtered, autoPlay || autoDownload ? null : {
-      title: t.title, originalTitle: t.original_title,
-      year: t.year || Number(String(t.release_date || "").slice(0, 4)) || null,
-      season: episode?.season_number, episode: episode?.episode_number,
-      runtimeMinutes: episode?.runtime || t.runtime,
-      downlinkMbps: navigator.connection?.downlink,
-      displayMaxRank: (() => {
-        const width = Math.max(screen.width, screen.height) * (window.devicePixelRatio || 1);
-        return width >= 7680 ? 5 : width >= 3840 ? 4 : width >= 2560 ? 3 : width >= 1920 ? 2 : width >= 1280 ? 1 : 0;
-      })(),
-      wideColor: window.matchMedia("(dynamic-range: high)").matches,
-    }, s => supportedProvider.test(s.provider_name || s.provider_identifier || "") && !appOnlyProvider(s.provider_name || s.provider_identifier) && providerReady(s));
+    const sections = streamPickerSections(filtered, autoPlay || autoDownload ? null : scoringContext,
+      s => supportedProvider.test(s.provider_name || s.provider_identifier || "") && !appOnlyProvider(s.provider_name || s.provider_identifier) && providerReady(s));
     const best = sections.find((section) => section.key === "recommended")?.streams[0];
     hero.replaceChildren(
       ...(best
@@ -553,6 +564,7 @@ export async function sources(
         : []),
     );
     list.replaceChildren(
+      ...(faceted.relaxed ? [el("p", { class: "pk-relaxed meta", role: "status" }, translateUI("Filtr nic nenašel – zobrazuji vše"))] : []),
       ...sections.flatMap((section) => [
         el("h3", { class: "source-section-title pk-section-title" }, `${translateUI(section.name)} · ${section.streams.length}`),
         ...section.streams.map((stream) => sourceRow(stream, section.key === "recommended")),
@@ -571,7 +583,7 @@ export async function sources(
         ),
       );
   }
-  for (const control of [search, audioFilter, sort])
+  for (const control of [search, sort])
     control.addEventListener("input", render);
   const suffix = `?limit=100${episode ? `&episode_id=${episode.id}` : ""}`;
   const ep = episode ? `?episode_id=${episode.id}` : "";
@@ -622,7 +634,8 @@ export async function sources(
     revision === sourceRevision &&
     dialog.open
   ) {
-    const options = [...results]
+    // „Podobné" se automaticky nikdy nepřehrají; pořadí = režim recommended.
+    const options = sortStreams([...results]
       .flatMap(([origin, streams]) =>
         streams.map((stream) => ({ ...stream, origin })),
       )
@@ -633,9 +646,9 @@ export async function sources(
           ) &&
           stream.available !== false &&
           !appOnlyProvider(stream.provider_name || stream.provider_identifier) &&
-          providerReady(stream),
-      )
-      .sort((a, b) => (b.video_height || 0) - (a.video_height || 0));
+          providerReady(stream) &&
+          eligible(stream, scoringContext),
+      ), "recommended", scoringContext);
     if (options.length) {
       const stream = options[0];
       const selection = {
