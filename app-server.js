@@ -1651,6 +1651,7 @@ function createAppHandler({
             subtitleSelector: body.subtitle_selector,
             offlineExport: body.offline_export === true,
             cookieless: body.cookieless_media === true,
+            party: body.party === true && body.offline_export !== true,
             maxBytes: body.max_bytes,
             clientKey: typeof body.client_key === "string" ? body.client_key : undefined,
             playbackRate: [0.5, 0.75, 1, 1.25, 1.5, 2].includes(

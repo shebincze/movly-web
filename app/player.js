@@ -34,6 +34,7 @@ import Hls from "./vendor/hls.mjs";
 import { nextReleasedEpisode, episodeReleaseState } from "./episode-policy.js";
 import { saveOffline } from "./offline.js";
 import { mountPlayerControls, seekPlan, nextCountdown, CONTINUE_PROMPT_AFTER } from "./player-controls.js";
+import { createPartyFollower } from "./party-sync.js";
 let mediaPreferences = {
   video_mode: "compatible",
   audio_mode: "stereo",
@@ -766,7 +767,7 @@ async function play(
         subtitle,
         ...(restoreTracks ? { audio_selector: saved.audio.key, subtitle_selector: saved.subtitle.key } : {}),
         ...mediaPreferences,
-        ...(inParty ? { playback_rate: 1 } : {}),
+        ...(inParty ? { playback_rate: 1, party: true } : {}),
         capabilities,
       },
     }).catch((error) => {
@@ -809,83 +810,77 @@ async function play(
     video.addEventListener("loadedmetadata", () => handle.telemetry.stage("media_opened", performance.now()-mediaStartedAt), {once:true});
     video.playbackRate = inParty ? 1 : mediaPreferences.playback_rate;
     if (inParty) {
-      let applying = false,
-        seeking = false,
-        remoteSeek = null,
-        remotePaused = null;
-      const publish = () => {
-        if (!applying && !seeking && !handle.cancelled && partyPlaybackMatches(handle.partyPlayback) && !partyWaiting())
-          partyTransport(!video.paused, offset + video.currentTime).catch((e) =>
-            toast(e.message),
-          );
+      // Hodiny místnosti sleduje čistý automat (#146): připravený seek, jeden
+      // retry, slew, ochrana bufferu v pauze. Do místnosti jde jen záměr
+      // uživatele (#147): ovládání volá partyTransport přímo, play/pause
+      // vyvolané smyčkou se neodesílají a seeky smyčky nikdy.
+      const follower = createPartyFollower();
+      const expected = { play: 0, pause: 0 };
+      const intendedPosition = () => {
+        try { return partyPosition(); } catch { return offset + video.currentTime; }
+      };
+      const publishIntent = (playing) => {
+        if (handle.cancelled || !partyPlaybackMatches(handle.partyPlayback) || partyWaiting()) return;
+        partyTransport(playing, intendedPosition()).catch((e) => toast(e.message));
+      };
+      handle.partyToggle = () => publishIntent(partyState()?.status !== "playing");
+      const pauseVideo = () => {
+        if (video.paused) return;
+        expected.pause = Date.now() + 1500;
+        video.pause();
       };
       video.addEventListener("play", () => {
+        if (expected.play > Date.now()) {
+          expected.play = 0;
+          return;
+        }
         if (partyWaiting()) {
-          remotePaused = true;
-          video.pause();
+          pauseVideo();
           return;
         }
-        if (remotePaused === false) {
-          remotePaused = null;
-          return;
-        }
-        publish();
+        // Spuštění mimo ovládání přehrávače (obraz v obraze, mediální klávesy).
+        if (partyState()?.status !== "playing") publishIntent(true);
       });
       video.addEventListener("pause", () => {
-        if (remotePaused === true) {
-          remotePaused = null;
+        if (expected.pause > Date.now()) {
+          expected.pause = 0;
           return;
         }
-        publish();
-      });
-      video.addEventListener("seeking", () => {
-        seeking = true;
-      });
-      video.addEventListener("seeked", () => {
-        seeking = false;
-        if (
-          remoteSeek !== null &&
-          Math.abs(video.currentTime - remoteSeek) < 0.5
-        ) {
-          remoteSeek = null;
-          return;
-        }
-        remoteSeek = null;
-        publish();
+        if (video.ended) return;
+        if (partyState()?.status === "playing") publishIntent(false);
       });
       handle.partyTimer = setInterval(() => {
         if (handle.cancelled) return;
-        if (!partyPlaybackMatches(handle.partyPlayback)) { video.pause(); return; }
+        if (!partyPlaybackMatches(handle.partyPlayback)) { pauseVideo(); return; }
         const waiting = partyWaiting();
-        const target = waiting ? 0 : partyPosition();
+        let target;
+        try { target = waiting ? 0 : partyPosition(); } catch { return; }
         const mediaReady = video.readyState >= 3 && !video.error;
-        const ready = mediaReady && !video.seeking && (!waiting || Math.abs(video.currentTime + offset - target) <= 0.5);
+        const here = offset + video.currentTime;
+        const ready = mediaReady && !video.seeking && (!waiting || Math.abs(here - target) <= 0.5);
         reportPartyReady(ready, handle.partyPlayback);
         handle.controls?.update();
-        if (!mediaReady) return;
-        applying = true;
-        if (Math.abs(video.currentTime + offset - target) > 0.5) {
-          remoteSeek = Math.max(0, target - offset);
-          video.currentTime = remoteSeek;
-        }
-        const shouldPlay = !waiting && partyState().status === "playing";
-        if (shouldPlay && video.paused) {
-          remotePaused = false;
+        if (video.readyState < 1 || video.error) return;
+        const buffered = [];
+        for (let i = 0; i < video.buffered.length; i++)
+          buffered.push([offset + video.buffered.start(i), offset + video.buffered.end(i)]);
+        const step = follower.tick({
+          now: performance.now(), position: here, seeking: video.seeking, ready: mediaReady,
+          playing: !video.paused, target, roomPlaying: !waiting && partyState().status === "playing",
+          waiting, buffered, duration: session.duration,
+          produced: video.seekable.length ? offset + video.seekable.end(video.seekable.length - 1) : null,
+        });
+        if (step.seekTo !== null) video.currentTime = Math.max(0, step.seekTo - offset);
+        if (step.play && video.paused) {
+          expected.play = Date.now() + 1500;
           video.play().catch(() => {
-            remotePaused = null;
-            status.textContent = translateUI(
-              "Prohlížeč vyžaduje klepnutí na přehrát.",
-            );
+            expected.play = 0;
+            status.textContent = translateUI("Prohlížeč vyžaduje klepnutí na přehrát.");
           });
         }
-        if (!shouldPlay && !video.paused) {
-          remotePaused = true;
-          video.pause();
-        }
-        // DOM media events are queued after play/pause/currentTime changes.
-        setTimeout(() => {
-          applying = false;
-        }, 0);
+        if (!step.play) pauseVideo();
+        if (video.playbackRate !== step.rate) video.playbackRate = step.rate;
+        if (step.diagnostic) console.debug("[party]", step.diagnostic);
         if (waiting)
           status.textContent = translateUI(
             "Čekáme na přehrávače ({0}/{1})",
@@ -1406,6 +1401,7 @@ async function play(
       storage: localStorage,
       positionNow,
       seekTo,
+      togglePlayback: inParty ? () => handle.partyToggle?.() : null,
       active: () => current === handle && !handle.cancelled && playerRoot.isConnected && dialog.open,
       disabled: () => inParty && partyWaiting(),
       pageFullscreen: keepPageFullscreen,

@@ -94,7 +94,7 @@ function pipSupported(video) {
 // čtou z celého dokumentu, dokud `active()` platí: fokus po otevření dialogu
 // stojí na zavíracím tlačítku mimo přehrávač. `seekTo` dostává absolutní
 // pozici titulu, `disabled` vrací true během čekání Watch Party.
-export function mountPlayerControls({ el, glyph, translate, video, screen, keyRoot, storage, positionNow, seekTo, active = () => true, disabled = () => false, onInteraction = () => {}, pageFullscreen: startInPage = false }) {
+export function mountPlayerControls({ el, glyph, translate, video, screen, keyRoot, storage, positionNow, seekTo, togglePlayback = null, active = () => true, disabled = () => false, onInteraction = () => {}, pageFullscreen: startInPage = false }) {
   const saved = readVolume(storage);
   video.volume = saved.volume;
   video.muted = saved.muted;
@@ -120,6 +120,8 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
   };
   const toggle = () => {
     if (disabled()) return;
+    // Watch Party: přepínač je záměr pro místnost, video řídí její hodiny (#147).
+    if (togglePlayback) return togglePlayback();
     if (video.paused || video.ended) video.play().catch(() => {});
     else video.pause();
   };

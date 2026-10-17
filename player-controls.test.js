@@ -137,3 +137,19 @@ test('a refusal arriving after the player closed does not lock the page',async()
   assert.equal(late.doc.documentElement.classList.contains('pk-page-fullscreen-open'),false);
  }finally{delete globalThis.document;}
 });
+test('in Watch Party the play toggle and shortcuts send the intent to the room and never touch the video (#147)',async()=>{
+ let intents=0;
+ const {doc,video,controls}=await mountFake({screenApi:{},options:{togglePlayback:()=>{intents++;}}});
+ try{
+  let plays=0,pauses=0;
+  video.play=async()=>{plays++;};video.pause=()=>{pauses++;};
+  const toggle=controls.element.children.find(n=>n.label==='Přehrát');
+  toggle.click();
+  doc.fire('keydown',{key:'k',target:{tagName:'DIV',closest:()=>null},preventDefault(){}});
+  video.paused=false;
+  toggle.click();
+  assert.equal(intents,3);
+  assert.equal(plays+pauses,0,'the room clock, not the control, drives the video');
+  controls.cleanup();
+ }finally{delete globalThis.document;}
+});
