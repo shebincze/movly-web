@@ -1147,6 +1147,33 @@ test("effective policy BFF is read-only, selected-profile scoped and closed to a
   assert.equal((await h.request("profiles/effective-content-policy?profile_id=2", { cookie: s.cookie })).status, 400);
 });
 
+test("effective policy BFF reports an API without the route as unsupported, not as a profile error", async () => {
+  const upstream = (status, payload) => Object.assign(new Error(payload.message), { status, payload });
+  let answer;
+  const h = harness({
+    override: (path) => {
+      if (path.split("?")[0] === "v1/profiles/effective-content-policy" && answer) throw answer;
+    },
+  });
+  const s = await h.selected();
+  // Production API before 29d3f0b matches GET /profiles/:id for this path (#1091).
+  answer = upstream(400, {
+    error: "Invalid profile ID",
+    message: "Invalid profile ID",
+    detail: { error: "Invalid profile ID", message: "Invalid profile ID", code: "invalid_input" },
+  });
+  const old = await h.request("profiles/effective-content-policy", { cookie: s.cookie });
+  assert.equal(old.status, 404);
+  assert.equal(old.body.code, "effective_policy_unsupported");
+  // Any other 400 (e.g. an invalid X-Profile-ID on a current API) stays a failure.
+  answer = upstream(400, { error: "Invalid X-Profile-ID", message: "X-Profile-ID must contain exactly one trimmed positive integer" });
+  assert.equal((await h.request("profiles/effective-content-policy", { cookie: s.cookie })).status, 400);
+  answer = upstream(403, { error: "Profile policy unavailable", message: "Select a valid owned profile" });
+  assert.equal((await h.request("profiles/effective-content-policy", { cookie: s.cookie })).status, 403);
+  answer = null;
+  assert.equal((await h.request("profiles/effective-content-policy", { cookie: s.cookie })).status, 200);
+});
+
 test("search clicks pin the selected profile and accept only validated click payloads", async () => {
   const h = harness({ override: (path) => path.split("?")[0] === "v1/track-search" ? { payload: { status: "success" } } : undefined });
   const s = await h.selected();

@@ -1486,6 +1486,21 @@ function createAppHandler({
       let query = target === "titles/batch" ? "" : /^sync\/v2\/profile-data\/(?:snapshot|changes)$/.test(target)
         ? cleanPersonalDataQuery(url, rule[2])
         : cleanQuery(url, rule[2], language);
+      if (target === "profiles/effective-content-policy") {
+        try {
+          json(res, 200, await call(s, target + query));
+        } catch (error) {
+          // An API without this route (#1091) matches GET /profiles/:id and answers
+          // 400 "Invalid profile ID". Report that exact answer as an unsupported
+          // endpoint, so the client verifies the legacy profile policy as for 404.
+          if (error?.status === 400 && error.payload?.error === "Invalid profile ID")
+            throw new HttpError(404, "Server zatím nepodporuje souhrnnou politiku profilu.", {
+              code: "effective_policy_unsupported",
+            });
+          throw error;
+        }
+        return true;
+      }
       if (target === "autocomplete" && (!url.searchParams.get("q")?.trim() || url.searchParams.get("q").length > 100))
         throw new HttpError(400, "Zadej hledaný výraz o délce 1 až 100 znaků.");
       if (target === "home") {
