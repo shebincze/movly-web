@@ -206,6 +206,17 @@ function mediaPlan(info, audio = 0, subtitle = -1, options = {}) {
     fmp4: Boolean(fmp4),
   };
 }
+const PARTY_READRATE = 2;
+// Segmenty (4 s) vyrobené nad poslední vyžádaný segment, kdy se výroba party
+// relace pozastaví. hls.js si navíc drží až 24 s bufferu.
+const PARTY_LEAD = 6;
+function partyGovernor(p, newest) {
+  if (!p.party || !p.child || p.finished) return null;
+  const lead = newest - (p.lastSegment ?? -1);
+  if (!p.held && lead >= PARTY_LEAD) return "SIGSTOP";
+  if (p.held && lead < PARTY_LEAD - 1) return "SIGCONT";
+  return null;
+}
 function ffmpegArgs(
   input,
   output,
@@ -244,7 +255,9 @@ function ffmpegArgs(
     "-ss",
     String(offset),
     "-readrate",
-    String(Math.max(1, options.playbackRate || 1)),
+    // Watch Party vyrábí 2× s omezeným náskokem (PARTY_LEAD), aby seek hosta
+    // mířil do vyrobené části (#146). Sólo přehrávání beze změny.
+    String(options.party === true ? PARTY_READRATE : Math.max(1, options.playbackRate || 1)),
     "-i",
     input,
   ];
@@ -403,6 +416,27 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
     }
   }, 30000);
   timer.unref();
+  // Watch Party: výroba 2× s omezeným náskokem. Nad PARTY_LEAD segmentů se
+  // FFmpeg pozastaví (SIGSTOP) a pokračuje, jakmile přehrávač odebere segment.
+  // HLS vstup proxy drží celý v paměti (#145), pauza tedy CDN nezdržuje.
+  let governing = false;
+  const governor = setInterval(async () => {
+    if (governing) return;
+    governing = true;
+    try {
+      for (const p of sessions.values()) {
+        if (!p.party || !p.child) continue;
+        const newest = await fs.readdir(p.dir).then(
+          (names) => names.reduce((max, n) => { const m = /^index(\d+)\.(?:ts|m4s)$/.exec(n); return m ? Math.max(max, Number(m[1])) : max; }, -1),
+          () => -1,
+        );
+        const signal = partyGovernor(p, newest);
+        if (!signal || !sessions.has(p.id)) continue;
+        try { p.child.kill(signal); p.held = signal === "SIGSTOP"; } catch {}
+      }
+    } finally { governing = false; }
+  }, 1000);
+  governor.unref();
   let proxyInitialization;
   async function init() {
     if (port) return;
@@ -646,6 +680,7 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
         // Přehrávače TV (LG NetCast) stahují HLS mimo prohlížeč bez cookie;
         // pro ně tajný klíč v adrese, jen pro index.m3u8 a segmenty.
         mediaToken: options.cookieless === true ? crypto.randomBytes(24).toString("hex") : null,
+        party: options.party === true && options.offlineExport !== true,
       };
       sessions.set(p.id, p);
       const input = `http://127.0.0.1:${port}/${p.id}`;
@@ -957,6 +992,7 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
   }
   async function close() {
     clearInterval(timer);
+    clearInterval(governor);
     for (const p of sessions.values()) await stop(p);
     if (proxy) await new Promise((resolve) => proxy.close(resolve));
   }
@@ -979,6 +1015,9 @@ function createPlayback({ requestMedia = mediaRequest } = {}) {
   return { start, analyze, handle, close, stopOwner, stopPending };
 }
 module.exports = {
+  PARTY_LEAD,
+  PARTY_READRATE,
+  partyGovernor,
   bufferableSegment,
   readSegment,
   rewritePlaylist,

@@ -10,6 +10,9 @@ const path = require("node:path");
 const os = require("node:os");
 const { md5crypt } = require("./providers-server");
 const {
+  PARTY_LEAD,
+  PARTY_READRATE,
+  partyGovernor,
   bufferableSegment,
   readSegment,
   createPlayback,
@@ -118,6 +121,59 @@ test("a provider that drops a HLS segment midway is retried once and FFmpeg rece
     assert.ok(segmentRequests.size > 0);
     for (const [name, count] of segmentRequests) assert.equal(count, 2, `${name} retried exactly once`);
   } finally { await engine.close(); await fs.rm(dir, { recursive: true, force: true }); }
+});
+test("Watch Party sessions produce ahead at 2x and pause FFmpeg at a bounded lead (#146)", () => {
+  const info = { streams: [{ codec_type: "video", codec_name: "h264", width: 640, height: 360, pix_fmt: "yuv420p" }, { codec_type: "audio", codec_name: "aac", channels: 2 }] };
+  const readrate = (options) => { const args = ffmpegArgs("in", "out", info, 0, 0, -1, options); return args[args.indexOf("-readrate") + 1]; };
+  assert.equal(readrate({ party: true, playbackRate: 1 }), String(PARTY_READRATE));
+  assert.equal(readrate({ playbackRate: 1 }), "1", "solo playback keeps real-time production");
+  assert.equal(readrate({ playbackRate: 1.5 }), "1.5");
+  const p = { party: true, child: {}, finished: false, held: false };
+  assert.equal(partyGovernor(p, PARTY_LEAD - 2), null, "no segment requested yet, still below the lead");
+  assert.equal(partyGovernor(p, PARTY_LEAD - 1), "SIGSTOP");
+  p.held = true;
+  assert.equal(partyGovernor(p, PARTY_LEAD), null, "held while the player has not taken a segment");
+  p.lastSegment = 1;
+  assert.equal(partyGovernor(p, PARTY_LEAD), null, "one segment of hysteresis");
+  p.lastSegment = 2;
+  assert.equal(partyGovernor(p, PARTY_LEAD), "SIGCONT");
+  assert.equal(partyGovernor({ ...p, party: false }, 99), null);
+  assert.equal(partyGovernor({ ...p, finished: true }, 99), null);
+});
+test("a held Watch Party FFmpeg stops producing and resumes when the player takes a segment (#146)", { timeout: 60000 }, async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "movly-party-lead-")), file = path.join(dir, "input.mkv");
+  try {
+    const generated = spawnSync("ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
+      "-t", "60", "-c:v", "libx264", "-threads", "1", "-g", "48", "-c:a", "aac", "-y", file], { timeout: 30000 });
+    assert.equal(generated.status, 0, generated.stderr?.toString());
+    const source = async (_url, range) => {
+      const size = (await fs.stat(file)).size, start = range ? Number(range.match(/\d+/)[0]) : 0;
+      const stream = createReadStream(file, { start });
+      stream.statusCode = range ? 206 : 200;
+      stream.headers = { "content-type": "video/x-matroska", "content-length": String(size - start), "accept-ranges": "bytes",
+        ...(range ? { "content-range": `bytes ${start}-${size - 1}/${size}` } : {}) };
+      return stream;
+    };
+    const engine = createPlayback({ requestMedia: source }), session = { token: "a", device: "d", profile: { id: 1 }, grant: "g" };
+    const before = new Set(await fs.readdir(os.tmpdir()));
+    try {
+      const result = await engine.start(session, "https://h1.webshare.cz/party", { party: true });
+      const playDir = path.join(os.tmpdir(), (await fs.readdir(os.tmpdir())).find((n) => n.startsWith("movly-play-") && !before.has(n)));
+      const count = async () => (await fs.readdir(playDir)).filter((n) => /^index\d+\.ts$/.test(n)).length;
+      const wait = async (predicate, ms) => { const end = Date.now() + ms; while (Date.now() < end) { if (await predicate()) return true; await new Promise((r) => setTimeout(r, 200)); } return false; };
+      assert.ok(await wait(async () => (await count()) >= PARTY_LEAD, 25000), "produced the lead");
+      await new Promise((r) => setTimeout(r, 2500));
+      const held = await count();
+      await new Promise((r) => setTimeout(r, 3000));
+      assert.equal(await count(), held, "no production while the lead is full");
+      assert.ok(held <= PARTY_LEAD + 1, `bounded lead: ${held}`);
+      const res = new Writable({ write(_d, _e, done) { done(); } });
+      res.writeHead = () => {};
+      await engine.handle(session, { method: "GET" }, res, result.id, "index2.ts");
+      await finished(res);
+      assert.ok(await wait(async () => (await count()) > held, 10000), "production resumed after the player took a segment");
+    } finally { await engine.close(); }
+  } finally { await fs.rm(dir, { recursive: true, force: true }); }
 });
 for (const [codec, withSubs, native = false] of [
   ["libx264", false],
