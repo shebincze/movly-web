@@ -1131,9 +1131,12 @@ async function play(
     // Přeskočení intra potřebuje délku dílu, tu zná až prohlížeč.
     video.addEventListener("loadedmetadata", () => {
       if (handle.cancelled || handle.introCleanup) return;
-      handle.introCleanup = mountIntroSkip({container:skipIntro,scope,title:t.id,episode,duration:session.duration,
+      handle.introCleanup = mountIntroSkip({container:skipIntro,scope,title:t.id,episode,movie:t.type==="movie",duration:session.duration,
         position:positionNow,playing:()=>!video.paused,canSeek:()=>video.readyState>=2&&!partyWaiting()&&(!inParty||partyIsHost()),
         chapters:session.chapters,current:()=>current===handle&&!handle.cancelled,
+        // Titulky: „Další díl“ je stálé tlačítko (mimo party), dohledání dalšího dílu se zkusí jednou a sdílí s odpočtem.
+        nextButton:()=>nextEpisode,upNextVisible:()=>!nextPanel.hidden,
+        hasNextEpisode:()=>{if(!handle.nextProbed){handle.nextProbed=true;nextLookup().then(next=>{handle.nextAvailable=!!next;},()=>{});}return handle.nextAvailable===true;},
         machine:introMachine,seek:async (target)=>{ await seekTo(target); }});
     }, { once: true });
     // Další díl se dohledá jednou (odpočet, konec dílu i tlačítko ho sdílí).

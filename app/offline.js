@@ -307,7 +307,7 @@ export async function offlineLibrary(
         if (owner && alive && Number.isFinite(video.duration)) {
           introCleanup?.();
           introCleanup = mountIntroSkip({container:introControls,scope:owner,title:file.identity?.titleId,
-            episode:file.identity?.type === "tv" ? {season_number:file.identity.season,episode_number:file.identity.episode}:null,
+            episode:file.identity?.type === "tv" ? {season_number:file.identity.season,episode_number:file.identity.episode}:null,movie:file.identity?.type === "movie",
             duration:video.duration,position:()=>video.currentTime,playing:()=>!video.paused,
             canSeek:()=>alive,seek:target=>{video.currentTime=target;},current:()=>alive,offline:true});
         }
