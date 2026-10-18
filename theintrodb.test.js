@@ -44,6 +44,13 @@ test("contract merge section", async () => {
     assert.deepEqual(mergePlaybackSegments(c.durationMs ?? data.durationMs, c.theintrodb, c.server, c.nowS ?? data.nowS), c.expect, c.name);
 });
 
+test("agreement boundary: exactly 2000 ms corroborates, 2001 ms does not", async () => {
+  const { mergePlaybackSegments } = await load();
+  const tidb = { result: "segments", segments: [{ kind: "intro", start_ms: 30000, end_ms: 90000, trusted: true }] };
+  const server = (start) => ({ stale: false, expires_at: 1792314000, segments: [{ id: `intro:${start}:92000`, kind: "intro", start_ms: start, end_ms: 92000, source: "introdb", auto_eligible: false }] });
+  assert.equal(mergePlaybackSegments(3500192, tidb, server(32000), 1792310400)[0].auto_eligible, true);
+  assert.equal(mergePlaybackSegments(3500192, tidb, server(32001), 1792310400)[0].auto_eligible, false);
+});
 test("oversized bodies are an error before JSON parsing, numeric-looking Retry-After is not a date", async () => {
   const { parseTheIntroDb } = await load();
   const episode = data.identities.episode;
