@@ -2,7 +2,8 @@ import { translateUI } from "./i18n.js";
 import { api, apiContextKey } from "./api.js";
 import { el, button, showDialog, toast } from "./ui.js";
 import { playbackOwner } from "./playback-memory.js";
-import { IntroSkipMachine, creditsOffer, mergeChapterIntros, readIntroCache, writeIntroCache } from "./intro-skip-policy.js";
+import { IntroSkipMachine, creditsOffer, mergeChapterIntros, readIntroCache, writeIntroCache, introSegmentsCache } from "./intro-skip-policy.js";
+import { theIntroDb, theIntroDbIdentity, mergePlaybackSegments } from "./theintrodb.js";
 const modes = { off:"Vypnuto", manual:"Nabízet přeskočení", auto:"Automaticky" };
 const scopeKey = scope => `${scope?.accountId}.${scope?.profileId}`;
 function cachedMode(scope) { try { return localStorage.getItem("movly.intro.mode."+scopeKey(scope)) || "manual"; } catch {return "manual";} }
@@ -11,7 +12,10 @@ export async function openIntroSettings() {
   const scope=playbackOwner(), revision=apiContextKey();
   const select=el("select", {"aria-label":translateUI("Přeskakování intra")}, ...Object.entries(modes).map(([value,label])=>el("option",{value},translateUI(label))));
   const status=el("p",{role:"status"});select.value=cachedMode(scope);select.disabled=true;
-  showDialog(el("div",{class:"dialog-body"},el("h2",{id:"dialog-title"},translateUI("Přeskakování intra")),select,status));
+  // Atribuce TheIntroDB (podmínky §4.2): web nemá sekci zdrojů, proto přímo u volby přeskakování.
+  const attribution=el("p",{class:"settings-entry-note"},translateUI("Časy úvodů, rekapitulací a titulků: "),
+    el("a",{href:"https://theintrodb.org",target:"_blank",rel:"noopener noreferrer"},"TheIntroDB"));
+  showDialog(el("div",{class:"dialog-body"},el("h2",{id:"dialog-title"},translateUI("Přeskakování intra")),select,status,attribution));
   try {const value=await api("playback/preferences",{expectedOwner:scope});if(revision!==apiContextKey())return;select.value=value.intro_skip_mode;storeMode(scope,value.intro_skip_mode);} catch {status.textContent=translateUI("Nastavení se nepodařilo synchronizovat.");} finally {select.disabled=!scope;}
   select.addEventListener("change",async()=>{
     if(revision!==apiContextKey())return;select.disabled=true;
@@ -23,9 +27,12 @@ const skipLabel = (kind, countdown) => kind === "recap"
   ? countdown === null ? translateUI("Přeskočit rekapitulaci") : translateUI("Přeskočit rekapitulaci za {0} s", countdown)
   : countdown === null ? translateUI("Přeskočit intro") : translateUI("Přeskočit intro za {0} s", countdown);
 // Web nemá samostatné „Další díl“: u titulků se zvýrazní stálé tlačítko další epizody (nextButton), vlastní tlačítko je jen „Přeskočit titulky“.
+// Server (IntroDB.app přes BFF) a TheIntroDB (přímo z prohlížeče, ne přes BFF) se načítají souběžně a slučují
+// podle contracts/playback-segments; výsledek jde beze změny do IntroSkipMachine a creditsOffer.
+// externalIds: async () => {tmdb_id, imdb_id} titulu (u dílu seriálu tmdb_id seriálu).
 export function mountIntroSkip({container,scope,title,episode,movie=false,duration,position,playing,canSeek,seek,chapters=[],current,offline=false,
-  hasNextEpisode=()=>false,upNextVisible=()=>false,nextButton=()=>null,machine=new IntroSkipMachine()}) {
-  let mode=cachedMode(scope), response=null, closed=false, loading=false;
+  hasNextEpisode=()=>false,upNextVisible=()=>false,nextButton=()=>null,machine=new IntroSkipMachine(),externalIds=async()=>null,theIntroDbClient=theIntroDb}) {
+  let mode=cachedMode(scope), response=null, tidb=null, tidbSettled=false, closed=false, loading=false;
   const revision=apiContextKey(), abort=new AbortController();
   const permitted=()=>!closed && current() && revision===apiContextKey() && canSeek();
   const jump=target=>{if(target!==null && permitted())Promise.resolve(seek(target/1000,machine)).catch(e=>toast(e.message));};
@@ -37,16 +44,30 @@ export function mountIntroSkip({container,scope,title,episode,movie=false,durati
   const emphasize=on=>{const b=nextButton();if(!b)return;b.classList.toggle("pk-next-credits",on);if(on)b.setAttribute("aria-label",translateUI("Další díl"));else b.removeAttribute("aria-label");};
   container.append(undo,skip,cancel,credits);
   const key=`${scopeKey(scope)}.${title}.${episode?.season_number}.${episode?.episode_number}.${Math.floor(duration)}`;
-  response=readIntroCache(localStorage,key);
+  response=readIntroCache(introSegmentsCache,key);
+  const totalMs=Math.round(duration*1000);
   const load=async()=>{
     if(loading || offline || !scope || !episode&&!movie || !Number.isFinite(duration)||duration<5||duration>21600)return;
     loading=true;
     try {
     try {const p=await api("playback/preferences",{expectedOwner:scope,signal:abort.signal});if(closed||revision!==apiContextKey())return;mode=p.intro_skip_mode;storeMode(scope,mode);}catch{}
-    if(closed||mode==="off"||response&&!response.stale&&response.expires_at*1000>Date.now())return;
-    // Film posílá jen title_id + duration_ms; díl bez známých čísel se nedotazuje vůbec.
-    const q=new URLSearchParams(episode?{title_id:title,season:episode.season_number,episode:episode.episode_number,duration_ms:Math.round(duration*1000)}:{title_id:title,duration_ms:Math.round(duration*1000)});
-    try {const value=await api("playback/segments?"+q,{expectedOwner:scope,signal:abort.signal});if(closed||revision!==apiContextKey())return;if(!Array.isArray(value.segments))return;response=value;writeIntroCache(localStorage,key,value);}catch{}
+    if(closed||mode==="off")return;
+    const server=async()=>{
+      if(response&&!response.stale&&response.expires_at*1000>Date.now())return;
+      // Film posílá jen title_id + duration_ms; díl bez známých čísel se nedotazuje vůbec.
+      const q=new URLSearchParams(episode?{title_id:title,season:episode.season_number,episode:episode.episode_number,duration_ms:totalMs}:{title_id:title,duration_ms:totalMs});
+      try {const value=await api("playback/segments?"+q,{expectedOwner:scope,signal:abort.signal});if(closed||revision!==apiContextKey())return;if(!Array.isArray(value.segments))return;response=value;writeIntroCache(introSegmentsCache,key,value);}catch{}
+    };
+    // TheIntroDB: veřejná data nezávislá na profilu; selhání nikdy nezastaví video ani serverové segmenty.
+    const direct=async()=>{
+      if(tidbSettled)return;
+      try {
+        const ids=await externalIds();if(closed)return;
+        const value=await theIntroDbClient.lookup(theIntroDbIdentity({movie,episode,tmdbId:ids?.tmdb_id,imdbId:ids?.imdb_id,durationMs:totalMs}));
+        if(closed)return;tidb=value;tidbSettled=value?.result!=="error";
+      } catch {}
+    };
+    await Promise.all([server(),direct()]);
     } finally {loading=false;}
   };
   void load();
@@ -54,8 +75,9 @@ export function mountIntroSkip({container,scope,title,episode,movie=false,durati
     const selected=cachedMode(scope);
     if(mode==="off"&&selected!=="off")void load();
     mode=selected;
-    const remote=response?.expires_at*1000>Date.now()&&!response?.stale ? response?.segments||[] : (response?.segments||[]).map(s=>({...s,auto_eligible:false}));
-    const segments=mergeChapterIntros(chapters,remote), now=Math.round(position()*1000), total=Math.round(duration*1000), can=permitted();
+    // Sloučení (stale, auto_eligible jen při shodě TheIntroDB a serveru) se přepočítá, jakmile dorazí druhý zdroj.
+    const remote=mergePlaybackSegments(totalMs,tidb,response,Date.now()/1000);
+    const segments=mergeChapterIntros(chapters,remote), now=Math.round(position()*1000), total=totalMs, can=permitted();
     const target=machine.tick({position:now,duration:total,now:performance.now(),playing:playing(),canSeek:can,mode,segments});
     skip.hidden=!machine.offer;skip.textContent=skipLabel(machine.offer?.kind,machine.countdown);
     // Další díl se dohledá až těsně před titulky, ne při každém spuštění dílu.

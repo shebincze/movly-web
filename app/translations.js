@@ -23,6 +23,7 @@ export const translations = {
   "Přeskočit intro": ["Preskočiť intro", "Skip intro"],
   "Přeskočit intro za {0} s": ["Preskočiť intro o {0} s", "Skip intro in {0} s"],
   "Přeskočit rekapitulaci": ["Preskočiť rekapituláciu", "Skip recap"],
+  "Časy úvodů, rekapitulací a titulků: ": ["Časy úvodov, rekapitulácií a titulkov: ", "Intro, recap and credits timestamps: "],
   "Přeskočit rekapitulaci za {0} s": ["Preskočiť rekapituláciu o {0} s", "Skip recap in {0} s"],
   "Přeskočit titulky": ["Preskočiť titulky", "Skip credits"],
   "Další díl": ["Ďalší diel", "Next episode"],

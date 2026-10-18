@@ -1188,6 +1188,8 @@ test('TV lite: vstupní stránka a soubory mají správné typy a nezměněné C
       assert.match(csp, /style-src 'self';/, route);
       const directives = Object.fromEntries(csp.split(";").filter(s => s.trim()).map(s => { const [name, ...sources] = s.trim().split(/\s+/); return [name, sources]; }));
       assert.ok(directives["img-src"].includes("data:"), route);
+      // TheIntroDB volá prohlížeč přímo (movly-web#166); jiný cizí origin connect-src nepovoluje.
+      assert.deepEqual(directives["connect-src"], ["'self'", "https://api.theintrodb.org"], route);
       assert.deepEqual(Object.keys(directives).filter(name => directives[name].includes("data:")), ["img-src"], route);
       assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval/, route);
     }
