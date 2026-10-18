@@ -1,6 +1,6 @@
 import { translateUI } from "./i18n.js";
 export const CHUNK_BYTES = 512 * 1024;
-export const OFFLINE_CACHE_NAME = "movly-offline-shell-v29-stream-scoring";
+export const OFFLINE_CACHE_NAME = "movly-offline-shell-v30-playback-segments";
 const OFFLINE_POLICY_MARKER_CACHE_NAME = "movly-offline-policy-markers-v1";
 const volatilePolicyBlocks = new Map();
 const request = (r) =>

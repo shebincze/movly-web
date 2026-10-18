@@ -187,7 +187,13 @@ function createFixture({ externalListCount = 0 } = {}) {
       if (method === "PUT") introModes.set(key, body.intro_skip_mode);
       return {payload:{intro_skip_mode:introModes.get(key) || "manual"}};
     }
-    if (p === "v1/playback/segments") return {payload:{duration_ms:Number(u.searchParams.get("duration_ms")),expires_at:Math.floor(Date.now()/1000)+86400,stale:false,segments:[{id:"intro:10000:70000",kind:"intro",start_ms:10000,end_ms:70000,source:"theintrodb",auto_eligible:true}]}};
+    if (p === "v1/playback/segments") {
+      // #1110: recap + intro + credits ending 10 s before the end (no post_credits), so episodes offer the next episode, movies skip.
+      const d=Number(u.searchParams.get("duration_ms")), segments=[{id:"recap:0:8000",kind:"recap",start_ms:0,end_ms:8000,source:"introdb",auto_eligible:false},
+        {id:"intro:10000:70000",kind:"intro",start_ms:10000,end_ms:70000,source:"theintrodb",auto_eligible:true}];
+      if (d > 200000) segments.push({id:`credits:${d-90000}:${d-10000}`,kind:"credits",start_ms:d-90000,end_ms:d-10000,source:"introdb",auto_eligible:false});
+      return {payload:{duration_ms:d,expires_at:Math.floor(Date.now()/1000)+86400,stale:false,segments}};
+    }
     const type = u.searchParams.get("type"),
       all = type === "tv" ? series : films;
     if (p === "v1/recommendations/action") return { payload: { status: "ok" } };

@@ -340,6 +340,8 @@
 
 .pk-intro-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .pk-intro-controls[hidden] { display:none; }
+/* Během titulků se zvýrazní stálé tlačítko další epizody místo druhého konkurenčního tlačítka. */
+.pk-control.pk-next-credits { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* ---------- Vlastní ovládání přehrávače ---------- */
 .pk-screen { display: flex; flex-direction: column; gap: 8px; }

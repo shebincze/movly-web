@@ -1397,6 +1397,9 @@ test("intro preferences and segment lookup remain bound to the selected profile"
   assert.equal(segments.status,200);assert.equal(segments.body.duration_ms,180000);
   const upstream=h.calls.at(-1);assert.equal(upstream[5]["X-Profile-ID"],"1");assert.ok(upstream[0].includes("duration_ms=180000"));
   assert.equal((await h.request(query,{cookie:first.cookie,method:"POST"})).status,405);
+  // Filmy se dotazují jen title_id + duration_ms (#1110); BFF je přepošle beze season/episode.
+  const movie=await h.request("playback/segments?title_id=21&duration_ms=7200000",{cookie:first.cookie});
+  assert.equal(movie.status,200);assert.ok(!/season|episode/.test(h.calls.at(-1)[0]));assert.ok(movie.body.segments.some(s=>s.kind==="credits"));
   assert.equal((await h.request("playback/preferences",{cookie:first.cookie,headers:{"x-movly-expected-account":"1","x-movly-expected-profile":"2"}})).status,409);
   const second=await h.request("profile",{cookie:first.cookie,method:"POST",body:{id:2,pin:"1234"}});
   assert.equal((await h.request("playback/preferences",{cookie:second.cookie})).body.intro_skip_mode,"manual");
