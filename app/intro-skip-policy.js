@@ -1,6 +1,9 @@
 // Original-media milliseconds; never scale timestamps to fit another release.
 // #1110: intro + recap share the skip machine; unknown kinds are ignored, credits go through creditsOffer.
-export const INTRO_CACHE_KEY = "movly.intro.segments.v2";
+// Odpovědi /v1/playback/segments drží jen paměťová cache stránky (max 1 h, klíč podle vlastníka/profilu).
+// Starší API v nich ještě může vracet data TheIntroDB, která se nesmí ukládat do storage (Movly#1117).
+export const LEGACY_INTRO_CACHE_KEYS = Object.freeze(["movly.intro.segments.v1", "movly.intro.segments.v2"]);
+export const INTRO_CACHE_MAX_AGE_MS = 3600000, INTRO_CACHE_MAX_ENTRIES = 50;
 const SKIPPABLE = new Set(["intro", "recap"]);
 const span = (s, min = 2000) => Number.isSafeInteger(s?.start_ms) && Number.isSafeInteger(s?.end_ms) && s.start_ms >= 0 && s.end_ms - s.start_ms >= min;
 export class IntroSkipMachine {
@@ -49,21 +52,20 @@ export function chapterIntros(chapters = []) {
     id:`chapter:${c.start}`, kind:"intro", start_ms:Math.round(c.start*1000), end_ms:Math.round(c.end*1000), source:"chapter", auto_eligible:true,
   }));
 }
-export function readIntroCache(storage, key, now = Date.now()) {
-  try {
-    const entry = JSON.parse(storage.getItem(INTRO_CACHE_KEY) || "{}")[key];
-    if (!entry || now-entry.saved >= 7*86400000 || !Array.isArray(entry.value?.segments)) return null;
-    if (entry.value.expires_at*1000 > now) return entry.value;
-    return {...entry.value, stale:true, segments:entry.value.segments.map(s => ({...s, auto_eligible:false}))};
-  } catch { return null; }
+// cache: Map (paměť stránky). Stávající logika expires_at/stale zůstává: prošlá odpověď je jen ruční.
+export function readIntroCache(cache, key, now = Date.now()) {
+  const entry = cache.get(key);
+  if (!entry || now-entry.saved >= INTRO_CACHE_MAX_AGE_MS || !Array.isArray(entry.value?.segments)) { cache.delete(key); return null; }
+  if (entry.value.expires_at*1000 > now) return entry.value;
+  return {...entry.value, stale:true, segments:entry.value.segments.map(s => ({...s, auto_eligible:false}))};
 }
-export function writeIntroCache(storage, key, value, now = Date.now()) {
+export function writeIntroCache(cache, key, value, now = Date.now()) {
   if (value.stale) return;
-  try {
-    let entries; try { entries=JSON.parse(storage.getItem(INTRO_CACHE_KEY) || "{}"); } catch { entries={}; }
-    entries[key]={value,saved:now};
-    const ordered=Object.entries(entries).sort((a,b)=>b[1].saved-a[1].saved).slice(0,200);
-    storage.setItem(INTRO_CACHE_KEY, JSON.stringify(Object.fromEntries(ordered)));
-    storage.removeItem?.("movly.intro.segments.v1"); // v1 holds intro-only answers that would hide recap/credits for up to 7 days.
-  } catch { /* Quota/private mode must not affect playback. */ }
+  cache.delete(key); cache.set(key, {value, saved:now});
+  while (cache.size > INTRO_CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value);
+}
+export const introSegmentsCache = new Map();
+// Při startu smaže dřívější perzistentní cache (v1 jen intro, v2 až 7 dní, obojí v localStorage).
+export function clearLegacyIntroCache(storage) {
+  for (const key of LEGACY_INTRO_CACHE_KEYS) try { storage?.removeItem(key); } catch { /* private mode */ }
 }

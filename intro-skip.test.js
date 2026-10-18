@@ -18,12 +18,13 @@ test('invalid intervals and uncorroborated results cannot auto-skip',async()=>{
  const {IntroSkipMachine}=await import('./app/intro-skip-policy.js');for(const bad of [{...segment,start_ms:-1},{...segment,end_ms:190000},{...segment,end_ms:11000}]){const m=new IntroSkipMachine();tick(m,10000,0,{segments:[bad]});assert.equal(m.offer,null);}
  const m=new IntroSkipMachine();tick(m,10000,0,{segments:[{...segment,auto_eligible:false}]});assert.ok(m.offer);assert.equal(tick(m,15000,5000,{segments:[{...segment,auto_eligible:false}]}),null);
 });
-test('bounded persistent cache isolates profile and release, stale entries are manual only',async()=>{
- const {readIntroCache,writeIntroCache}=await import('./app/intro-skip-policy.js');const map=new Map();const storage={getItem:k=>map.get(k),setItem:(k,v)=>map.set(k,v)};const value={segments:[segment],duration_ms:180000,expires_at:2000,stale:false};
- writeIntroCache(storage,'profile1.release1',value,1000000);assert.equal(readIntroCache(storage,'profile2.release1',1000000),null);assert.equal(readIntroCache(storage,'profile1.release2',1000000),null);
- assert.equal(readIntroCache(storage,'profile1.release1',1500000).stale,false);assert.equal(readIntroCache(storage,'profile1.release1',2500000).segments[0].auto_eligible,false);
- assert.equal(readIntroCache(storage,'profile1.release1',1000000+7*86400000),null);
- for(let i=0;i<220;i++)writeIntroCache(storage,'key'+i,value,1000000+i);assert.equal(Object.keys(JSON.parse(map.values().next().value)).length,200);
+test('bounded in-memory cache isolates profile and release, stale entries are manual only, max 1 h / 50',async()=>{
+ const {readIntroCache,writeIntroCache}=await import('./app/intro-skip-policy.js');const cache=new Map();const value={segments:[segment],duration_ms:180000,expires_at:2000,stale:false};
+ writeIntroCache(cache,'profile1.release1',value,1000000);assert.equal(readIntroCache(cache,'profile2.release1',1000000),null);assert.equal(readIntroCache(cache,'profile1.release2',1000000),null);
+ assert.equal(readIntroCache(cache,'profile1.release1',1500000).stale,false);assert.equal(readIntroCache(cache,'profile1.release1',2500000).segments[0].auto_eligible,false);
+ assert.ok(readIntroCache(cache,'profile1.release1',1000000+3599999));assert.equal(readIntroCache(cache,'profile1.release1',1000000+3600000),null);assert.equal(cache.size,0);
+ for(let i=0;i<70;i++)writeIntroCache(cache,'key'+i,value,1000000+i);assert.equal(cache.size,50);assert.equal(readIntroCache(cache,'key19',1000000),null);assert.ok(readIntroCache(cache,'key20',1000000));
+ writeIntroCache(cache,'stale',{...value,stale:true},1000000);assert.equal(cache.has('stale'),false);
 });
 // #1110: recap/credits/post_credits kinds, fixture copied from the main repo (test-support/intro-segments-fixture-source.md).
 const fixture=JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname,'test-support/intro-segments-kinds.response.json'),'utf8'));
@@ -80,11 +81,16 @@ test('chapter intro replaces only API intro, recap and credits stay',async()=>{
  assert.equal(mergeChapterIntros([{name:'Kapitola 1',start:0,end:600}],fixture.segments),fixture.segments);
  assert.deepEqual(chapterIntros([{name:'Opening',start:1,end:61}])[0].kind,'intro');
 });
-test('cache uses v2 key and drops intro-only v1 entries',async()=>{
- const {readIntroCache,writeIntroCache,INTRO_CACHE_KEY}=await import('./app/intro-skip-policy.js');assert.equal(INTRO_CACHE_KEY,'movly.intro.segments.v2');
- const map=new Map([['movly.intro.segments.v1',JSON.stringify({k:{value:{segments:[segment],expires_at:9e9},saved:1000000}})]]);
- const storage={getItem:k=>map.get(k),setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)};
- assert.equal(readIntroCache(storage,'k',1000000),null,'v1 answers are not read');
- writeIntroCache(storage,'k',fixture,1000000);assert.ok(!map.has('movly.intro.segments.v1'));
- assert.deepEqual(readIntroCache(storage,'k',1000000).segments.map(s=>s.kind),['recap','intro','credits','post_credits']);
+test('legacy persistent caches are removed at startup and nothing is written to storage',async()=>{
+ const {readIntroCache,writeIntroCache,clearLegacyIntroCache,LEGACY_INTRO_CACHE_KEYS,introSegmentsCache}=await import('./app/intro-skip-policy.js');
+ assert.deepEqual(LEGACY_INTRO_CACHE_KEYS,['movly.intro.segments.v1','movly.intro.segments.v2']);
+ const map=new Map([['movly.intro.segments.v1','{}'],['movly.intro.segments.v2','{}'],['movly.intro.mode.1.1','auto']]);
+ const storage={getItem:k=>map.get(k),setItem:()=>assert.fail('no storage writes'),removeItem:k=>map.delete(k)};
+ clearLegacyIntroCache(storage);assert.deepEqual([...map.keys()],['movly.intro.mode.1.1'],'mode preference stays');
+ clearLegacyIntroCache({removeItem:()=>{throw new Error('SecurityError');}});clearLegacyIntroCache(undefined);
+ assert.ok(introSegmentsCache instanceof Map);writeIntroCache(introSegmentsCache,'k',fixture,1000000);
+ assert.deepEqual(readIntroCache(introSegmentsCache,'k',1000000).segments.map(s=>s.kind),['recap','intro','credits','post_credits']);introSegmentsCache.clear();
+ const fs=require('node:fs'),src=['app/intro-skip.js','app/intro-skip-policy.js','app/theintrodb.js'].map(f=>fs.readFileSync(require('node:path').join(__dirname,f),'utf8')).join('\n');
+ assert.doesNotMatch(src,/localStorage\.setItem\([^)]*segments|sessionStorage|indexedDB|caches\.open/,'segments never reach browser storage');
+ assert.match(fs.readFileSync(require('node:path').join(__dirname,'app/main.js'),'utf8'),/clearLegacyIntroCache\(localStorage\)/);
 });

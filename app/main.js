@@ -2,6 +2,7 @@ import { preparePlaybackAttemptSupport } from "./playback-attempt-support.js";
 import { setFeedbackAccount } from "./feedback-access.js";
 import { invalidateApiContext } from "./api.js";
 import { openSettingsMenu } from "./settings-menu.js";
+import { clearLegacyIntroCache } from "./intro-skip-policy.js";
 import { startSystemNotifications } from "./notifications.js";
 import { translateShell, uiLanguage, setUILanguage } from "./i18n.js";
 import { translateUI } from "./i18n.js";
@@ -46,6 +47,8 @@ import { admin } from "./admin.js";
 import { feedback } from "./feedback.js";
 // Aplikace se spustila; legacy.js pak nezobrazí hlášku o zastaralém prohlížeči.
 window.__movlyStarted = true;
+// Segmenty přeskakování jsou jen v paměti stránky (Movly#1117); smaž dřívější perzistentní cache.
+try { clearLegacyIntroCache(localStorage); } catch { /* storage nedostupné */ }
 translateShell(document.body);
 const languagePicker = document.createElement("select");
 languagePicker.className = "language-picker";

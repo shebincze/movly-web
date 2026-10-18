@@ -1137,12 +1137,20 @@ async function play(
         // Titulky: „Další díl“ je stálé tlačítko (mimo party), dohledání dalšího dílu se zkusí jednou a sdílí s odpočtem.
         nextButton:()=>nextEpisode,upNextVisible:()=>!nextPanel.hidden,
         hasNextEpisode:()=>{if(!handle.nextProbed){handle.nextProbed=true;nextLookup().then(next=>{handle.nextAvailable=!!next;},()=>{});}return handle.nextAvailable===true;},
+        // TheIntroDB potřebuje tmdb_id (u dílu seriálu) nebo imdb_id filmu; neúplný titul (hero, party) se dočte z detailu.
+        externalIds:async()=>Number.isSafeInteger(t.tmdb_id)||typeof t.imdb_id==="string"&&t.imdb_id?t:await titleDetail(),
         machine:introMachine,seek:async (target)=>{ await seekTo(target); }});
     }, { once: true });
+    // Detail titulu sdílí dohledání dalšího dílu a identita pro TheIntroDB; neúspěch se necachuje.
+    const titleDetail = () =>
+      (handle.titleDetail ||= api(`titles/${t.id}`).catch((error) => {
+        handle.titleDetail = null;
+        throw error;
+      }));
     // Další díl se dohledá jednou (odpočet, konec dílu i tlačítko ho sdílí).
     const nextLookup = () =>
       (handle.nextLookup ||= (async () => {
-        const data = await api(`titles/${t.id}`);
+        const data = await titleDetail();
         const seasons = data.seasons || (await api(`titles/${t.id}/seasons`));
         return nextReleasedEpisode(array(seasons), episode.id);
       })().catch((error) => {
