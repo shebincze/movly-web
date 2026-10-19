@@ -134,7 +134,7 @@ const DOWNLOADS = [
 ];
 
 // Auto-update is intentionally available to every authenticated account, while
-// manual downloads remain Premium/VIP+. Keep this boundary as a closed list:
+// manual downloads require an active, verified account. Keep this boundary as a closed list:
 // accepting an arbitrary DOWNLOADS id here would expose the macOS installer.
 const WINDOWS_UPDATE_TARGETS = new Map([
   ['arm64', { downloadId: 'windows-arm64', fileName: 'MovlySetup-arm64.exe' }],
@@ -499,9 +499,7 @@ function isPremiumActive(premiumUntil, now = new Date(), logger = console) {
 }
 
 function sessionPayload(account, token) {
-  const premiumActive = isPremiumActive(account.premiumUntil);
-  const elevatedRole = roleRank(account.role) >= 2;
-  const hasDownloadAccess = account.isActive && account.isVerified && (premiumActive || elevatedRole);
+  const hasDownloadAccess = account.isActive && account.isVerified;
   return {
     ...(token ? { token } : {}),
     account: {
@@ -1233,8 +1231,8 @@ async function handleDownloadLink(req, res, id) {
 
 async function handleWindowsUpdateLink(req, res, id) {
   // Security and compatibility updates must reach every authenticated client,
-  // independently of Premium entitlement. This dedicated route does not weaken
-  // the Premium-gated website download endpoint above.
+  // independently of account entitlement. Manual website downloads still require
+  // an active, verified account.
   const { account } = await validateSession(req);
   if (!WINDOWS_UPDATE_DOWNLOAD_IDS.has(id)) {
     throw new HttpError(404, 'Instalátor není povolený pro Windows auto-update.');
@@ -1327,7 +1325,7 @@ async function issueWindowsDownloadLink(res, id, release, manifest, isManualDown
 async function handleWindowsUpdate(req, res) {
   const release = resolveCurrentWindowsRelease();
   // Starší klienti (včetně buildu 90) znají pouze legacy-v1 manifest a následně
-  // žádají o instalačku přes Premium download endpoint. Feed proto smí vrátit oba
+  // žádají o instalačku přes ověřený download endpoint. Feed proto smí vrátit oba
   // explicitně validované formáty. Nový release-bound download endpoint nadále
   // volá readWindowsUpdateManifest(), takže legacy release nelze vydávat za
   // secure-v2 ani jím obejít Authenticode požadavky nového updateru.
@@ -1767,7 +1765,7 @@ function readWindowsUpdateManifest(releaseRoot) {
   if (manifest.format !== WINDOWS_MANIFEST_FORMAT_SECURE_V2) {
     throw new HttpError(
       500,
-      'Aktivní Windows release používá legacy-v1 manifest; je povolen jen pro ruční Premium stažení, ne pro auto-update.',
+      'Aktivní Windows release používá legacy-v1 manifest; je povolen jen pro ruční stažení, ne pro auto-update.',
     );
   }
   return manifest;
