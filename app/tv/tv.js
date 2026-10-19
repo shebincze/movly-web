@@ -676,6 +676,22 @@
   // ---------- hledání ----------
   // History contains bounded terms only, partitioned by trusted environment,
   // account and selected profile. Unknown environment disables persistence.
+  function exactTitleKey(value) {
+    if (typeof value !== "string") return "";
+    return plain(value).replace(/[\s!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~\u2000-\u206f\u3000-\u303f]+/g, " ").replace(/^ +| +$/g, "");
+  }
+  function exactSearchGroups(rawItems, term, offset) {
+    var key = exactTitleKey(term), exact = [], related = [], seen = {};
+    each(arrayList(rawItems), function (raw, i) {
+      var title = titleOf(raw);
+      if (!title || seen["$" + title.id]) return;
+      seen["$" + title.id] = true;
+      var entry = { title: title, position: offset + i + 1 };
+      if (key && (exactTitleKey(title.title) === key || exactTitleKey(title.original_title) === key)) exact.push(entry);
+      else related.push(entry);
+    });
+    return { exact: exact, related: related };
+  }
   function searchScope() { return account && profile ? account.id + ":" + profile.id + ":" + searchEnvironment : ""; }
   function searchOwner() {
     return account && isId(account.id) && profile && isId(profile.id) && searchEnvironment
@@ -719,39 +735,44 @@
     });
   }
   function searchScreen() {
-    var owner = searchOwner(), scope = searchScope(), alive = true, revision = 0, suggestRevision = 0, policyRevision = "", discoveryAllowed = false, discoveryError = false;
+    var owner = searchOwner(), scope = searchScope(), alive = true, revision = 0, suggestRevision = 0, policyRevision = "", policyGeneration = 0, discoveryAllowed = false, discoveryError = false;
     var input = h("input", { type: "search", maxlength: 200, className: "tv-f tv-input tv-autofocus", autocomplete: "off", "aria-label": "Hledat název nebo výraz", placeholder: "Název filmu, seriálu nebo popis", role: "combobox", "aria-expanded": "false", "aria-controls": "tv-search-suggestions" });
     var suggestions = h("div", { id: "tv-search-suggestions", role: "listbox", "aria-label": "Návrhy hledání" });
     var status = statusBox("Napiš název a potvrď Hledat.", "info"), results = h("div"), idle = h("div"), activeFilters = h("p", { className: "tv-hint" });
-    var timer = null, suggestTimer = null, suggestionRequest = null, activeRequest = null, definition = {}, page = 1, natural = false, s;
+    var timer = null, suggestTimer = null, suggestionRequest = null, activeRequest = null, definition = {}, page = 1, natural = false, pendingResultFocus = false, s;
     function valid() { return alive && scope === searchScope(); }
+    function active() { return valid() && current() === s && !s.el.hidden; }
+    function searchAction(label, action, className) {
+      var control = button(label, function () { if (active() && s.el.contains(control)) action.call(control); }, className);
+      return control;
+    }
     function cancelSuggestions() {
       suggestRevision++; clearTimeout(suggestTimer);
       if (suggestionRequest) { suggestionRequest.abort(); suggestionRequest = null; }
       clear(suggestions); input.setAttribute("aria-expanded", "false");
     }
-    function termButton(term) { return button(term, function () { input.value = term; page = 1; natural = false; run(true); }); }
+    function termButton(term) { return searchAction(term, function () { input.value = term; page = 1; natural = false; run(true); }); }
     function renderHistory() {
       clear(idle);
       if (input.value.replace(/\s/g, "")) return;
       var history = h("div", { className: "tv-search-history" }), terms = historyTerms(owner);
       history.appendChild(h("h2", { text: "Poslední hledání" }));
       each(terms, function (term) {
-        history.appendChild(h("div", { className: "tv-search-term" }, [termButton(term), button("Odebrat „" + term + "“", function () {
+        history.appendChild(h("div", { className: "tv-search-term" }, [termButton(term), searchAction("Odebrat „" + term + "“", function () {
           storeTerms(owner, filter(historyTerms(owner), function (v) { return v !== term; })); renderHistory(); focusEl(firstFocusable(idle));
         })]));
       });
       if (!terms.length) history.appendChild(h("p", { text: "Zatím tu žádná hledání nejsou." }));
-      else history.appendChild(button("Vymazat historii", function () { storeTerms(owner, []); renderHistory(); focusEl(firstFocusable(s.el)); }));
+      else history.appendChild(searchAction("Vymazat historii", function () { storeTerms(owner, []); renderHistory(); focusEl(firstFocusable(s.el)); }));
       idle.appendChild(history);
       var discoveries = h("div"); idle.appendChild(discoveries);
-      if (!discoveryAllowed) { if (discoveryError) discoveries.appendChild(button("Obnovit pravidla a návrhy", function () { s.onShow(); })); return; }
+      if (!discoveryAllowed) { if (discoveryError) discoveries.appendChild(searchAction("Obnovit pravidla a návrhy", function () { s.onShow(); })); return; }
       var mine = revision, policy = policyRevision;
       function unchanged() { return valid() && mine === revision && policy === policyRevision && !input.value.replace(/\s/g, ""); }
       api("trending-searches?limit=10", {}, function (err, data) {
         if (!unchanged()) return;
         var section = h("div", {}, [h("h2", { text: "Populární hledání" })]);
-        if (err) section.appendChild(button("Populární hledání: zkusit znovu", renderHistory));
+        if (err) section.appendChild(searchAction("Populární hledání: zkusit znovu", renderHistory));
         else each(arrayList(data && data.trending_searches).slice(0, 10), function (v) {
           if (v && typeof v.query === "string" && v.query.length <= 100 && v.search_count > 0) section.appendChild(termButton(v.query));
         });
@@ -760,16 +781,17 @@
       api("popular-titles-search?limit=10", {}, function (err, data) {
         if (!unchanged()) return;
         var section = h("div", {}, [h("h2", { text: "Nejčastěji vybírané tituly" })]);
-        if (err) section.appendChild(button("Populární tituly: zkusit znovu", renderHistory));
+        if (err) section.appendChild(searchAction("Populární tituly: zkusit znovu", renderHistory));
         else each(arrayList(data && data.popular_titles).slice(0, 10), function (v) {
           if (!v || !isId(v.title_id) || v.interaction_count <= 0 || typeof v.title !== "string") return;
           // No unrestricted title data/poster hydration: the discovery API is policy-scoped.
-          section.appendChild(button(v.title, function () { openDetail({ id: v.title_id, title: v.title, type: v.type }); }));
+          section.appendChild(searchAction(v.title, function () { openDetail({ id: v.title_id, title: v.title, type: v.type }); }));
         });
         discoveries.appendChild(section);
       });
     }
     function suggest() {
+      if (!active()) return;
       cancelSuggestions();
       var q = input.value.replace(/^\s+|\s+$/g, "");
       if (!valid() || !discoveryAllowed || !q || q.length > 100) return;
@@ -777,7 +799,7 @@
       suggestionRequest = api("autocomplete" + query({ q: q, limit: 8 }), {}, function (err, data) {
         if (!valid() || mine !== suggestRevision || policy !== policyRevision || input.value.replace(/^\s+|\s+$/g, "") !== q) return;
         if (err) {
-          var retry = button("Zkusit návrhy znovu", suggest); retry.setAttribute("role", "option"); suggestions.appendChild(retry);
+          var retry = searchAction("Zkusit návrhy znovu", suggest); retry.setAttribute("role", "option"); suggestions.appendChild(retry);
           input.setAttribute("aria-expanded", "true"); return;
         }
         each(arrayList(data && data.suggestions).slice(0, 8), function (term) {
@@ -787,31 +809,39 @@
         input.setAttribute("aria-expanded", suggestions.firstChild ? "true" : "false");
       });
     }
-    function renderResults(data, focus) {
+    function renderResults(data, focus, searchText, resultOffset, generation) {
       var items = filter(map((data && data.results) || [], titleOf), Boolean);
       clear(results);
       setStatus(status, items.length ? "Nalezeno: " + (typeof data.total === "number" ? data.total : items.length) : "Nic jsme nenašli.", items.length ? null : "info");
       if (data.degraded || (data.warnings && data.warnings.length) || (data.degraded_sources && data.degraded_sources.length)) results.appendChild(statusBox("Některé zdroje výsledků nejsou dostupné. Výsledky mohou být neúplné.", "info"));
       if (data.parsed && data.parsed.matched) results.appendChild(statusBox("Rozpoznané filtry: " + filterDescription(data.parsed), "info"));
-      var cards = h("div", { className: "tv-grid" });
-      each(items, function (t, i) {
-        cards.appendChild(posterCard(t, function () {
-          var q = input.value.replace(/^\s+|\s+$/g, "");
-          if (q) api("track-search", { method: "POST", body: { query: q, title_id: t.id, interaction_type: "click", position_in_results: (page - 1) * 30 + i + 1 } }, function () {});
-          openDetail(t);
-        }));
-      });
-      results.appendChild(cards);
+      var renderedRevision = generation, renderedQuery = searchText;
+      var grouped = exactSearchGroups(data.results, renderedQuery, resultOffset);
+      function section(entries, heading, className) {
+        if (!entries.length) return;
+        var cards = h("div", { className: "tv-grid" }), section = h("section", { className: className }, [h("h2", { text: heading }), cards]);
+        each(entries, function (entry) {
+          var title = entry.title, card = posterCard(title, function () {
+            if (!active() || renderedRevision !== revision || !s.el.contains(card)) return;
+            if (renderedQuery) api("track-search", { method: "POST", body: { query: renderedQuery, title_id: title.id, interaction_type: "click", position_in_results: entry.position } }, function () {});
+            openDetail(title);
+          });
+          cards.appendChild(card);
+        });
+        results.appendChild(section);
+      }
+      section(grouped.exact, "Přesná shoda názvu", "tv-search-exact");
+      section(grouped.related, grouped.exact.length ? "Další výsledky" : "Výsledky", "tv-search-related");
       var pages = h("div", { className: "tv-search-actions" });
-      if (page > 1) pages.appendChild(button("Předchozí stránka", function () { page--; run(false); }));
-      if (data.total > page * 30 || data.total_pages > page) pages.appendChild(button("Další stránka", function () { page++; run(false); }));
+      if (page > 1) pages.appendChild(searchAction("Předchozí stránka", function () { page--; run(false); }));
+      if (data.total > page * 30 || data.total_pages > page) pages.appendChild(searchAction("Další stránka", function () { page++; run(false); }));
       results.appendChild(pages);
       if (focus && current() === s) focusEl(firstFocusable(results) || input);
     }
     function run(focus) {
-      if (!valid()) return;
+      if (!active()) return;
       clearTimeout(timer); if (focus) cancelSuggestions();
-      var q = input.value.replace(/^\s+|\s+$/g, ""), params = filterQuery(definition), mine = ++revision;
+      var q = input.value.replace(/^\s+|\s+$/g, ""), params = filterQuery(definition), mine = ++revision, resultOffset = (page - 1) * 30;
       clear(results); clear(idle);
       if (!q && !Object.keys(params).length) { setStatus(status, "Napiš název nebo nastav filtry.", "info"); renderHistory(); return; }
       if (q.length > 200) return;
@@ -826,48 +856,50 @@
       if (path === "search/filters") params = { q: q, page: page, limit: 30 };
       function done(err, data) {
         if (!valid() || mine !== revision) return;
-        if (err) { setStatus(status, err.message, "error"); results.appendChild(button("Zkusit znovu", function () { run(focus); })); return; }
+        if (err) { setStatus(status, err.message, "error"); results.appendChild(searchAction("Zkusit znovu", function () { run(focus); })); return; }
         if (path === "search/filters" && data && data.parsed && data.parsed.matched === false) {
           activeRequest = api("search" + query({ q: q, type: "both", limit: 30, offset: (page - 1) * 30 }), {}, function (fallbackError, fallback) {
             if (!valid() || mine !== revision) return;
-            if (fallbackError) { setStatus(status, fallbackError.message, "error"); results.appendChild(button("Zkusit znovu", function () { run(focus); })); return; }
-            renderResults(fallback || {}, focus);
+            if (fallbackError) { setStatus(status, fallbackError.message, "error"); results.appendChild(searchAction("Zkusit znovu", function () { run(focus); })); return; }
+            renderResults(fallback || {}, focus, q, resultOffset, mine);
           });
           return;
         }
-        renderResults(data || {}, focus);
+        renderResults(data || {}, focus, q, resultOffset, mine);
       }
       activeRequest = api(path + query(params), {}, done);
     }
     input.addEventListener("input", function () {
+      if (!active()) return;
       revision++; cancelSuggestions(); clearTimeout(timer); page = 1; natural = false;
       if (!input.value.replace(/\s/g, "")) { clear(results); setStatus(status, "Napiš název nebo nastav filtry.", "info"); renderHistory(); return; }
       suggestTimer = setTimeout(suggest, 250); timer = setTimeout(function () { run(false); }, 900);
     }, false);
     var form = h("form", { className: "tv-form tv-search-form", novalidate: true, role: "search" }, [input, suggestions,
-      h("div", { className: "tv-search-actions" }, [button("Hledat", function () { page = 1; natural = false; run(true); }), button("Rozpoznat filtry z textu", function () { page = 1; natural = true; run(true); }), button("Filtry a uložené filtry", function () {
-        cancelSuggestions(); revision++;
-        push(searchFilterScreen(definition, function (next) { definition = next; natural = false; page = 1; activeFilters.textContent = Object.keys(next).length ? "Použité filtry: " + filterDescription(next) : ""; back(); run(true); }));
-      }), button("Zrušit filtry", function () { definition = {}; activeFilters.textContent = ""; page = 1; run(true); })])]);
+      h("div", { className: "tv-search-actions" }, [searchAction("Hledat", function () { page = 1; natural = false; run(true); }), searchAction("Rozpoznat filtry z textu", function () { page = 1; natural = true; run(true); }), searchAction("Filtry a uložené filtry", function () {
+        clearTimeout(timer); cancelSuggestions(); revision++;
+        push(searchFilterScreen(definition, function (next) { definition = next; natural = false; page = 1; activeFilters.textContent = Object.keys(next).length ? "Použité filtry: " + filterDescription(next) : ""; pendingResultFocus = true; back(); }));
+      }), searchAction("Zrušit filtry", function () { definition = {}; activeFilters.textContent = ""; page = 1; run(true); })])]);
     form.onsubmit = function (event) { event.preventDefault(); page = 1; natural = false; run(true); };
     s = makeScreen("search", [header("Hledat"), form, activeFilters, status, idle, results], {
       onShow: function () {
         if (!valid()) return;
+        var policyMine = ++policyGeneration;
         revision++; clear(results); clear(idle);
         discoveryAllowed = false; cancelSuggestions();
         api("profiles/effective-content-policy", {}, function (err, policy) {
-          if (!valid()) return;
+          if (!valid() || policyMine !== policyGeneration || current() !== s) return;
           var revisionValue = !err && policy && policy.revision || "";
           if (policyRevision && revisionValue !== policyRevision) { revision++; clear(results); clear(idle); }
           policyRevision = revisionValue;
           discoveryError = !!err || !policy || policy.user_id !== account.id || policy.profile_id !== profile.id || typeof policy.is_kids !== "boolean";
           discoveryAllowed = !err && policy && policy.schema_version === 1 && policy.user_id === account.id && policy.profile_id === profile.id && policy.is_kids === false && policy.age_controls_active === false && /^ep1\.[a-f0-9]{64}$/.test(policy.revision || "");
           renderHistory();
-          if (input.value) run(false);
+          if (input.value || Object.keys(definition).length) { var focus = pendingResultFocus; pendingResultFocus = false; run(focus); }
         });
         renderHistory();
       },
-      onBlur: function () { revision++; cancelSuggestions(); s.el.hidden = true; },
+      onBlur: function () { policyGeneration++; discoveryAllowed = false; revision++; cancelSuggestions(); s.el.hidden = true; },
       onFocus: function () { verifySearchScope(s, scope, function () { s.onShow(); }); },
       onKey: function (event) {
         if (event.keyCode === KEY.ESC && suggestions.firstChild) { cancelSuggestions(); focusEl(input); return true; }
@@ -875,7 +907,7 @@
         if (suggestions.contains(event.target) && event.keyCode === KEY.UP && event.target === firstFocusable(suggestions)) { focusEl(input); return true; }
         return false;
       },
-      onDestroy: function () { alive = false; revision++; clearTimeout(timer); cancelSuggestions(); if (activeRequest) activeRequest.abort(); }
+      onDestroy: function () { alive = false; policyGeneration++; revision++; clearTimeout(timer); cancelSuggestions(); if (activeRequest) activeRequest.abort(); }
     });
     return s;
   }
@@ -899,6 +931,11 @@
     var status = statusBox(""), controls = h("div", { className: "tv-search-filter-fields" }), saved = h("div"), facetHints = h("div"), genreChoices = h("div", { className: "tv-filter-facets" });
     var name = h("input", { type: "text", maxlength: 60, className: "tv-f tv-input", "aria-label": "Název uloženého filtru" });
     function valid() { return alive && scope === searchScope(); }
+    function active() { return valid() && current() === s && !s.el.hidden; }
+    function filterAction(label, action, className) {
+      var control = button(label, function () { if (active() && s.el.contains(control)) action.call(control); }, className);
+      return control;
+    }
     function row(label, input) { controls.appendChild(h(input.tagName === "BUTTON" ? "div" : "label", { className: "tv-filter-field" }, input.tagName === "BUTTON" ? [input] : [h("span", { text: label }), input])); }
     function field(key, label, kind, max) {
       var input = h("input", { type: kind || "text", className: "tv-f tv-input", maxlength: max || 200, "aria-label": label });
@@ -906,7 +943,7 @@
       fields[key] = input; row(label, input);
     }
     function cycle(key, label, options) {
-      var control = button(label, function () {
+      var control = filterAction(label, function () {
         var at = 0; each(options, function (o, i) { if (o[0] === control.value) at = i; });
         control.value = options[(at + 1) % options.length][0]; control.refresh();
       });
@@ -933,7 +970,7 @@
       });
     }
     function facetChoice(key, code, label) {
-      var choice = button(label, function () {
+      var choice = filterAction(label, function () {
         var values = fields[key].value ? fields[key].value.split(",") : [];
         fields[key].value = (contains(values, code) ? filter(values, function (v) { return v !== code; }) : values.concat([code])).join(",");
         refreshChoices();
@@ -984,11 +1021,11 @@
       api("saved-filters", {}, function (err, data) {
         if (!valid() || mine !== savedGeneration) return; clear(saved);
         saved.appendChild(h("h2", { text: "Uložené filtry" }));
-        if (err) { saved.appendChild(button("Uložené filtry: zkusit znovu", loadSaved)); return; }
+        if (err) { saved.appendChild(filterAction("Uložené filtry: zkusit znovu", loadSaved)); return; }
         stored = data && data.items || [];
         each(stored, function (item) {
           if (!item || !isId(item.id) || typeof item.name !== "string") return;
-          saved.appendChild(h("div", { className: "tv-search-term" }, [button(item.name, function () { choose(item); }), button("Smazat filtr „" + item.name + "“", function () {
+          saved.appendChild(h("div", { className: "tv-search-term" }, [filterAction(item.name, function () { choose(item); }), filterAction("Smazat filtr „" + item.name + "“", function () {
             api("saved-filters/" + item.id, { method: "DELETE" }, function (error) { if (!valid()) return; if (error) setStatus(status, error.message, "error"); else { if (selectedID === item.id) selectedID = null; loadSaved(); setStatus(status, "Filtr byl smazán.", "info"); } });
           })]));
         });
@@ -996,7 +1033,7 @@
       });
     }
     function save(update) {
-      if (!valid()) return;
+      if (!active()) return;
       var definition; try { definition = read(); } catch (e) { setStatus(status, e.message, "error"); return; }
       var value = name.value.replace(/^\s+|\s+$/g, "");
       if (!value || value.length > 60) { setStatus(status, "Pojmenuj filtr (nejvýše 60 znaků).", "error"); focusEl(name); return; }
@@ -1006,17 +1043,17 @@
     each(["audio_languages", "subtitle_languages", "original_languages", "countries"], function (key) { fields[key].addEventListener("input", refreshChoices, false); });
     fill(initial);
     s = makeScreen("search-filters", [header("Filtry hledání"), status, saved, controls, name, h("div", { className: "tv-search-actions" }, [
-      button("Použít filtry", function () { if (!valid()) return; try { apply(read()); } catch (e) { setStatus(status, e.message, "error"); } }),
-      button("Uložit jako nový filtr", function () { save(false); }), button("Upravit vybraný filtr", function () { save(true); }),
-      button("Vyčistit formulář", function () { selectedID = null; name.value = ""; fill({}); })
-    ])], { onBlur: function () { s.el.hidden = true; }, onFocus: function () { verifySearchScope(s, scope); }, onDestroy: function () { alive = false; } });
+      filterAction("Použít filtry", function () { if (!valid()) return; try { apply(read()); } catch (e) { setStatus(status, e.message, "error"); } }),
+      filterAction("Uložit jako nový filtr", function () { save(false); }), filterAction("Upravit vybraný filtr", function () { save(true); }),
+      filterAction("Vyčistit formulář", function () { selectedID = null; name.value = ""; fill({}); })
+    ])], { onBlur: function () { facetGeneration++; genreGeneration++; s.el.hidden = true; }, onFocus: function () { verifySearchScope(s, scope, function () { loadFacets(); loadGenres(); }); }, onDestroy: function () { alive = false; } });
     loadSaved();
     function loadGenres() {
     var mine = ++genreGeneration;
     clear(genreChoices);
     api("titles/genres", {}, function (err, data) {
       if (!valid() || mine !== genreGeneration) return;
-      if (err) { genreChoices.appendChild(button("Žánry: zkusit znovu", loadGenres)); return; }
+      if (err) { genreChoices.appendChild(filterAction("Žánry: zkusit znovu", loadGenres)); return; }
       each(arrayList(data && data.genres || data).slice(0, 60), function (genre) {
         if (!genre || !isId(genre.id)) return;
         genreChoices.appendChild(facetChoice("genre_ids", String(genre.id), genre.name_cs || genre.name || String(genre.id)));
@@ -1028,7 +1065,7 @@
     clear(facetHints);
     api("titles/filter/facets", {}, function (err, facets) {
       if (!valid() || mine !== facetGeneration) return;
-      if (err || !facets || facets.policy_scoped !== true) { facetHints.appendChild(button("Nabídka jazyků: zkusit znovu", loadFacets)); return; }
+      if (err || !facets || facets.policy_scoped !== true) { facetHints.appendChild(filterAction("Nabídka jazyků: zkusit znovu", loadFacets)); return; }
       each(["audio_languages", "subtitle_languages", "original_languages", "countries"], function (key) {
         var group = h("div", { className: "tv-filter-facets" }, [h("h3", { text: fields[key].getAttribute("aria-label") })]);
         each(arrayList(facets && facets[key]).slice(0, 60), function (facet) {

@@ -7,7 +7,7 @@ const source = fs.readFileSync(require.resolve("./app/tv/tv.js"), "utf8");
 function fixture() {
   const values = new Map();
   const context = vm.createContext({ account: {id: 1}, profile: {id: 2}, searchEnvironment: "local", localStorage: {getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value)} });
-  vm.runInContext(source.slice(source.indexOf("  function each("), source.indexOf("  function h(")) + source.slice(source.indexOf("  var DIACRITICS"), source.indexOf("  // ---------- API")) + source.slice(source.indexOf("  function searchOwner()"),source.indexOf("  function searchScreen()")), context);
+  vm.runInContext(source.slice(source.indexOf("  function arrayList("), source.indexOf("  function h(")) + source.slice(source.indexOf("  var DIACRITICS"), source.indexOf("  // ---------- API")) + source.slice(source.indexOf("  function titleOf("),source.indexOf("  function posterCard(")) + source.slice(source.indexOf("  function exactTitleKey("),source.indexOf("  function searchScreen()")), context);
   return {context,values,run:code=>{const value=vm.runInContext(code,context);return value===undefined?undefined:JSON.parse(JSON.stringify(value));}};
 }
 test("TV history is bounded, deduplicated and partitioned by environment, account and profile",()=>{
@@ -27,4 +27,11 @@ test("TV history rejects malformed storage and supports individual removal/clear
 test("TV structured queries preserve all shared filter fields and singular API CSV keys",()=>{
  const f=fixture();assert.deepEqual(f.run('filterQuery({type:"movie",genre_ids:[1,2],genre_match:"all",year_from:2020,rating_from:0,runtime_to:120,video_height_min:2160,hdr:true,has_streams:true,audio_languages:["cs","en"],subtitle_languages:["sk"],original_languages:["en"],countries:["CZ","US"],sort_by:"rating",sort_order:"desc"})'),{type:'movie',genre_ids:'1,2',genre_match:'all',year_from:2020,rating_from:0,runtime_to:120,video_height_min:2160,hdr:true,has_streams:true,audio_language:'cs,en',subtitle_language:'sk',original_language:'en',countries:'CZ,US',sort_by:'rating',sort_order:'desc'});
  assert.deepEqual(f.run('filterQuery({hdr:false,type:"",audio_languages:[]})'),{});
+});
+
+test("TV exact titles are grouped first, deduplicated and keep original raw result rank",()=>{
+ const f=fixture();
+ assert.deepEqual(f.run('exactSearchGroups([{id:1,title:"Related Matrix",type:"movie"},null,{id:2,title:"Matrix QA",type:"movie"},{id:2,title:"Matrix QA",type:"movie"},{id:3,title:"Český název",original_title:"Matrix QA",type:"tv"}],"Matrix—QA!",60)'),{exact:[{title:{id:2,title:"Matrix QA",type:"movie"},position:63},{title:{id:3,title:"Český název",original_title:"Matrix QA",type:"tv"},position:65}],related:[{title:{id:1,title:"Related Matrix",type:"movie"},position:61}]});
+ assert.equal(f.run('exactTitleKey("Pán prstenů!")'),'pan prstenu');
+ assert.equal(f.run('exactTitleKey("東京!")'),'東京');
 });

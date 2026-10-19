@@ -3,6 +3,8 @@
 The ES5 TV screen now uses the existing authenticated BFF/search contracts for
 name search, query-plus-structured filters, deterministic natural-query parsing,
 autocomplete, popular query/title discovery and profile-owned saved filter CRUD.
+Exact-title matches appear first, deduplicated by catalogue ID, while click
+feedback retains each first occurrence’s original server position and query.
 It does not add a framework or change playback. Filter choices include dynamic
 genres/facets, genre any/all, year/rating/runtime ranges, quality/HDR/availability,
 multiple audio/subtitle/original languages/countries, and sorting. Loading a saved
@@ -34,7 +36,7 @@ No production requests, accounts, writes, deployment or release were involved.
 ES5 syntax/API guards target Chrome34 compatibility; the runtime proof uses modern
 Chromium and keyboard D-pad simulation.
 
-- Full web suite: 594 passed; `npm run check`, ES5 guard and diff check passed.
+- Full web suite: 595 passed; `npm run check`, ES5 guard and diff check passed.
 - Actual suggestions with ArrowDown/Escape/Enter, scoped history remove/clear,
   natural-query interpretation, combined `q=Matrix`/year1990/1080p HTTP200 passed.
 - A deliberately delayed real autocomplete response did not replace a newer query.
@@ -46,6 +48,15 @@ Chromium and keyboard D-pad simulation.
   languages/subtitles/countries, the unknown saved code `zz`, year1990 and ownership.
   Attempts to PUT or DELETE that row from another profile returned404; fresh SQL
   confirmed it was unchanged.
+- Additional UI regression used an explicitly reordered/duplicated HTTP response
+  containing only catalogue IDs read through the actual Go API. One exact card
+  appeared before two related cards and the actual Go click endpoint received the
+  original rank3 and frozen query. Editing the draft input invalidated the old card.
+- Captured detached history/delete controls were invoked after leaving their
+  screens: no query or mutation request was sent. An actual UI delete still worked.
+  A deliberately held older adult policy response was released after a newer
+  controlled same-profile kids policy: no discovery/autocomplete was re-admitted.
+  These are labelled controlled response-order variations, not production changes.
 - Final dynamic-facet HTTP200 included `policy_scoped:true`; selecting an actually
   returned facet correctly toggled `aria-pressed` while preserving unknown codes.
   Actual TV DELETE of both owned rows returned200 and refreshed the list. A fresh
