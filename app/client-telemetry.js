@@ -1,7 +1,7 @@
 import { api } from "./api.js";
 import { el } from "./ui.js";
 const apps = [["movly-web","Web"],["movly-ios","iOS"],["movly-macos","macOS"],["movly-tvos","Apple TV"],["movly-android","Android a Android TV"],["movly-windows","Windows"]];
-const events = {detail_load:"Načtení detailu",detail_background_refresh:"Obnovení detailu",stream_resolve:"Příprava zdroje",fatal_startup:"Fatální chyba při spuštění",fatal_ui:"Fatální chyba rozhraní",fatal_managed:"Fatální chyba spravovaného běhu",source_switch:"Změna zdroje",first_frame:"První snímek",media_opened:"Otevření média",playing:"Přehrávání",buffering:"Načítání do vyrovnávací paměti",tracks_available:"Dostupné stopy"};
+const events = {unexpected_termination:"Nečisté ukončení předchozího procesu",detail_load:"Načtení detailu",detail_background_refresh:"Obnovení detailu",stream_resolve:"Příprava zdroje",fatal_startup:"Fatální chyba při spuštění",fatal_ui:"Fatální chyba rozhraní",fatal_managed:"Fatální chyba spravovaného běhu",source_switch:"Změna zdroje",first_frame:"První snímek",media_opened:"Otevření média",playing:"Přehrávání",buffering:"Načítání do vyrovnávací paměti",tracks_available:"Dostupné stopy"};
 const outcomes = {success:"Úspěch",failure:"Chyba",timeout:"Vypršel čas",missing:"Chybí",cancelled:"Zrušeno"};
 export async function clientTelemetry(params, signal) {
   const app = apps.some(([id]) => id === params.get("client_app")) ? params.get("client_app") : "movly-web";
@@ -13,6 +13,7 @@ export async function clientTelemetry(params, signal) {
   page.append(el("label", {}, "Aplikace", el("select", {"aria-label":"Aplikace",onChange:e=>navigate(e.target.value,day)}, apps.map(([id,label])=>el("option",{value:id,selected:id===app},label)))),
     el("label", {}, "Den (UTC)", el("input",{type:"date",value:day,min:minimum,max:today,"aria-label":"Den (UTC)",onChange:e=>{if(e.target.value) navigate(app,e.target.value);}})),
     el("p", {}, "Uložené součty událostí za jeden den UTC, uchované nejvýše 90 dnů. Nejde o počet unikátních uživatelů ani míru pádů nebo úspěšnost pokusů. Opakované odeslání může zvýšit počet; sběr a vzorkování se mezi klienty liší. Android a Android TV sdílejí jeden údaj. Verze ani surové chybové zprávy se v těchto datech neukládají."));
+  if (app === "movly-windows") page.append(el("p", {}, "Nečisté ukončení předchozího procesu znamená, že se předchozí běh řádně neukončil. Tato událost nerozlišuje pád aplikace, vynucené ukončení procesu ani restart systému."));
   let data;
   try { data = await api(`admin/telemetry/client?${new URLSearchParams({client_app:app,day})}`,{signal}); }
   catch(error) {
