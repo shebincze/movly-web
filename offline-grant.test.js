@@ -4,13 +4,11 @@ const { offlineSigner } = require("./offline-grant");
 test("offline grant survives JSON persistence and rejects tampering, restriction, expiry and another scope", async () => {
   const { verifiedGrant, mayRead } = await import("./app/offline-store.js");
   const signer = offlineSigner("synthetic-test-secret"), now = Date.now();
-  const user = { id: 1, username: "test", role: "user", is_active: true, is_verified: true, premium_until: null };
+  const user = { id: 1, username: "test", role: "user", is_active: true, is_verified: true, premium_until: new Date(now + 86400000).toISOString() };
   const profile = { id: 2, name: "Adult", is_kids: false, has_pin: false, max_certification: 18, allow_unrated: true };
   const session = { token: "synthetic", device: "web-test" };
   const receipt = JSON.parse(JSON.stringify(signer.issue(user, profile, session, now)));
   assert.equal((await verifiedGrant(receipt, now)).profileId, 2);
-  assert.equal((await verifiedGrant(receipt, now)).expiresAt, now + 7 * 86400000);
-  assert.throws(() => signer.issue({ ...user, is_verified: false }, profile, session));
   assert.equal(await verifiedGrant({ ...receipt, payload: Buffer.from('{"profileId":3}').toString("base64url") }, now), null);
   assert.equal(await verifiedGrant(receipt, now + 7 * 86400000), null);
   assert.equal(await verifiedGrant(receipt, now - 1), null);

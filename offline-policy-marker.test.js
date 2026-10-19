@@ -187,7 +187,7 @@ test("a read-only IndexedDB failure uses a receipt-bound CacheStorage marker tha
     assert.equal(await mayRead(file, active), false, "CacheStorage fallback closes the current read gate");
     assert.equal(await serviceWorkerMediaStatus(stores, id, mayRead), 403,
       "a fresh service-worker instance reads the persisted marker fallback");
-    const markerResponse = [...cacheEntries].find(([url]) => url !== liveKey.url && url !== expiredKey.url)[1];
+    const markerResponse = cacheEntries.values().next().value;
     assert.ok(Math.abs((await markerResponse.clone().json()).expires_at -
       JSON.parse(Buffer.from(receipt.payload, "base64url").toString("utf8")).expiresAt) < 100,
     "the fallback marker expiry matches its verified signed grant");
