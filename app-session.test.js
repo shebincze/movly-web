@@ -90,6 +90,40 @@ function harness({
   }
   return { request, login, selected, calls };
 }
+test("saved-filter POST and PUT preserve the complete canonical definition", async () => {
+  const h = harness({override: (path, options) => path.startsWith("v1/saved-filters") ? {payload: {ok: true}} : undefined});
+  const selected = await h.selected();
+  const filter = {type: "movie", genre_ids: [18, 28], genre_match: "all", year_from: 1990, year_to: 2026,
+    rating_from: 7.5, rating_to: 10, runtime_from: 80, runtime_to: 180, video_height_min: 2160,
+    hdr: true, has_streams: true, audio_language: null, original_language: "fr",
+    audio_languages: ["cs", "en", "zul"], subtitle_languages: ["cs", "sk"],
+    original_languages: ["fr", "ja"], countries: ["CZ", "US"], sort_by: "rating", sort_order: "desc"};
+  for (const [method, target] of [["POST", "saved-filters"], ["PUT", "saved-filters/42"]]) {
+    const result = await h.request(target, {method, cookie: selected.cookie, body: {name: "  Moje filtry  ", filter}});
+    assert.equal(result.status, 200);
+    const call = h.calls.find(([path, m]) => path.split("?")[0] === `v1/${target}` && m === method);
+    assert.deepEqual(call[2], {name: "Moje filtry", filter});
+    assert.equal(call[5]["X-Profile-ID"], "1");
+  }
+});
+test("saved-filter writes reject malformed or unknown fields before contacting upstream", async () => {
+  const h = harness();
+  const selected = await h.selected();
+  const invalid = [
+    {name: "x"}, {name: "x", filter: []}, {name: "x", filter: null},
+    {name: "x", filter: {}, user_id: 2}, {name: "x", filter: {admin: true}},
+    {name: "x", filter: {audio_languages: "cs,en"}}, {name: "x", filter: {countries: [123]}},
+    {name: "x", filter: {genre_ids: [1.5]}}, {name: "x", filter: {year_from: "2000"}},
+    {name: "x", filter: {rating_from: false}}, {name: "x", filter: {hdr: 1}},
+    {name: "x", filter: {sort_order: {value: "desc"}}}, {name: "x".repeat(61), filter: {}},
+  ];
+  for (const body of invalid) {
+    for (const [method, target] of [["POST", "saved-filters"], ["PUT", "saved-filters/42"]]) {
+      assert.equal((await h.request(target, {method, cookie: selected.cookie, body})).status, 400, JSON.stringify(body));
+    }
+  }
+  assert.equal(h.calls.some(([path]) => path.startsWith("v1/saved-filters")), false);
+});
 test("catalog filtering forwards the title query together with structured criteria", async () => {
   const h = harness();
   const selected = await h.selected();
