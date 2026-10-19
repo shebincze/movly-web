@@ -281,3 +281,34 @@ test("Node scoring keeps all canonical quality ranks and filename channel parsin
   );
   assert.equal(result.streams[0].scoring.audio_tracks[0].channels, 6);
 });
+
+test("numeric-only catalog titles retain name validation when canonical patterns are empty", async () => {
+  for (const provider of ["webshare", "hellspy"]) {
+    const result = await search(
+      provider,
+      { title: "1917", year: 2019 },
+      null,
+      null,
+      async () => [
+        {
+          source_stream_id: "exact",
+          file_name: "1917 2019 1080p.mkv",
+          file_size: 2e9,
+        },
+        {
+          source_stream_id: "unrelated",
+          file_name: "Another Movie 2019.mkv",
+          file_size: 2e9,
+        },
+      ],
+    );
+    assert.deepEqual(
+      result.streams.map((s) => s.source_stream_id),
+      ["exact"],
+    );
+    assert.deepEqual(result.streams[0].relevance, {
+      bucket: "accepted",
+      reason: null,
+    });
+  }
+});
