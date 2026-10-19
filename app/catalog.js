@@ -905,11 +905,25 @@ function filterPanel(form, active, open) {
   details.open = open || matchMedia("(min-width: 900px)").matches;
   return el("aside", { class: "filter-aside" }, details);
 }
+function searchTitleKey(value) {
+  return typeof value === "string" ? value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim() : "";
+}
+function splitExactSearch(items, query) {
+  const key = searchTitleKey(query), seen = new Set(), exact = [], related = [];
+  for (const item of items) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    const target = key && [item.title, item.original_title].some((name) => searchTitleKey(name) === key) ? exact : related;
+    target.push(item);
+  }
+  return { exact, related };
+}
 export async function search(params, signal, actions) {
   const q = params.get("q") || "",
     page = Math.max(1, Number(params.get("page")) || 1),
     searchContext = apiContextKey();
   const policy = await effectiveContentPolicy({ signal, refresh: true });
+  const discoveryAllowed = !policy.is_kids && !policy.age_controls_active && !policy.exclude_adult;
   const input = el("input", {
     id: "search-q",
     type: "search",
@@ -981,7 +995,7 @@ export async function search(params, signal, actions) {
     cancelPendingSuggestions();
     closeSuggestions();
     const value = input.value.trim();
-    if (value.length < 2) return;
+    if (value.length < 2 || !discoveryAllowed) return;
     const generation = ++suggestionGeneration,
       context = apiContextKey(),
       controller = new AbortController();
@@ -1192,27 +1206,60 @@ export async function search(params, signal, actions) {
           ),
         ),
       );
-      try {
-        const data = await api("trending-searches?limit=8", { signal });
-        if (!signal?.aborted && apiContextKey() === searchContext) {
-          const terms = Array.isArray(data.trending_searches)
-            ? [...new Set(data.trending_searches.map((item) => item?.query).filter((term) => typeof term === "string" && term.trim()))].slice(0, 8)
-            : [];
-          if (terms.length) node.append(el(
-            "section",
-            { class: "popular-searches", "aria-label": translateUI("Populární hledání") },
-            el("h2", { class: "results-heading" }, translateUI("Populární hledání")),
-            el("ul", { class: "popular-search-list" }, terms.map((term) => el(
-              "li", {}, el("button", {
-                type: "button",
-                class: "history-term",
-                onClick: () => { location.hash = "search?q=" + encodeURIComponent(term); },
-              }, term),
-            ))),
-          ));
-        }
-      } catch (error) {
-        if (error?.name !== "AbortError") console.warn("Popular searches are unavailable");
+      if (discoveryAllowed) {
+        const discovery = el("section", { class: "popular-searches", "aria-label": translateUI("Objevuj tituly") });
+        node.append(discovery);
+        const loadDiscovery = async () => {
+          const current = () => !signal?.aborted && apiContextKey() === searchContext && !input.value.trim();
+          discovery.replaceChildren(loading());
+          try {
+            const [trends, popular] = await Promise.all([
+              api("trending-searches?limit=8", { signal }),
+              api("popular-titles-search?limit=8", { signal }),
+            ]);
+            const terms = Array.isArray(trends.trending_searches)
+              ? [...new Set(trends.trending_searches.map((item) => item?.query).filter((term) => typeof term === "string" && term.trim()))].slice(0, 8) : [];
+            const seen = new Set();
+            const candidates = (Array.isArray(popular.popular_titles) ? popular.popular_titles : []).filter((item) => {
+              if (!Number.isSafeInteger(item?.title_id) || item.title_id < 1 || seen.has(item.title_id) || !(item.interaction_count > 0)) return false;
+              seen.add(item.title_id); return true;
+            }).slice(0, 8);
+            // Policy-scoped details, at most two requests at once. Keep the
+            // server's discovery rank when individual posters are unavailable.
+            const hydrated = new Array(candidates.length);
+            let cursor = 0;
+            await Promise.all([0, 1].map(async () => {
+              while (current() && cursor < candidates.length) {
+                const index = cursor++, candidate = candidates[index];
+                try {
+                  const item = title(await api(`titles/${candidate.title_id}`, { signal }));
+                  if (item.id === candidate.title_id) hydrated[index] = item;
+                } catch (error) { if (error?.name === "AbortError") throw error; }
+              }
+            }));
+            await assertEffectivePolicyUnchanged(policy, { signal });
+            if (!current()) return;
+            discovery.replaceChildren();
+            if (terms.length) discovery.append(
+              el("h2", { class: "results-heading" }, translateUI("Populární hledání")),
+              el("ul", { class: "popular-search-list" }, terms.map((term) => el("li", {}, el("button", {
+                type: "button", class: "history-term", onClick: () => chooseSuggestion(term),
+              }, term)))),
+            );
+            const items = hydrated.filter(Boolean);
+            if (candidates.length && !items.length) throw new Error("Popular title details are unavailable");
+            if (items.length) discovery.append(
+              el("h2", { class: "results-heading" }, translateUI("Nejčastěji vybírané tituly")),
+              el("div", { class: "catalog-grid" }, items.map((item) => poster(item, actions.detail))),
+            );
+          } catch (error) {
+            if (error?.name === "AbortError" || !current()) return;
+            discovery.replaceChildren(el("p", {class: "muted"}, translateUI("Návrhy se nepodařilo načíst.")),
+              button(translateUI("Zkusit znovu"), loadDiscovery));
+          }
+        };
+        // Return the search input immediately while suggestions load.
+        void loadDiscovery();
       }
       return node;
     }
@@ -1257,11 +1304,11 @@ export async function search(params, signal, actions) {
   const session = await api("session", { signal }).catch(() => null);
   const expectedOwner = session?.account?.id && session?.profile?.id
     ? { accountId: session.account.id, profileId: session.profile.id } : null;
-  const openSearchResult = (result, ranked) => {
+  const openSearchResult = (result, ranked, offset = 0) => {
     if (expectedOwner) {
       void api("track-search", { method: "POST", expectedOwner, body: {
         query: q.trim(), title_id: result.id, interaction_type: "click",
-        position_in_results: Math.max(1, ranked.findIndex((t) => t.id === result.id) + 1),
+        position_in_results: offset + Math.max(1, ranked.findIndex((t) => t.id === result.id) + 1),
       } }).catch(() => console.warn("Search click could not be recorded"));
     }
     actions.detail(result);
@@ -1285,6 +1332,11 @@ export async function search(params, signal, actions) {
     filtered?.parsed?.matched && Array.isArray(filtered.results)
       ? filtered.results.map(title)
       : [];
+  const grouped = splitExactSearch(items, q);
+  if (grouped.exact.length) results.append(el("section", {class: "exact-search-results"},
+    el("h2", {class: "results-heading"}, translateUI("Přesná shoda názvu")),
+    el("div", {class: "catalog-grid"}, grouped.exact.map((item) => poster(item, (selected) => openSearchResult(selected, items, (page - 1) * 24)))),
+  ));
   if (filteredItems.length) {
     results.append(
       el(
@@ -1333,13 +1385,13 @@ export async function search(params, signal, actions) {
   if (w) results.append(w);
   results.append(
     ...[
-      items.length
+      grouped.related.length
         ? el(
             "div",
             { class: "catalog-grid" },
-            items.map((t) => poster(t, (selected) => openSearchResult(selected, items))),
+            grouped.related.map((t) => poster(t, (selected) => openSearchResult(selected, items, (page - 1) * 24))),
           )
-        : filteredItems.length
+        : filteredItems.length || grouped.exact.length
           ? null
           : empty(
               translateUI("Nic jsme nenašli"),
