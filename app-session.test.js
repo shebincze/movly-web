@@ -173,6 +173,9 @@ test("discovery and facets BFF reads preserve the selected profile and remain cl
     assert.equal(call[5]["X-Profile-ID"], "1");
   }
   assert.equal((await h.request("titles/filter/facets?user_id=999", {cookie: selected.cookie})).status, 400);
+  const facetCall = h.calls.find(([path]) => path.startsWith("v1/titles/filter/facets"));
+  assert.equal(facetCall[5]["X-Movly-Facets-Policy"], "scoped-v1");
+  assert.equal(h.calls.find(([path]) => path.startsWith("v1/popular-titles-search"))[5]["X-Movly-Facets-Policy"], undefined);
 });
 test("anonymous catalog never calls API-key-readable upstream", async () => {
   const h = harness(),

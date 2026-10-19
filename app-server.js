@@ -1842,6 +1842,7 @@ function createAppHandler({
         body,
         target === "search"
           ? { "X-Movly-Search-Purpose": Number(url.searchParams.get("offset") || 0) === 0 ? "user-query" : "pagination" }
+          : target === "titles/filter/facets" ? { "X-Movly-Facets-Policy": "scoped-v1" }
           : /^streaming2?\//.test(target) ? { "X-Cache-Refresh": "true" } : {},
       );
       if (
