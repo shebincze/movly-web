@@ -35,7 +35,15 @@ export function appHandoff(title, message = translateUI("Tento zdroj nejde přeh
 // Prohlížeč přehraje obraz, ale zvukovou stopu (AC-3, DTS…) mlčky zahodí.
 export function audioMissing(video) {
   if (typeof video.mozHasAudio === "boolean") return !video.mozHasAudio;
-  if (typeof video.webkitAudioDecodedByteCount === "number") return video.webkitAudioDecodedByteCount === 0;
+  if (typeof video.webkitAudioDecodedByteCount === "number") {
+    if (video.webkitAudioDecodedByteCount > 0) return false;
+    // Android native HLS may publish zeros for both audio and video while
+    // decoding normally. A zero audio counter is conclusive only when this
+    // engine demonstrates that its decode counters are actually populated.
+    const videoDecoded = video.webkitVideoDecodedByteCount > 0 || video.webkitDecodedFrameCount > 0
+      || (typeof video.getVideoPlaybackQuality === "function" && video.getVideoPlaybackQuality().totalVideoFrames > 0);
+    if (video.webkitAudioDecodedByteCount === 0 && videoDecoded) return true;
+  }
   if (video.audioTracks && typeof video.audioTracks.length === "number") return video.audioTracks.length === 0;
   return false;
 }

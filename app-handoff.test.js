@@ -12,7 +12,12 @@ test("silently dropped audio is detected per browser engine", async () => {
   const { audioMissing } = await import("./app/app-handoff.js");
   assert.equal(audioMissing({ mozHasAudio: false }), true);
   assert.equal(audioMissing({ mozHasAudio: true, webkitAudioDecodedByteCount: 0 }), false);
-  assert.equal(audioMissing({ webkitAudioDecodedByteCount: 0 }), true);
+  assert.equal(audioMissing({ webkitAudioDecodedByteCount: 0, webkitDecodedFrameCount: 120 }), true);
+  assert.equal(audioMissing({ webkitAudioDecodedByteCount: 0, webkitVideoDecodedByteCount: 10000 }), true);
+  assert.equal(audioMissing({ webkitAudioDecodedByteCount: 0, getVideoPlaybackQuality: () => ({totalVideoFrames: 120}) }), true);
+  // Android native HLS publishes zeros for every decode counter even while playing AAC.
+  assert.equal(audioMissing({ webkitAudioDecodedByteCount: 0, webkitVideoDecodedByteCount: 0, webkitDecodedFrameCount: 0, getVideoPlaybackQuality: () => ({totalVideoFrames: 0}) }), false);
+  assert.equal(audioMissing({ webkitAudioDecodedByteCount: 0 }), false);
   assert.equal(audioMissing({ webkitAudioDecodedByteCount: 4096 }), false);
   assert.equal(audioMissing({ audioTracks: { length: 0 } }), true);
   // Bez signálu prohlížeče nic nehlásíme.
