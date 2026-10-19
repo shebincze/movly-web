@@ -33,3 +33,9 @@ Sanitized browser receipts/scripts/screenshots are outside Git under
 `/Users/shebin/Movly-verification-20261019/web-primary201/`; independent SQL receipts
 are in sibling `search1210/primary201-*.txt`. Own BFF/cookie/worktree cleanup follows
 merge; shared Go/PG belongs to its owner.
+
+Final full suite: 609 passed, zero failed/skipped; npm check and ES5 guards passed.
+Additional browser regression rejected an older suggestion generation after editing
+its draft while the old node still existed. A controlled same-owner effective-policy
+event invalidated existing Save/Submit admission without changing backend policy.
+Fresh final SQL confirmed IDs15/16 absent and zero `Primary%` saved rows in kids12102.
