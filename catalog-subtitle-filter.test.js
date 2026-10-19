@@ -7,7 +7,7 @@ async function catalog(){
  const source=original.replace(/^import\s*\{([\s\S]*?)\}\s*from\s+["'][^"']+["'];\n/gm,(_,list)=>{for(const n of list.split(','))if(n.trim())names.add(n.trim().split(/\s+as\s+/).pop());return '';});
  assert.doesNotMatch(source,/^import /m);
  const prefix='const document={addEventListener(){}};'+[...names].map(n=>n==='translateUI'?'const translateUI=(s,...v)=>s.replace(/\\{(\\d)\\}/g,(_,i)=>v[i]);':`const ${n}=()=>undefined;`).join('');
- return import('data:text/javascript;base64,'+Buffer.from(prefix+source+'\nexport {paramsToDefinition,definitionToParams,definitionQuery,hasCriteria,definitionChips,searchParams,splitExactSearch};\n').toString('base64'));
+ return import('data:text/javascript;base64,'+Buffer.from(prefix+source+'\nexport {paramsToDefinition,definitionToParams,definitionQuery,hasCriteria,definitionChips,searchParams,splitExactSearch,supplementalSearchItems};\n').toString('base64'));
 }
 test('subtitle languages round-trip through grid URL, API query and chips',async()=>{
  const c=await catalog();
@@ -69,4 +69,13 @@ test('exact titles are first and deduplicated without changing server ranks',asy
  assert.equal(ranked.findIndex(t=>t.id===grouped.exact[0].id)+1,2);
  assert.deepEqual(c.splitExactSearch([{id:1,title:'1917'},{id:2,title:'1917 Remastered'}],'1917').exact.map(t=>t.id),[1]);
  assert.equal(c.splitExactSearch(ranked,'').exact.length,0);
+});
+
+test('supplemental natural-language titles do not duplicate exact or related cards',async()=>{
+ const c=await catalog();
+ const ranked=[{id:10,title:'Matrix Reloaded'},{id:20,title:'Matrix'}];
+ const supplemental=[ranked[1],{id:30,title:'Other'},ranked[0],{id:30,title:'Other'}];
+ const visible=c.supplementalSearchItems(ranked,supplemental);
+ assert.deepEqual(visible.map(t=>t.id),[30]);
+ assert.equal(supplemental.findIndex(t=>t.id===visible[0].id)+1,2);
 });

@@ -918,6 +918,13 @@ function splitExactSearch(items, query) {
   }
   return { exact, related };
 }
+function supplementalSearchItems(ranked, supplemental) {
+  const seen = new Set(ranked.map((item) => item.id));
+  return supplemental.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id); return true;
+  });
+}
 export async function search(params, signal, actions) {
   const q = params.get("q") || "",
     page = Math.max(1, Number(params.get("page")) || 1),
@@ -1333,11 +1340,12 @@ export async function search(params, signal, actions) {
       ? filtered.results.map(title)
       : [];
   const grouped = splitExactSearch(items, q);
+  const supplementalItems = supplementalSearchItems(items, filteredItems);
   if (grouped.exact.length) results.append(el("section", {class: "exact-search-results"},
     el("h2", {class: "results-heading"}, translateUI("Přesná shoda názvu")),
     el("div", {class: "catalog-grid"}, grouped.exact.map((item) => poster(item, (selected) => openSearchResult(selected, items, (page - 1) * 24)))),
   ));
-  if (filteredItems.length) {
+  if (supplementalItems.length) {
     results.append(
       el(
         "section",
@@ -1360,7 +1368,7 @@ export async function search(params, signal, actions) {
         el(
           "div",
           { class: "catalog-grid" },
-          filteredItems.map((t) => poster(t, (selected) => openSearchResult(selected, filteredItems))),
+          supplementalItems.map((t) => poster(t, (selected) => openSearchResult(selected, filteredItems))),
         ),
       ),
     );
@@ -1391,7 +1399,7 @@ export async function search(params, signal, actions) {
             { class: "catalog-grid" },
             grouped.related.map((t) => poster(t, (selected) => openSearchResult(selected, items, (page - 1) * 24))),
           )
-        : filteredItems.length || grouped.exact.length
+        : supplementalItems.length || grouped.exact.length
           ? null
           : empty(
               translateUI("Nic jsme nenašli"),
