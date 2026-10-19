@@ -1,6 +1,7 @@
 "use strict";
 // Search heuristics shared by the native providers, using canonical catalog metadata.
 const crypto = require("node:crypto");
+const relevance = require("./sources-relevance");
 const deaccent = (s) => s.normalize("NFD").replace(/\p{M}/gu, "");
 const compact = (s) =>
   deaccent(s)
@@ -109,13 +110,19 @@ function metadata(n) {
   if (/\b(?:sk|slo|slovak)\b/i.test(n)) langs.push("SK");
   if (/\b(?:en|eng|english)\b/i.test(n)) langs.push("EN");
   return {
-    video_height: /2160|\b4k\b|uhd/i.test(n)
-      ? 2160
-      : /1080|fhd/i.test(n)
-        ? 1080
-        : /720/i.test(n)
-          ? 720
-          : null,
+    video_height: /4320|\b8k\b/i.test(n)
+      ? 4320
+      : /2160|\b4k\b|uhd/i.test(n)
+        ? 2160
+        : /1440|\b2k\b|qhd/i.test(n)
+          ? 1440
+          : /1080|fhd/i.test(n)
+            ? 1080
+            : /720/i.test(n)
+              ? 720
+              : /480|576|360|\bsd\b/i.test(n)
+                ? 480
+                : null,
     video_codec: /[hx][ .]?265|hevc/i.test(n)
       ? "H.265"
       : /[hx][ .]?264|avc/i.test(n)
@@ -131,6 +138,78 @@ function metadata(n) {
           ? "HDR"
           : null,
     audio_languages: langs,
+  };
+}
+const positive = (n) =>
+  typeof n === "number" && Number.isFinite(n) && n > 0 ? n : null;
+function relevanceRequest(title, episode) {
+  return {
+    ...relevance.titleVariants(
+      title.title,
+      title.original_title,
+      title.all_titles,
+    ),
+    kind: episode ? "episode" : "movie",
+    year: positive(Number(title.year || title.release_date?.slice(0, 4))),
+    runtimeMinutes: positive(title.runtime_minutes || title.runtime),
+    seriesStartYear: positive(
+      Number(title.year || title.first_air_date?.slice(0, 4)),
+    ),
+    season: episode?.season_number,
+    episode: episode?.episode_number,
+  };
+}
+function isVideo(f) {
+  if (
+    typeof f.file_name !== "string" ||
+    /\.(?:rar|zip|7z|tar|gz|iso|srt|sub|txt|nfo|mp3|flac|wav|wma|aac|exe|bat|apk|msi|jpg|jpeg|png|bmp|gif|torrent)$/i.test(
+      f.file_name,
+    )
+  )
+    return false;
+  return (
+    /\.(?:mp4|mkv|avi|mov|wmv|flv|webm|mpg|mpeg|ts|m4v)$/i.test(f.file_name) ||
+    positive(f.file_size) > 50 * 1024 ** 2
+  );
+}
+function scoringMetadata(f, meta) {
+  const h = meta.video_height;
+  const channelMatch = /(^|[^0-9])([1-9])\.([0-9])(?![0-9])/.exec(f.file_name);
+  const channels = channelMatch
+    ? Number(channelMatch[2]) + Number(channelMatch[3])
+    : /atmos/i.test(f.file_name)
+      ? 8
+      : null;
+  return {
+    quality_rank: h
+      ? h >= 4320
+        ? 5
+        : h >= 2160
+          ? 4
+          : h >= 1440
+            ? 3
+            : h >= 1080
+              ? 2
+              : h >= 720
+                ? 1
+                : 0
+      : null,
+    hdr: meta.hdr_type,
+    size_bytes: positive(f.file_size),
+    duration_seconds: positive(f.duration_seconds),
+    bitrate_kbps: null,
+    video_codec: meta.video_codec,
+    audio_tracks: meta.audio_languages.map((language) => ({
+      language,
+      codec: null,
+      channels,
+    })),
+    subtitle_tracks: [],
+    is_3d: f.file_name
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .some((t) => ["3d", "hsbs", "hou", "sbs"].includes(t)),
+    is_database: false,
   };
 }
 async function search(provider, title, episode, token, request) {
@@ -153,14 +232,53 @@ async function search(provider, title, episode, token, request) {
   if (errors.length === work.length)
     throw Object.assign(new Error(unique(errors).join(" ")), { status: 502 });
   const seen = new Set();
+  const requestContext = relevanceRequest(title, episode);
+  const pats = relevance.patterns(requestContext.variants);
   const streams = results
     .filter((f) => {
-      if (!matches(f, title, episode) || seen.has(f.source_stream_id))
+      if (!isVideo(f) || seen.has(f.source_stream_id)) return false;
+      // Keep plausible candidates for the shared evaluate layer, including
+      // demoted years/episodes/packs; strict matches() would discard them.
+      const early = names(title).some((t) =>
+        relevance.earlyGate(
+          requestContext.kind,
+          t,
+          requestContext.year,
+          requestContext.season,
+          requestContext.episode,
+          f.file_name,
+        ),
+      );
+      if (
+        !early &&
+        pats.length &&
+        !pats.some((p) =>
+          relevance.tokenGate(p, relevance.tokenize(f.file_name)),
+        )
+      )
+        return false;
+      if (
+        !relevance.filterTrailers(requestContext.variants, [
+          { name: f.file_name },
+        ]).length
+      )
         return false;
       seen.add(f.source_stream_id);
       return true;
     })
-    .map((f) => ({ ...f, ...metadata(f.file_name) }))
+    .map((f) => {
+      const meta = metadata(f.file_name);
+      return {
+        ...f,
+        ...meta,
+        relevance: relevance.evaluate(requestContext, {
+          name: f.file_name,
+          sizeBytes: positive(f.file_size),
+          durationSeconds: positive(f.duration_seconds),
+        }),
+        scoring: scoringMetadata(f, meta),
+      };
+    })
     .sort((a, b) => (b.video_height || 0) - (a.video_height || 0));
   return { streams, warnings: unique(errors), partial: errors.length > 0 };
 }
@@ -174,7 +292,13 @@ function tickets(secret, { resumable = false } = {}) {
   const owner = (s) =>
     crypto
       .createHash("sha256")
-      .update(JSON.stringify(resumable ? [s.accountId, s.profile?.id] : [s.token, s.device, s.profile?.id, s.grant]))
+      .update(
+        JSON.stringify(
+          resumable
+            ? [s.accountId, s.profile?.id]
+            : [s.token, s.device, s.profile?.id, s.grant],
+        ),
+      )
       .digest("hex");
   return {
     issue(session, data) {

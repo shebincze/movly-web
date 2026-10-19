@@ -121,13 +121,163 @@ test("Webshare adapter handles XML file names including CDATA", async (t) => {
   assert.equal(items[0].source_stream_id, "abc123");
 });
 test("resume references survive session/grant renewal but remain bound to account and profile", () => {
-  const t = tickets("secret", {resumable: true});
-  const session = {accountId: 7, profile: {id: 2}, token: "old", grant: "old"};
-  const token = t.issue(session, {provider: "webshare", ident: "file", title_id: 10, episode_id: 20});
-  assert.equal(t.read({...session, token: "new", grant: "new"}, token).ident, "file");
-  assert.throws(() => t.read({...session, accountId: 8}, token));
-  assert.throws(() => t.read({...session, profile: {id: 3}}, token));
+  const t = tickets("secret", { resumable: true });
+  const session = {
+    accountId: 7,
+    profile: { id: 2 },
+    token: "old",
+    grant: "old",
+  };
+  const token = t.issue(session, {
+    provider: "webshare",
+    ident: "file",
+    title_id: 10,
+    episode_id: 20,
+  });
+  assert.equal(
+    t.read({ ...session, token: "new", grant: "new" }, token).ident,
+    "file",
+  );
+  assert.throws(() => t.read({ ...session, accountId: 8 }, token));
+  assert.throws(() => t.read({ ...session, profile: { id: 3 } }, token));
   assert.throws(() => t.read(session, token + "a"));
   assert.throws(() => tickets("secret").read(session, token));
-  assert.equal(Buffer.from(token.split(".")[0], "base64url").toString().includes("old"), false);
+  assert.equal(
+    Buffer.from(token.split(".")[0], "base64url").toString().includes("old"),
+    false,
+  );
+});
+
+test("Node providers keep canonical demoted candidates and strip trailers before picker", async () => {
+  const title = { title: "Speed", year: 1994, runtime: 116 };
+  const files = [
+    {
+      source_stream_id: "exact",
+      file_name: "Speed 1994 1080p.mkv",
+      file_size: 2e9,
+      duration_seconds: 6960,
+    },
+    {
+      source_stream_id: "bonus",
+      file_name: "Speed making of 1080p.mkv",
+      file_size: 2e9,
+    },
+    {
+      source_stream_id: "year",
+      file_name: "Speed 2010 1080p.mkv",
+      file_size: 2e9,
+    },
+    { source_stream_id: "small", file_name: "Speed 1994.mkv", file_size: 1e6 },
+    {
+      source_stream_id: "trailer",
+      file_name: "Speed trailer.mp4",
+      file_size: 1e9,
+    },
+    {
+      source_stream_id: "unrelated",
+      file_name: "Other 1994.mkv",
+      file_size: 2e9,
+    },
+  ];
+  for (const provider of ["webshare", "hellspy"]) {
+    const result = await search(provider, title, null, null, async () => files);
+    assert.deepEqual(
+      result.streams.map((s) => s.source_stream_id),
+      ["exact", "bonus", "year", "small"],
+    );
+    assert.deepEqual(
+      result.streams.map((s) => s.relevance),
+      [
+        { bucket: "accepted", reason: null },
+        { bucket: "demoted", reason: "bonusContent" },
+        { bucket: "demoted", reason: "yearMismatch" },
+        { bucket: "demoted", reason: "tooSmall" },
+      ],
+    );
+    assert.equal(result.streams[0].scoring.size_bytes, 2e9);
+    assert.equal(result.streams[0].scoring.duration_seconds, 6960);
+    assert.equal(result.streams[0].scoring.quality_rank, 2);
+    assert.equal(result.streams[1].scoring.duration_seconds, null);
+  }
+});
+test("Node providers retain mismatched episodes and season packs as canonical Similar", async () => {
+  const names = [
+    "Breaking Bad S02E03.mkv",
+    "Breaking Bad S02E04.mkv",
+    "Breaking Bad S02 complete.mkv",
+  ];
+  const result = await search(
+    "hellspy",
+    { title: "Breaking Bad", year: 2008 },
+    { season_number: 2, episode_number: 3 },
+    null,
+    async () =>
+      names.map((file_name, i) => ({
+        file_name,
+        file_size: 1e9,
+        source_stream_id: String(i),
+      })),
+  );
+  assert.deepEqual(
+    result.streams.map((s) => s.relevance),
+    [
+      { bucket: "accepted", reason: null },
+      { bucket: "demoted", reason: "seasonEpisodeMismatch" },
+      { bucket: "demoted", reason: "seasonPack" },
+    ],
+  );
+});
+test("Hellspy adapter preserves reported duration and rejects nonnumeric metadata", async (t) => {
+  t.mock.method(global, "fetch", async () => ({
+    ok: true,
+    text: async () =>
+      JSON.stringify({
+        items: [
+          { id: 1, title: "Film", size: 1e9, duration: 4847 },
+          { id: 2, title: "Film", size: 1e9, duration: "4847" },
+          { id: 3, title: "Film", size: 1e9, duration: -1 },
+        ],
+      }),
+  }));
+  const result = await require("./providers-server").searchFiles(
+    "hellspy",
+    "Film",
+  );
+  assert.deepEqual(
+    result.map((f) => f.duration_seconds),
+    [4847, null, null],
+  );
+});
+
+test("Node scoring keeps all canonical quality ranks and filename channel parsing", async () => {
+  const qualities = [
+    "480p",
+    "720p",
+    "1080p",
+    "1440p",
+    "2160p",
+    "4320p",
+    "unknown",
+  ];
+  const result = await search(
+    "hellspy",
+    { title: "Speed" },
+    null,
+    null,
+    async () =>
+      qualities.map((q, i) => ({
+        source_stream_id: String(i),
+        file_name: `Speed ${q} CZ 5.1.mkv`,
+        file_size: 2e9,
+      })),
+  );
+  assert.deepEqual(
+    qualities.map(
+      (q, i) =>
+        result.streams.find((f) => f.source_stream_id === String(i)).scoring
+          .quality_rank,
+    ),
+    [0, 1, 2, 3, 4, 5, null],
+  );
+  assert.equal(result.streams[0].scoring.audio_tracks[0].channels, 6);
 });
