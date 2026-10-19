@@ -6,10 +6,11 @@ The four fields use native keyboard-accessible multiple selects populated by the
 
 ## Local acceptance, 19 October 2026
 
-- Syntax/ES5 checks passed and all 594 Node tests passed, including eight filter helper tests.
+- Syntax/ES5 checks passed and all 595 Node tests passed, including nine filter helper tests.
 - Actual Chromium 151 + local BFF + production Go router/PostgreSQL (#1210 synthetic Premium fixture): selected audio `[cs,en,zul]`, subtitles `[cs,sk]`, originals `[fr,ja]`, countries `[CZ,US,ZZ]`, 2160p, rating lower bound 0, rating ascending.
 - Actual UI save, fresh BFF GET and fresh SQL row agreed on every field; applying the saved filter restored URL and selected controls. Deleting this own QA row was verified by a fresh GET. BFF document preservation depends on #192; no other fixture rows were changed.
 - Controlled facets 503 then Retry recovered through the real endpoint and retained the unknown selected code. A delayed adult response released after an actual UI switch to Kids QA was ignored. No page errors.
+- Keyboard supplement used the actual production filterBuilder and DOM helpers with controlled facet data: Home then Shift+ArrowDown selected CS/EN and actual FormData submission retained both CSV values plus the title query. This component run made no authentication requests.
 - Actual child UI with #1216 received only policy-permitted facet counts. A controlled older response without the negotiated capability was rejected before rendering global options.
 - Desktop and mobile screenshots retained externally under `Movly-verification-20261019/search191/`, alongside redacted `browser.json`, `faults.json`, `saved.json` and reproducible harness scripts.
 
