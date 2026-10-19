@@ -1,0 +1,67 @@
+[
+  {
+    "mode": "android",
+    "id": 1,
+    "version": "Android Chrome133",
+    "duration": 12,
+    "position": 4.825466,
+    "readyState": 4,
+    "width": 320,
+    "frames": 119,
+    "audioBytes": 42651,
+    "appOffer": null,
+    "pageErrors": []
+  },
+  {
+    "mode": "android",
+    "id": 2,
+    "version": "Android Chrome133",
+    "duration": 12.005,
+    "position": 4.817475,
+    "readyState": 4,
+    "width": 320,
+    "frames": 119,
+    "audioBytes": 0,
+    "appOffer": "Prohlížeč neumí přehrát zvuk tohoto zdroje. Zkus jiný zdroj, nebo ho otevři v aplikaci.\n\nOtevřít v aplikaciStáhnout aplikaci",
+    "pageErrors": []
+  },
+  {
+    "mode": "android",
+    "id": 3,
+    "version": "Android Chrome133",
+    "duration": 12,
+    "position": 4.813372,
+    "readyState": 4,
+    "width": 320,
+    "frames": 119,
+    "audioBytes": 0,
+    "appOffer": "Prohlížeč neumí přehrát zvuk tohoto zdroje. Zkus jiný zdroj, nebo ho otevři v aplikaci.\n\nOtevřít v aplikaciStáhnout aplikaci",
+    "pageErrors": []
+  },
+  {
+    "mode": "android",
+    "id": 4,
+    "version": "Android Chrome133",
+    "duration": 12,
+    "position": 4.808863,
+    "readyState": 4,
+    "width": 320,
+    "frames": 0,
+    "audioBytes": 0,
+    "appOffer": null,
+    "pageErrors": []
+  },
+  {
+    "mode": "android",
+    "id": 6,
+    "version": "Android Chrome133",
+    "duration": 6954.302,
+    "position": 4.826022,
+    "readyState": 4,
+    "width": 1280,
+    "frames": 118,
+    "audioBytes": 62080,
+    "appOffer": null,
+    "pageErrors": []
+  }
+]

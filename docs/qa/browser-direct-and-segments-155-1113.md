@@ -1,0 +1,50 @@
+# Browser direct playback and actual segment data — 2026-10-19
+
+Scope: web #155 and web portion of root #1113. No deployment, publication, production writes or provider-account changes. Physical-device requirements were waived by the owner in favor of simulator/VM checks. Synthetic local Movly catalogue/session and generated media are distinguished from actual provider reads below.
+
+## Direct playback
+
+Unmodified shared source picker/player ran against local synthetic session/catalogue and HTTP-generated H.264 fixtures. Android used its own API36 ARM64 emulator, Chrome133, port5586; Chromium151 and WebKit26.5 used Playwright. Browser plugin had no available browser surface, so Playwright was used. Native Safari27/macOS27 and Safari/iOS27 Simulator were operated through Device Hub/CUA.
+
+| Browser | AAC MP4 / AAC HLS | H.264+AC3 MKV | H.264+AC3 MP4 | Actual Sosac MP4 |
+|---|---|---|---|---|
+| Chromium151 | decoded, no app offer | silent audio detected, app offered | silent audio detected, app offered | 1280px video, progressing frames/audio |
+| WebKit26.5 | decoded, no app offer | unsupported format, app offered | supported by platform, decoded | 1280px video, progressing frames/audio |
+| Android Chrome133/API36 | decoded, no app offer after #179 | silent audio detected, app offered | silent audio detected, app offered | 1280px video, progressing frames/audio |
+| Native Safari27/macOS27 | MP4 decoded | unsupported format, app offered | not separately checked | actual video observed at7.76s, readyState4, width1280,195frames; fullscreen control verified |
+| Safari/iOS27 simulator | generated MP4 rendered progressing testsrc | unsupported format, app offered | not separately checked | not claimed |
+
+Android native HLS reports **all** decode counters as zero while video progresses. #179 fixes the false missing-audio warning by requiring a populated video decode counter before trusting zero audio bytes. Positive AC3 detection remains intact. A lack of reliable metrics remains unknown, not evidence of audio support.
+
+The iPhone fullscreen control expanded the player across the browser content using the existing page-fullscreen fallback. Safari chrome remains visible; this is not a claim of native AVPlayer fullscreen. Screenshot: [iPhone fullscreen](evidence/web155-1113-20261019/ios-safari-fullscreen.png), [MKV handoff](evidence/web155-1113-20261019/ios-safari-mkv-offer.png).
+
+Actual Sosac source came from the existing authorized account via the real resolver adapter, stored only in a0600 private input outside Git. The URL stayed in process memory and was never logged or placed in argv. The synthetic BFF issued that actual direct source; no whole movie was downloaded or saved.
+
+Actual anonymous Hellspy: Mac resolved its API download endpoint and fetched1024 bytes; an authorized Contabo SSH process fetched1024 bytes from the **exact same signed CDN URL**. Both returned206 with MP4 content type. Independent egress fingerprints differed. URL transferred over SSH stdin only. [Sanitized result](evidence/web155-1113-20261019/hellspy-cross-ip-summary.json), [egress comparison](evidence/web155-1113-20261019/egress-fingerprints.json). This establishes cross-IP link validity; the second network was not called production deployment.
+
+## TV ES5
+
+Actual TV app ran at1280×720 in Chromium, with synthetic API/session and generated media fulfilled at an HTTPS fixture host. MP4 used file engine and HLS native engine; both rendered320px and progressed beyond1s with no page errors. A stalled unsupported source displayed the actionable failure message at25.373s measured from playback API response; the production watchdog is25000ms after attach. This is a nominal25s watchdog observation, not strict proof of an end-to-end ≤25.000s deadline. No physical Smart TV claim. [Failure screen](evidence/web155-1113-20261019/tv-unsupported.png).
+
+## Actual provider segment data in the shared player
+
+Anonymous live TheIntroDB v4 and IntroDB.app responses were saved unchanged in [real-intro-data](evidence/web155-1113-20261019/real-intro-data). Generated long-duration media provided controllable seek positions; no commercial episode/movie was downloaded for these segment tests. BFF fixture translated the real numeric segments into the production web segment contract without changing their boundaries.
+
+| Case | Actual data and observed browser action |
+|---|---|
+| Breaking Bad1396 S1E1 | IntroDB.app credits3431000–3500000ms. At3435s the existing Next button highlighted and clicking it opened the next-episode source picker. |
+| Mandalorian82856 S2E1 | IntroDB.app recap1000–144000ms. Manual skip moved to144s. TheIntroDB recap3906–120662ms differs, so this is not an auto-consensus claim. |
+| Matrix603 | TheIntroDB credits start7726802ms, end=null. Exact saved response replayed at the TheIntroDB client boundary with CORS enabled; player used actual8160s duration and skipped to8159s. Live localhost request lacked Access-Control-Allow-Origin, so no live browser CORS success is claimed. |
+| Infinity War tt4154756 | IntroDB.app outro8251000–8852000ms and post_credits8852000–8947000ms. Skip moved to8852s, preserving the scene after credits. This is a **movie**, not the episode post-credits acceptance requested by #1113. |
+| Party role | Two independent shared-player browser pages used controlled legacy party HTTP/SSE protocol and the actual Breaking Bad credits above. Host saw Skip credits; member saw neither Skip credits nor Next. This is role UI evidence, not actual Go party-service/two-network acceptance. |
+
+[Runtime results](evidence/web155-1113-20261019/intro-ui-results.json), [party role result](evidence/web155-1113-20261019/party-credits-results.json). The local account/catalogue data are explicit QA fixtures; no production profile/watch history was changed.
+
+## Remaining acceptance
+
+- Real Webshare account cross-IP/codec coverage: no configured usable token/password found; admin Providers screen showed Webshare disconnected. Native sandbox preferences denied access; no TCC changes or bypass attempted. Existing account metadata alone is not a usable session. No account creation, purchase or terms acceptance.
+- Full actual Go Party + web clients on two networks is tracked separately from the controlled role UI proof above and will be added only after observed runtime.
+- #1113 specifically asks for an **episode** with a real post-credits scene. Bounded provider reads found actual movie post-credits data; queried episode responses had post_credits=null. A final TheIntroDB Mandalorian S2E8 probe returned403 and was not retried. The episode requirement remains open.
+- Strict TV error deadline across real browser engines cannot be inferred from Chromium's25.373s observation.
+
+Validation of #179: `npm run check`, full579 tests passed after rebase onto Premium-restoring main d7fe16a. Actions disabled. Detailed local harness/scripts/logs retained outside the checkout at `/Users/shebin/.codex/logs/movly/web155-1113-20261019/`.

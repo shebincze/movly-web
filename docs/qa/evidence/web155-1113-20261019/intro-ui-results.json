@@ -1,0 +1,33 @@
+[
+  {
+    "id": 100,
+    "label": "next",
+    "highlight": true,
+    "ariaLabel": "Další díl",
+    "nextPickerOpened": true
+  },
+  {
+    "id": 101,
+    "label": "recap",
+    "position": 144,
+    "expected": 144,
+    "realProviderData": true,
+    "theIntroDbReplay": false
+  },
+  {
+    "id": 102,
+    "label": "credits",
+    "position": 8159,
+    "expected": 8159,
+    "realProviderData": true,
+    "theIntroDbReplay": true
+  },
+  {
+    "id": 103,
+    "label": "postcredits",
+    "position": 8852,
+    "expected": 8852,
+    "realProviderData": true,
+    "theIntroDbReplay": false
+  }
+]

@@ -1,0 +1,67 @@
+[
+  {
+    "mode": "chromium",
+    "id": 1,
+    "version": "151.0.7922.34",
+    "duration": 12,
+    "position": 4.81238,
+    "readyState": 4,
+    "width": 320,
+    "frames": 121,
+    "audioBytes": 41354,
+    "appOffer": null,
+    "pageErrors": []
+  },
+  {
+    "mode": "chromium",
+    "id": 2,
+    "version": "151.0.7922.34",
+    "duration": 12.005,
+    "position": 4.807369,
+    "readyState": 4,
+    "width": 320,
+    "frames": 120,
+    "audioBytes": 0,
+    "appOffer": "Prohlížeč neumí přehrát zvuk tohoto zdroje. Zkus jiný zdroj, nebo ho otevři v aplikaci.\n\nOtevřít v aplikaciStáhnout aplikaci",
+    "pageErrors": []
+  },
+  {
+    "mode": "chromium",
+    "id": 3,
+    "version": "151.0.7922.34",
+    "duration": 12,
+    "position": 4.80503,
+    "readyState": 4,
+    "width": 320,
+    "frames": 120,
+    "audioBytes": 0,
+    "appOffer": "Prohlížeč neumí přehrát zvuk tohoto zdroje. Zkus jiný zdroj, nebo ho otevři v aplikaci.\n\nOtevřít v aplikaciStáhnout aplikaci",
+    "pageErrors": []
+  },
+  {
+    "mode": "chromium",
+    "id": 4,
+    "version": "151.0.7922.34",
+    "duration": 12,
+    "position": 4.808865,
+    "readyState": 4,
+    "width": 320,
+    "frames": 120,
+    "audioBytes": 42711,
+    "appOffer": null,
+    "pageErrors": []
+  },
+  {
+    "mode": "chromium",
+    "id": 6,
+    "version": "151.0.7922.34",
+    "duration": 6954.302,
+    "position": 4.805015,
+    "readyState": 4,
+    "width": 1280,
+    "frames": 120,
+    "audioBytes": 58755,
+    "appOffer": null,
+    "pageErrors": []
+  }
+]
