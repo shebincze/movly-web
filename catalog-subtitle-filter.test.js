@@ -127,3 +127,10 @@ test('valid backend vote_count sort and fractional rating thresholds stay lossle
   assert.equal(c.definitionQuery(back).get('rating_from'),'7.55');
  }
 });
+
+test('selected chips display fractional percentages and custom heights exactly',async()=>{
+ const c=await catalog();const chips=c.definitionChips({rating_from:7.55,rating_to:8.25,video_height_min:1440},new Map());
+ assert.ok(chips.includes('75.5–82.5 %'));assert.ok(chips.includes('1440p+'));assert.equal(chips.some(v=>v.includes('Full HD')),false);
+ assert.ok(c.definitionChips({video_height_min:4320},new Map()).includes('4320p+'));
+ assert.ok(c.definitionChips({rating_from:7.555},new Map()).includes('75.55 %+'));
+});
