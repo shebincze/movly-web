@@ -566,6 +566,7 @@ function createAppHandler({
       "GET",
       /^titles\/filter$/,
       [
+        "q",
         "type",
         "genre_ids",
         "page",

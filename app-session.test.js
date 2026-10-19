@@ -88,6 +88,25 @@ function harness({
   }
   return { request, login, selected, calls };
 }
+test("catalog filtering forwards the title query together with structured criteria", async () => {
+  const h = harness();
+  const selected = await h.selected();
+  assert.equal(selected.status, 200);
+  const response = await h.request("titles/filter?q=1917&video_height_min=2160&year_from=2000&subtitle_language=cs,en&page=2&limit=24", {cookie: selected.cookie});
+  assert.equal(response.status, 200);
+  const call = h.calls.find(([path]) => path.startsWith("v1/titles/filter?"));
+  assert.ok(call);
+  const url = new URL(call[0], "http://fixture/");
+  assert.equal(url.searchParams.get("q"), "1917");
+  assert.equal(url.searchParams.get("video_height_min"), "2160");
+  assert.equal(url.searchParams.get("year_from"), "2000");
+  assert.equal(url.searchParams.get("subtitle_language"), "cs,en");
+  assert.equal(url.searchParams.get("page"), "2");
+  assert.equal(url.searchParams.has("ignored"), false);
+  assert.equal(call[5]["X-Profile-ID"], "1");
+  const unknown = await h.request("titles/filter?q=1917&ignored=drop", {cookie: selected.cookie});
+  assert.equal(unknown.status, 400);
+});
 test("anonymous catalog never calls API-key-readable upstream", async () => {
   const h = harness(),
     r = await h.request("main");

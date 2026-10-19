@@ -334,7 +334,7 @@ function intParam(params, key, max) {
 function subtitleCodes(raw) {
   return [...new Set(String(raw || "").split(",").map((code) => code.trim().toLowerCase()).filter((code) => /^[a-z]{2,3}$/.test(code)))].sort();
 }
-function paramsToDefinition(params, type) {
+function paramsToDefinition(params, type, { grid = true } = {}) {
   const genreIds = (params.get("genre") || "")
     .split(",")
     .map((v) => Number.parseInt(v, 10))
@@ -355,7 +355,7 @@ function paramsToDefinition(params, type) {
     rating_to: pct(intParam(params, "rt", 100)),
     runtime_from: intParam(params, "df", 1440),
     runtime_to: intParam(params, "dt", 1440),
-    video_height_min: intParam(params, "q", 4320),
+    video_height_min: intParam(params, grid ? "q" : "quality", 4320),
     hdr: !!params.get("hdr") || null,
     audio_language: params.get("audio") || null,
     subtitle_languages: subtitleCodes(params.get("sub")),
@@ -378,7 +378,7 @@ function definitionToParams(d, { grid = true } = {}) {
   if (d.rating_to != null) q.set("rt", String(Math.round(d.rating_to * 10)));
   if (d.runtime_from) q.set("df", String(d.runtime_from));
   if (d.runtime_to) q.set("dt", String(d.runtime_to));
-  if (d.video_height_min) q.set("q", String(d.video_height_min));
+  if (d.video_height_min) q.set(grid ? "q" : "quality", String(d.video_height_min));
   if (d.hdr) q.set("hdr", "1");
   if (d.audio_language) q.set("audio", d.audio_language);
   if (d.subtitle_languages?.length) q.set("sub", subtitleCodes(d.subtitle_languages.join(",")).join(","));
@@ -387,6 +387,14 @@ function definitionToParams(d, { grid = true } = {}) {
   if (d.has_streams) q.set("streams", "1");
   if (d.sort_by && d.sort_by !== "popularity") q.set("sort", d.sort_by);
   return q;
+}
+// Search q always means a title. Grid q remains the legacy quality parameter.
+function searchParams(params, text) {
+  const next = new URLSearchParams();
+  if (text.trim()) next.set("q", text.trim());
+  for (const key of [...FILTER_PARAM_KEYS.filter((key) => key !== "q"), "quality", "t"])
+    if (params.get(key)) next.set(key, params.get(key));
+  return next;
 }
 function definitionQuery(d) {
   const query = new URLSearchParams();
@@ -522,6 +530,7 @@ function filterBuilder({
   savedFilters,
   actions,
   allowType = false,
+  queryText = () => params.get("q")?.trim() || "",
 }) {
   const grid = !allowType;
   const genreNames = new Map(genres.map((g) => [g.id, g.name_cs || g.name]));
@@ -584,7 +593,7 @@ function filterBuilder({
     return node;
   };
   const quality = select(
-    "q",
+    grid ? "q" : "quality",
     QUALITY_OPTIONS,
     definition.video_height_min
       ? definition.video_height_min >= 2160
@@ -646,6 +655,7 @@ function filterBuilder({
       onSubmit: (e) => {
         e.preventDefault();
         const q = new URLSearchParams(grid ? { view: "grid" } : {});
+        if (!grid && queryText()) q.set("q", queryText());
         const genreIds = [...genre.querySelectorAll("input:checked")].map((o) => o.value);
         if (genreIds.length) q.set("genre", genreIds.join(","));
         for (const [k, v] of new FormData(filters))
@@ -684,7 +694,11 @@ function filterBuilder({
           "a",
           {
             class: "button secondary",
-            href: `#${route}${grid ? "?view=grid" : ""}`,
+            href: `#${route}${grid ? "?view=grid" : params.get("q")?.trim() ? `?${new URLSearchParams({q: params.get("q").trim()})}` : ""}`,
+            onClick: grid ? undefined : (event) => {
+              event.preventDefault();
+              location.hash = `${route}?${new URLSearchParams(queryText() ? {q: queryText()} : {})}`;
+            },
           },
           translateUI("Zrušit filtry"),
         )
@@ -716,6 +730,7 @@ function filterBuilder({
           paramsToDefinition(
             definitionToParams(saved.filter, { grid }),
             definition.type,
+            { grid },
           ),
         ) === JSON.stringify(definition),
     );
@@ -729,7 +744,9 @@ function filterBuilder({
               ? "movies"
               : route
           : route;
-        location.hash = `${target}?${definitionToParams(saved.filter || {}, { grid })}`;
+        const next = definitionToParams(saved.filter || {}, { grid });
+        if (!grid && queryText()) next.set("q", queryText());
+        location.hash = `${target}?${next}`;
       });
       apply.className = "chip" + (applied?.id === saved.id ? " active" : "");
       apply.type = "button";
@@ -900,7 +917,6 @@ export async function search(params, signal, actions) {
     placeholder: translateUI("Filmy, seriály…"),
     value: q,
     maxlength: 200,
-    required: true,
     autocomplete: "off",
     role: "combobox",
     "aria-autocomplete": "list",
@@ -942,7 +958,7 @@ export async function search(params, signal, actions) {
     input.value = value;
     clear.hidden = false;
     closeSuggestions();
-    location.hash = `search?q=${encodeURIComponent(value.trim())}`;
+    location.hash = `search?${searchParams(params, value)}`;
   };
   const clear = el(
     "button",
@@ -953,6 +969,7 @@ export async function search(params, signal, actions) {
       onClick: () => {
         input.value = "";
         input.dispatchEvent(new Event("input", { bubbles: true }));
+        location.hash = `search?${searchParams(params, "")}`;
         input.focus();
       },
     },
@@ -1040,7 +1057,7 @@ export async function search(params, signal, actions) {
       role: "search",
       onSubmit: (e) => {
         e.preventDefault();
-        location.hash = `search?q=${encodeURIComponent(input.value.trim())}`;
+        location.hash = `search?${searchParams(params, input.value)}`;
       },
     },
     el("label", { class: "catalog-sr-only", for: "search-q" }, translateUI("Co chceš objevit?")),
@@ -1109,7 +1126,7 @@ export async function search(params, signal, actions) {
                   type: "button",
                   class: "history-term",
                   onClick: () => {
-                    location.hash = "search?q=" + encodeURIComponent(term);
+                    location.hash = `search?${searchParams(params, term)}`;
                   },
                 },
                 term,
@@ -1124,11 +1141,12 @@ export async function search(params, signal, actions) {
     node.append(history);
   }
   // Skládač filtrů i v hledání: typ, žánry, roky, hodnocení, délka, kvalita,
-  // jazyk, řazení + Moje filtry. Platí, když je pole hledání prázdné.
+  // jazyk, řazení + Moje filtry. Lze je kombinovat s hledaným názvem.
   const typeParam = params.get("t");
   const definition = paramsToDefinition(
     params,
     typeParam === "movie" || typeParam === "tv" ? typeParam : null,
+    { grid: false },
   );
   const filterActive = hasCriteria(definition) || !!definition.type;
   const [genresResult, savedResult] = await Promise.all([
@@ -1149,6 +1167,7 @@ export async function search(params, signal, actions) {
     savedFilters,
     actions,
     allowType: true,
+    queryText: () => input.value.trim(),
   });
   const results = el(
     "section",
@@ -1163,7 +1182,7 @@ export async function search(params, signal, actions) {
       results,
     ),
   );
-  if (!q.trim()) {
+  if (!q.trim() || filterActive) {
     if (!filterActive) {
       results.append(
         empty(
@@ -1198,6 +1217,7 @@ export async function search(params, signal, actions) {
       return node;
     }
     const query = definitionQuery(definition);
+    if (q.trim()) query.set("q", q.trim());
     if (definition.type) query.set("type", definition.type);
     query.set("page", String(page));
     query.set("limit", "24");
@@ -1234,16 +1254,6 @@ export async function search(params, signal, actions) {
     }
     return node;
   }
-  if (filterActive)
-    results.append(
-      el(
-        "p",
-        { class: "muted" },
-        translateUI(
-          "Filtry se použijí, když je pole hledání prázdné; teď hledám podle názvu.",
-        ),
-      ),
-    );
   const session = await api("session", { signal }).catch(() => null);
   const expectedOwner = session?.account?.id && session?.profile?.id
     ? { accountId: session.account.id, profileId: session.profile.id } : null;
