@@ -1,0 +1,12 @@
+{
+  "provider": "Hellspy",
+  "path": "Mac API resolve -> Hetzner exact resolved CDN URL",
+  "mac_status": 206,
+  "mac_content_type": "application/octet-stream",
+  "mac_bytes": 1024,
+  "remote_ssh_exit": 0,
+  "remote_status": 206,
+  "remote_bytes": 1024,
+  "remote_content_type": "application/octet-stream",
+  "same_link": true
+}

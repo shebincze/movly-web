@@ -1,0 +1,40 @@
+{
+  "actualGo": true,
+  "actualBFF": true,
+  "controlledProviderMedia": false,
+  "actualAnonymousHellspy": true,
+  "differentEgress": true,
+  "egressFingerprints": [
+    "d7c6652998270254",
+    "00b51452fb192659"
+  ],
+  "before": [
+    {
+      "time": 1.006283,
+      "paused": false,
+      "width": 1920,
+      "error": null
+    },
+    {
+      "time": 1.051437,
+      "paused": false,
+      "width": 1920,
+      "error": null
+    }
+  ],
+  "after": [
+    {
+      "time": 27.531587,
+      "paused": true,
+      "width": 1920,
+      "error": null
+    },
+    {
+      "time": 27.3765,
+      "paused": true,
+      "width": 1920,
+      "error": null
+    }
+  ],
+  "errors": []
+}

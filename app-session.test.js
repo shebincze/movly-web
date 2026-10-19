@@ -22,7 +22,7 @@ function harness({
   const fixture = createFixture();
   const handler = createAppHandler({
     production,
-    providerClient,
+    providerClient: { ...require("./providers-server"), resolveHellspy: async () => "https://cdn.example.net/hellspy.mp4?signed=fixture", ...providerClient },
     nativeResolver,
     partyStream,
     secret: "test-secret-for-isolated-app-only",
@@ -456,7 +456,7 @@ test("live sources require profile, isolate signed selection and reject foreign 
   // Video jde přímo od poskytovatele, ne přes server (#153).
   assert.deepEqual(ok.body, {
     direct: true,
-    url: "https://api.hellspy.to/gw/video/42/hash/download",
+    url: "https://cdn.example.net/hellspy.mp4?signed=fixture",
     kind: "file",
   });
 });
@@ -486,7 +486,7 @@ test("stream download hands the browser the provider link and stays bound to the
   assert.equal(result.status, 200);
   assert.deepEqual(result.body, {
     direct: true,
-    url: "https://api.hellspy.to/gw/video/42/hash/download",
+    url: "https://cdn.example.net/hellspy.mp4?signed=fixture",
     kind: "file",
     filename: "Duna Cast druha 2024.mkv",
   });
@@ -1247,7 +1247,7 @@ test("remembered live source survives a fresh BFF/session without another provid
     body: {source: "resume", title_id: 1, ticket, offset: 123, audio: 1, subtitle: -1, audio_selector: "remembered-audio", subtitle_selector: "off"}});
   assert.equal(response.status, 200);
   assert.equal(searches, beforeResume);
-  assert.equal(response.body.url, "https://api.hellspy.to/gw/video/42/hash/download");
+  assert.equal(response.body.url, "https://cdn.example.net/hellspy.mp4?signed=fixture");
   const otherProfile = await restarted.request("profile", {method: "POST", cookie: fresh.cookie, body: {id: 2, pin: "1234"}});
   assert.equal(otherProfile.status, 200);
   for (const [cookie, title_id, altered] of [[otherProfile.cookie, 1, ticket], [fresh.cookie, 2, ticket], [fresh.cookie, 1, ticket + "A"]]) {

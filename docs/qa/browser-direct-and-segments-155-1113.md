@@ -43,8 +43,25 @@ Anonymous live TheIntroDB v4 and IntroDB.app responses were saved unchanged in [
 ## Remaining acceptance
 
 - Real Webshare account cross-IP/codec coverage: no configured usable token/password found; admin Providers screen showed Webshare disconnected. Native sandbox preferences denied access; no TCC changes or bypass attempted. Existing account metadata alone is not a usable session. No account creation, purchase or terms acceptance.
-- Full actual Go Party + web clients on two networks is tracked separately from the controlled role UI proof above and will be added only after observed runtime.
+- Full actual Go Party + web clients on two networks subsequently passed; see the follow-up below.
 - #1113 specifically asks for an **episode** with a real post-credits scene. Bounded provider reads found actual movie post-credits data; queried episode responses had post_credits=null. A final TheIntroDB Mandalorian S2E8 probe returned403 and was not retried. The episode requirement remains open.
 - Strict TV error deadline across real browser engines cannot be inferred from Chromium's25.373s observation.
 
 Validation of #179: `npm run check`, full579 tests passed after rebase onto Premium-restoring main d7fe16a. Actions disabled. Detailed local harness/scripts/logs retained outside the checkout at `/Users/shebin/.codex/logs/movly/web155-1113-20261019/`.
+
+
+## Follow-up: actual Go Party across two networks and Hellspy gateway fix (#183)
+
+The real Go API ran the opt-in `PARTY725_FIXTURE_INSTANCE=web155` fixture from root PR1193 with its own PostgreSQL54265, Go18266 and local BFF18265. Both named synthetic QA users had current Premium; authentication, PIN verification, profile grant, friendship, room membership, readiness, SSE and state transport used actual production handlers and store. No production database was touched. The public anonymous Hellspy source metadata was inserted only in that owned fixture database; it was deliberately attached to a synthetic QA title.
+
+Network: host Chromium151 used the Mac directly. Member Chromium151 used existing authorized Hetzner SSH SOCKS egress, with a remote **loopback-only**18275 reverse forward to the Mac BFF. Independent browser requests produced distinct egress fingerprints. No public listener or server/firewall/SSH configuration was changed. Contabo explicitly denied forwarding and was not modified or bypassed.
+
+First, generated HTTPS-fixture HLS proved actual Go/BFF/role/readiness/state behavior across those paths: both640px players progressed; host UI seek25s and pause yielded both25.018s paused, no page errors. Media fixture fulfillment is explicitly controlled and was not called a real provider.
+
+Then actual anonymous Hellspy exposed #183: Mac browser followed the API gateway302→CDN206, but the member's gateway request failed `ERR_BLOCKED_BY_ORB` and the app offered handoff. The same signed CDN URL resolved on Mac returned206/1024bytes from Hetzner. The backend correctly kept the room paused with host ready/member not ready.
+
+The fix resolves only the official gateway on the BFF using `Range: bytes=0-0`, `redirect: manual`, a15s timeout and response-body cancellation. It validates the returned HTTPS Location with no userinfo, sends that direct CDN URL to the browser and sanitizes upstream failures to502. It does not proxy media or follow arbitrary URLs server-side. Live, remembered and download selections retain profile/title binding.
+
+After the fix, **both real direct CDN requests returned206** and both Chromium players decoded1920px, progressed and entered released readiness round1, with no page errors. Host UI seek25s was allowed to settle before pause; the room clock advanced during network/seek processing. After pause, host27.532s/member27.377s differed by155ms and both were paused. Fresh PostgreSQL readback confirmed room `e4a7e88a78258f4a011d3ea4c2a090ca`, status paused, position27.377, version13, updated_by host1, two distinct members, two ready devices, and released preparation round1. This is actual two-egress browser/provider/Go/BFF proof, not physical-device or production-deployment proof.
+
+Evidence: [controlled two-network runtime](evidence/web155-1113-20261019/network-party-results.json), [actual Hellspy runtime](evidence/web155-1113-20261019/network-hellspy-party-results.json), [fenced PostgreSQL readback](evidence/web155-1113-20261019/party-postgres-readback.txt), [member after fix](evidence/web155-1113-20261019/network-hellspy-party-member.png), [gateway failure before fix](evidence/web155-1113-20261019/network-hellspy-party-failure-1.png). No signed URL, session token or real credentials are committed. Small playback/range reads only; no whole commercial title was saved.
