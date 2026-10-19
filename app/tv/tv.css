@@ -543,3 +543,7 @@ button[disabled].tv-f {
 .tv-screen-search .tv-button { margin-right: 0.8rem; margin-bottom: 0.8rem; }
 .tv-filter-facets .tv-button[aria-pressed="true"] { background: #673baa; }
 .tv-filter-facets .tv-button[aria-pressed="true"]:focus { background: #ff4f6d; color: #0a0a12; }
+
+.tv-home-preference-row { border: 2px solid #343449; padding: 20px; margin: 20px 0; }
+.tv-home-preference-row h2 { margin: 0 0 12px; }
+.tv-home-preference-row .tv-button { margin: 4px; }

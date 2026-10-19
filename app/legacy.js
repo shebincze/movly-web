@@ -64,7 +64,11 @@
     var scoring = document.createElement("script");
     scoring.src = "/app/tv/stream-scoring.js";
     scoring.onerror = show;
-    scoring.onload = function () { head.appendChild(script); };
+    var preferences = document.createElement("script");
+    preferences.src = "/app/tv/home-preferences-state.js";
+    preferences.onerror = show;
+    preferences.onload = function () { head.appendChild(script); };
+    scoring.onload = function () { head.appendChild(preferences); };
     policy.onload = function () { head.appendChild(scoring); };
     head.appendChild(policy);
     setTimeout(function () {

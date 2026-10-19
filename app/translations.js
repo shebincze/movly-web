@@ -1,4 +1,6 @@
 export const translations = {
+  "Řady na Domů": ["Rady na Domov", "Home rows"],
+  "Pořadí a zobrazení řad pro tento profil": ["Poradie a zobrazenie radov pre tento profil", "Row order and visibility for this profile"],
   "od": ["od", "from"],
   "do": ["do", "to"],
   "od min": ["od min", "from min"],
