@@ -17,11 +17,13 @@ function harness({
   providerClient,
   nativeResolver,
   partyStream,
+  offlineEnvironment,
 } = {}) {
   const calls = [];
   const fixture = createFixture();
   const handler = createAppHandler({
     production,
+    offlineEnvironment,
     providerClient: { ...require("./providers-server"), resolveHellspy: async () => "https://cdn.example.net/hellspy.mp4?signed=fixture", ...providerClient },
     nativeResolver,
     partyStream,
@@ -88,6 +90,93 @@ function harness({
   }
   return { request, login, selected, calls };
 }
+test("saved-filter POST and PUT preserve the complete canonical definition", async () => {
+  const h = harness({override: (path, options) => path.startsWith("v1/saved-filters") ? {payload: {ok: true}} : undefined});
+  const selected = await h.selected();
+  const filter = {type: "movie", genre_ids: [18, 28], genre_match: "all", year_from: 1990, year_to: 2026,
+    rating_from: 7.5, rating_to: 10, runtime_from: 80, runtime_to: 180, video_height_min: 2160,
+    hdr: true, has_streams: true, audio_language: null, original_language: "fr",
+    audio_languages: ["cs", "en", "zul"], subtitle_languages: ["cs", "sk"],
+    original_languages: ["fr", "ja"], countries: ["CZ", "US"], sort_by: "rating", sort_order: "desc"};
+  for (const [method, target] of [["POST", "saved-filters"], ["PUT", "saved-filters/42"]]) {
+    const result = await h.request(target, {method, cookie: selected.cookie, body: {name: "  Moje filtry  ", filter}});
+    assert.equal(result.status, 200);
+    const call = h.calls.find(([path, m]) => path.split("?")[0] === `v1/${target}` && m === method);
+    assert.deepEqual(call[2], {name: "Moje filtry", filter});
+    assert.equal(call[5]["X-Profile-ID"], "1");
+  }
+});
+test("saved-filter writes reject malformed or unknown fields before contacting upstream", async () => {
+  const h = harness();
+  const selected = await h.selected();
+  const invalid = [
+    {name: "x"}, {name: "x", filter: []}, {name: "x", filter: null},
+    {name: "x", filter: {}, user_id: 2}, {name: "x", filter: {admin: true}},
+    {name: "x", filter: {audio_languages: "cs,en"}}, {name: "x", filter: {countries: [123]}},
+    {name: "x", filter: {genre_ids: [1.5]}}, {name: "x", filter: {year_from: "2000"}},
+    {name: "x", filter: {rating_from: false}}, {name: "x", filter: {hdr: 1}},
+    {name: "x", filter: {sort_order: {value: "desc"}}}, {name: "x".repeat(61), filter: {}},
+  ];
+  for (const body of invalid) {
+    for (const [method, target] of [["POST", "saved-filters"], ["PUT", "saved-filters/42"]]) {
+      assert.equal((await h.request(target, {method, cookie: selected.cookie, body})).status, 400, JSON.stringify(body));
+    }
+  }
+  assert.equal(h.calls.some(([path]) => path.startsWith("v1/saved-filters")), false);
+});
+test("catalog filtering forwards the title query together with structured criteria", async () => {
+  const h = harness();
+  const selected = await h.selected();
+  assert.equal(selected.status, 200);
+  const response = await h.request("titles/filter?q=1917&video_height_min=2160&year_from=2000&subtitle_language=cs,en&page=2&limit=24", {cookie: selected.cookie});
+  assert.equal(response.status, 200);
+  const call = h.calls.find(([path]) => path.startsWith("v1/titles/filter?"));
+  assert.ok(call);
+  const url = new URL(call[0], "http://fixture/");
+  assert.equal(url.searchParams.get("q"), "1917");
+  assert.equal(url.searchParams.get("video_height_min"), "2160");
+  assert.equal(url.searchParams.get("year_from"), "2000");
+  assert.equal(url.searchParams.get("subtitle_language"), "cs,en");
+  assert.equal(url.searchParams.get("page"), "2");
+  assert.equal(url.searchParams.has("ignored"), false);
+  assert.equal(call[5]["X-Profile-ID"], "1");
+  const unknown = await h.request("titles/filter?q=1917&ignored=drop", {cookie: selected.cookie});
+  assert.equal(unknown.status, 400);
+});
+test("session, login and selected profile expose only a stable upstream environment identity", async () => {
+  const h = harness({offlineEnvironment: "http://first-private-api.invalid/v1"});
+  const login = await h.login();
+  const selected = await h.selected();
+  const session = await h.request("session", {cookie: selected.cookie});
+  assert.match(login.body.environment, /^[a-f0-9]{32}$/);
+  assert.equal(session.body.environment, login.body.environment);
+  assert.equal(selected.body.environment, login.body.environment);
+  assert.doesNotMatch(JSON.stringify(session.body), /first-private-api|http:\/\//);
+  const other = await harness({offlineEnvironment: "http://second-private-api.invalid/v1"}).login();
+  assert.notEqual(other.body.environment, login.body.environment);
+});
+test("discovery and facets BFF reads preserve the selected profile and remain closed", async () => {
+  const h = harness({override: (path) => {
+    if (path.startsWith("v1/popular-titles-search")) return {payload: {popular_titles: []}};
+    if (path.startsWith("v1/titles/filter/facets")) return {payload: {audio_languages: [], countries: []}};
+  }});
+  const selected = await h.selected();
+  for (const path of ["popular-titles-search?limit=8&type=movie", "titles/filter/facets"]) {
+    const response = await h.request(path, {cookie: selected.cookie});
+    assert.equal(response.status, 200);
+    const expected = new URL(path, "http://fixture/");
+    const call = h.calls.find(([value]) => {
+      const url = new URL(value, "http://fixture/");
+      return url.pathname.replace(/\/$/, "") === "/v1" + expected.pathname;
+    });
+    assert.ok(call);
+    assert.equal(call[5]["X-Profile-ID"], "1");
+  }
+  assert.equal((await h.request("titles/filter/facets?user_id=999", {cookie: selected.cookie})).status, 400);
+  const facetCall = h.calls.find(([path]) => path.startsWith("v1/titles/filter/facets"));
+  assert.equal(facetCall[5]["X-Movly-Facets-Policy"], "scoped-v1");
+  assert.equal(h.calls.find(([path]) => path.startsWith("v1/popular-titles-search"))[5]["X-Movly-Facets-Policy"], undefined);
+});
 test("anonymous catalog never calls API-key-readable upstream", async () => {
   const h = harness(),
     r = await h.request("main");

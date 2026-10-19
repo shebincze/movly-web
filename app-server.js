@@ -38,6 +38,8 @@ function createAppHandler({
   const sourceSearches = new Map();
   const nativeSelections = new Map();
   const offline = offlineSigner(secret, offlineEnvironment);
+  // Opaque, stable upstream identity for local profile data; never expose its URL.
+  const environment = crypto.createHash("sha256").update(`movly-api-environment-v1:${offlineEnvironment}`).digest("hex").slice(0, 32);
   const cookieName = production ? "__Host-movly-app" : "movly-app";
   const key = crypto.hkdfSync(
     "sha256",
@@ -566,6 +568,7 @@ function createAppHandler({
       "GET",
       /^titles\/filter$/,
       [
+        "q",
         "type",
         "genre_ids",
         "page",
@@ -591,6 +594,8 @@ function createAppHandler({
     ["GET", /^search\/filters$/, ["q", "type", "page", "limit"]],
     ["GET", /^autocomplete$/, ["q", "limit"]],
     ["GET", /^trending-searches$/, ["limit"]],
+    ["GET", /^popular-titles-search$/, ["limit", "type"]],
+    ["GET", /^titles\/filter\/facets$/, []],
     ["GET", /^titles\/genres$/, []],
     // Uložené filtry katalogu profilu (skládač filtrů, stejné na všech zařízeních).
     ["GET", /^saved-filters$/, []],
@@ -724,7 +729,7 @@ function createAppHandler({
         )
           s.managedDeviceId = login.device_id.toLowerCase();
         writeSession(res, s);
-        json(res, 200, { account, profile: null });
+        json(res, 200, { account, profile: null, environment });
         return true;
       }
       // Technická diagnostika TV lite (klávesy, schopnosti přehrávače, chyby) do logu
@@ -826,7 +831,7 @@ function createAppHandler({
               }
             : null;
         }
-        json(res, 200, { account, profile: s.profile || null });
+        json(res, 200, { account, profile: s.profile || null, environment });
         return true;
       }
       if (/^(?:admin\/)?feedback\//.test(target)) {
@@ -966,7 +971,7 @@ function createAppHandler({
         next.grant = selected.grant_token || null;
         next.grantExpiresAt = selected.grant_token ? selected.grant_expires_at : null;
         writeSession(res, next, s);
-        json(res, 200, { profile: next.profile });
+        json(res, 200, { profile: next.profile, environment });
         return true;
       }
       if (/^notifications\//.test(target)) {
@@ -1788,6 +1793,30 @@ function createAppHandler({
                 throw new HttpError(400, "Neplatná pozice přehrávání.");
               body[k] = raw[k];
             }
+        } else if (/^saved-filters(?:\/[1-9]\d*)?$/.test(target)) {
+          if (Object.keys(body).some((key) => !["name", "filter"].includes(key)) ||
+              typeof body.name !== "string" || !body.name.trim() || [...body.name.trim()].length > 60)
+            throw new HttpError(400, "Název filtru musí mít 1 až 60 znaků.");
+          const filter = objectBody(body.filter);
+          // Keep the canonical document intact. The core API owns semantic
+          // normalization and range validation; this gateway checks its shape.
+          const strings = new Set(["type", "genre_match", "audio_language", "original_language", "sort_by", "sort_order"]);
+          const integers = new Set(["year_from", "year_to", "runtime_from", "runtime_to", "video_height_min"]);
+          const numbers = new Set(["rating_from", "rating_to"]);
+          const booleans = new Set(["hdr", "has_streams"]);
+          const lists = new Set(["audio_languages", "subtitle_languages", "original_languages", "countries"]);
+          for (const [key, value] of Object.entries(filter)) {
+            const nullable = value === null;
+            const valid = strings.has(key) ? nullable || typeof value === "string"
+              : integers.has(key) ? nullable || Number.isSafeInteger(value)
+              : numbers.has(key) ? nullable || (typeof value === "number" && Number.isFinite(value))
+              : booleans.has(key) ? nullable || typeof value === "boolean"
+              : lists.has(key) ? nullable || (Array.isArray(value) && value.every((item) => typeof item === "string"))
+              : key === "genre_ids" ? nullable || (Array.isArray(value) && value.every(Number.isSafeInteger))
+              : false;
+            if (!valid) throw new HttpError(400, "Neplatné nastavení filtru.");
+          }
+          body = { name: body.name.trim(), filter };
         } else if (target.endsWith("/items")) {
           if (!integer(body.title_id))
             throw new HttpError(400, "Neplatný titul.");
@@ -1813,6 +1842,7 @@ function createAppHandler({
         body,
         target === "search"
           ? { "X-Movly-Search-Purpose": Number(url.searchParams.get("offset") || 0) === 0 ? "user-query" : "pagination" }
+          : target === "titles/filter/facets" ? { "X-Movly-Facets-Policy": "scoped-v1" }
           : /^streaming2?\//.test(target) ? { "X-Cache-Refresh": "true" } : {},
       );
       if (

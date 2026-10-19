@@ -1,4 +1,8 @@
 export const translations = {
+  "Objevuj tituly": ["Objavuj tituly", "Discover titles"],
+  "Nejčastěji vybírané tituly": ["Najčastejšie vyberané tituly", "Most selected titles"],
+  "Návrhy se nepodařilo načíst.": ["Návrhy sa nepodarilo načítať.", "Suggestions could not be loaded."],
+  "Přesná shoda názvu": ["Presná zhoda názvu", "Exact title match"],
   "Jazyk audia": ["Jazyk zvuku", "Audio language"],
   "Jazyk titulků": ["Jazyk titulkov", "Subtitle language"],
   "Rozlišení": ["Rozlíšenie", "Resolution"],

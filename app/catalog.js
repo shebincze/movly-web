@@ -334,7 +334,7 @@ function intParam(params, key, max) {
 function subtitleCodes(raw) {
   return [...new Set(String(raw || "").split(",").map((code) => code.trim().toLowerCase()).filter((code) => /^[a-z]{2,3}$/.test(code)))].sort();
 }
-function paramsToDefinition(params, type) {
+function paramsToDefinition(params, type, { grid = true } = {}) {
   const genreIds = (params.get("genre") || "")
     .split(",")
     .map((v) => Number.parseInt(v, 10))
@@ -355,7 +355,7 @@ function paramsToDefinition(params, type) {
     rating_to: pct(intParam(params, "rt", 100)),
     runtime_from: intParam(params, "df", 1440),
     runtime_to: intParam(params, "dt", 1440),
-    video_height_min: intParam(params, "q", 4320),
+    video_height_min: intParam(params, grid ? "q" : "quality", 4320),
     hdr: !!params.get("hdr") || null,
     audio_language: params.get("audio") || null,
     subtitle_languages: subtitleCodes(params.get("sub")),
@@ -378,7 +378,7 @@ function definitionToParams(d, { grid = true } = {}) {
   if (d.rating_to != null) q.set("rt", String(Math.round(d.rating_to * 10)));
   if (d.runtime_from) q.set("df", String(d.runtime_from));
   if (d.runtime_to) q.set("dt", String(d.runtime_to));
-  if (d.video_height_min) q.set("q", String(d.video_height_min));
+  if (d.video_height_min) q.set(grid ? "q" : "quality", String(d.video_height_min));
   if (d.hdr) q.set("hdr", "1");
   if (d.audio_language) q.set("audio", d.audio_language);
   if (d.subtitle_languages?.length) q.set("sub", subtitleCodes(d.subtitle_languages.join(",")).join(","));
@@ -387,6 +387,14 @@ function definitionToParams(d, { grid = true } = {}) {
   if (d.has_streams) q.set("streams", "1");
   if (d.sort_by && d.sort_by !== "popularity") q.set("sort", d.sort_by);
   return q;
+}
+// Search q always means a title. Grid q remains the legacy quality parameter.
+function searchParams(params, text) {
+  const next = new URLSearchParams();
+  if (text.trim()) next.set("q", text.trim());
+  for (const key of [...FILTER_PARAM_KEYS.filter((key) => key !== "q"), "quality", "t"])
+    if (params.get(key)) next.set(key, params.get(key));
+  return next;
 }
 function definitionQuery(d) {
   const query = new URLSearchParams();
@@ -522,6 +530,7 @@ function filterBuilder({
   savedFilters,
   actions,
   allowType = false,
+  queryText = () => params.get("q")?.trim() || "",
 }) {
   const grid = !allowType;
   const genreNames = new Map(genres.map((g) => [g.id, g.name_cs || g.name]));
@@ -584,7 +593,7 @@ function filterBuilder({
     return node;
   };
   const quality = select(
-    "q",
+    grid ? "q" : "quality",
     QUALITY_OPTIONS,
     definition.video_height_min
       ? definition.video_height_min >= 2160
@@ -646,6 +655,7 @@ function filterBuilder({
       onSubmit: (e) => {
         e.preventDefault();
         const q = new URLSearchParams(grid ? { view: "grid" } : {});
+        if (!grid && queryText()) q.set("q", queryText());
         const genreIds = [...genre.querySelectorAll("input:checked")].map((o) => o.value);
         if (genreIds.length) q.set("genre", genreIds.join(","));
         for (const [k, v] of new FormData(filters))
@@ -684,7 +694,11 @@ function filterBuilder({
           "a",
           {
             class: "button secondary",
-            href: `#${route}${grid ? "?view=grid" : ""}`,
+            href: `#${route}${grid ? "?view=grid" : params.get("q")?.trim() ? `?${new URLSearchParams({q: params.get("q").trim()})}` : ""}`,
+            onClick: grid ? undefined : (event) => {
+              event.preventDefault();
+              location.hash = `${route}?${new URLSearchParams(queryText() ? {q: queryText()} : {})}`;
+            },
           },
           translateUI("Zrušit filtry"),
         )
@@ -716,6 +730,7 @@ function filterBuilder({
           paramsToDefinition(
             definitionToParams(saved.filter, { grid }),
             definition.type,
+            { grid },
           ),
         ) === JSON.stringify(definition),
     );
@@ -729,7 +744,9 @@ function filterBuilder({
               ? "movies"
               : route
           : route;
-        location.hash = `${target}?${definitionToParams(saved.filter || {}, { grid })}`;
+        const next = definitionToParams(saved.filter || {}, { grid });
+        if (!grid && queryText()) next.set("q", queryText());
+        location.hash = `${target}?${next}`;
       });
       apply.className = "chip" + (applied?.id === saved.id ? " active" : "");
       apply.type = "button";
@@ -888,11 +905,32 @@ function filterPanel(form, active, open) {
   details.open = open || matchMedia("(min-width: 900px)").matches;
   return el("aside", { class: "filter-aside" }, details);
 }
+function searchTitleKey(value) {
+  return typeof value === "string" ? value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim() : "";
+}
+function splitExactSearch(items, query) {
+  const key = searchTitleKey(query), seen = new Set(), exact = [], related = [];
+  for (const item of items) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    const target = key && [item.title, item.original_title].some((name) => searchTitleKey(name) === key) ? exact : related;
+    target.push(item);
+  }
+  return { exact, related };
+}
+function supplementalSearchItems(ranked, supplemental) {
+  const seen = new Set(ranked.map((item) => item.id));
+  return supplemental.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id); return true;
+  });
+}
 export async function search(params, signal, actions) {
   const q = params.get("q") || "",
     page = Math.max(1, Number(params.get("page")) || 1),
     searchContext = apiContextKey();
   const policy = await effectiveContentPolicy({ signal, refresh: true });
+  const discoveryAllowed = !policy.is_kids && !policy.age_controls_active && !policy.exclude_adult;
   const input = el("input", {
     id: "search-q",
     type: "search",
@@ -900,7 +938,6 @@ export async function search(params, signal, actions) {
     placeholder: translateUI("Filmy, seriály…"),
     value: q,
     maxlength: 200,
-    required: true,
     autocomplete: "off",
     role: "combobox",
     "aria-autocomplete": "list",
@@ -942,7 +979,7 @@ export async function search(params, signal, actions) {
     input.value = value;
     clear.hidden = false;
     closeSuggestions();
-    location.hash = `search?q=${encodeURIComponent(value.trim())}`;
+    location.hash = `search?${searchParams(params, value)}`;
   };
   const clear = el(
     "button",
@@ -953,6 +990,7 @@ export async function search(params, signal, actions) {
       onClick: () => {
         input.value = "";
         input.dispatchEvent(new Event("input", { bubbles: true }));
+        location.hash = `search?${searchParams(params, "")}`;
         input.focus();
       },
     },
@@ -964,7 +1002,7 @@ export async function search(params, signal, actions) {
     cancelPendingSuggestions();
     closeSuggestions();
     const value = input.value.trim();
-    if (value.length < 2) return;
+    if (value.length < 2 || !discoveryAllowed) return;
     const generation = ++suggestionGeneration,
       context = apiContextKey(),
       controller = new AbortController();
@@ -1040,7 +1078,7 @@ export async function search(params, signal, actions) {
       role: "search",
       onSubmit: (e) => {
         e.preventDefault();
-        location.hash = `search?q=${encodeURIComponent(input.value.trim())}`;
+        location.hash = `search?${searchParams(params, input.value)}`;
       },
     },
     el("label", { class: "catalog-sr-only", for: "search-q" }, translateUI("Co chceš objevit?")),
@@ -1109,7 +1147,7 @@ export async function search(params, signal, actions) {
                   type: "button",
                   class: "history-term",
                   onClick: () => {
-                    location.hash = "search?q=" + encodeURIComponent(term);
+                    location.hash = `search?${searchParams(params, term)}`;
                   },
                 },
                 term,
@@ -1124,11 +1162,12 @@ export async function search(params, signal, actions) {
     node.append(history);
   }
   // Skládač filtrů i v hledání: typ, žánry, roky, hodnocení, délka, kvalita,
-  // jazyk, řazení + Moje filtry. Platí, když je pole hledání prázdné.
+  // jazyk, řazení + Moje filtry. Lze je kombinovat s hledaným názvem.
   const typeParam = params.get("t");
   const definition = paramsToDefinition(
     params,
     typeParam === "movie" || typeParam === "tv" ? typeParam : null,
+    { grid: false },
   );
   const filterActive = hasCriteria(definition) || !!definition.type;
   const [genresResult, savedResult] = await Promise.all([
@@ -1149,6 +1188,7 @@ export async function search(params, signal, actions) {
     savedFilters,
     actions,
     allowType: true,
+    queryText: () => input.value.trim(),
   });
   const results = el(
     "section",
@@ -1163,7 +1203,7 @@ export async function search(params, signal, actions) {
       results,
     ),
   );
-  if (!q.trim()) {
+  if (!q.trim() || filterActive) {
     if (!filterActive) {
       results.append(
         empty(
@@ -1173,31 +1213,65 @@ export async function search(params, signal, actions) {
           ),
         ),
       );
-      try {
-        const data = await api("trending-searches?limit=8", { signal });
-        if (!signal?.aborted && apiContextKey() === searchContext) {
-          const terms = Array.isArray(data.trending_searches)
-            ? [...new Set(data.trending_searches.map((item) => item?.query).filter((term) => typeof term === "string" && term.trim()))].slice(0, 8)
-            : [];
-          if (terms.length) node.append(el(
-            "section",
-            { class: "popular-searches", "aria-label": translateUI("Populární hledání") },
-            el("h2", { class: "results-heading" }, translateUI("Populární hledání")),
-            el("ul", { class: "popular-search-list" }, terms.map((term) => el(
-              "li", {}, el("button", {
-                type: "button",
-                class: "history-term",
-                onClick: () => { location.hash = "search?q=" + encodeURIComponent(term); },
-              }, term),
-            ))),
-          ));
-        }
-      } catch (error) {
-        if (error?.name !== "AbortError") console.warn("Popular searches are unavailable");
+      if (discoveryAllowed) {
+        const discovery = el("section", { class: "popular-searches", "aria-label": translateUI("Objevuj tituly") });
+        node.append(discovery);
+        const loadDiscovery = async () => {
+          const current = () => !signal?.aborted && apiContextKey() === searchContext && !input.value.trim();
+          discovery.replaceChildren(loading());
+          try {
+            const [trends, popular] = await Promise.all([
+              api("trending-searches?limit=8", { signal }),
+              api("popular-titles-search?limit=8", { signal }),
+            ]);
+            const terms = Array.isArray(trends.trending_searches)
+              ? [...new Set(trends.trending_searches.map((item) => item?.query).filter((term) => typeof term === "string" && term.trim()))].slice(0, 8) : [];
+            const seen = new Set();
+            const candidates = (Array.isArray(popular.popular_titles) ? popular.popular_titles : []).filter((item) => {
+              if (!Number.isSafeInteger(item?.title_id) || item.title_id < 1 || seen.has(item.title_id) || !(item.interaction_count > 0)) return false;
+              seen.add(item.title_id); return true;
+            }).slice(0, 8);
+            // Policy-scoped details, at most two requests at once. Keep the
+            // server's discovery rank when individual posters are unavailable.
+            const hydrated = new Array(candidates.length);
+            let cursor = 0;
+            await Promise.all([0, 1].map(async () => {
+              while (current() && cursor < candidates.length) {
+                const index = cursor++, candidate = candidates[index];
+                try {
+                  const item = title(await api(`titles/${candidate.title_id}`, { signal }));
+                  if (item.id === candidate.title_id) hydrated[index] = item;
+                } catch (error) { if (error?.name === "AbortError") throw error; }
+              }
+            }));
+            await assertEffectivePolicyUnchanged(policy, { signal });
+            if (!current()) return;
+            discovery.replaceChildren();
+            if (terms.length) discovery.append(
+              el("h2", { class: "results-heading" }, translateUI("Populární hledání")),
+              el("ul", { class: "popular-search-list" }, terms.map((term) => el("li", {}, el("button", {
+                type: "button", class: "history-term", onClick: () => chooseSuggestion(term),
+              }, term)))),
+            );
+            const items = hydrated.filter(Boolean);
+            if (candidates.length && !items.length) throw new Error("Popular title details are unavailable");
+            if (items.length) discovery.append(
+              el("h2", { class: "results-heading" }, translateUI("Nejčastěji vybírané tituly")),
+              el("div", { class: "catalog-grid" }, items.map((item) => poster(item, actions.detail))),
+            );
+          } catch (error) {
+            if (error?.name === "AbortError" || !current()) return;
+            discovery.replaceChildren(el("p", {class: "muted"}, translateUI("Návrhy se nepodařilo načíst.")),
+              button(translateUI("Zkusit znovu"), loadDiscovery));
+          }
+        };
+        // Return the search input immediately while suggestions load.
+        void loadDiscovery();
       }
       return node;
     }
     const query = definitionQuery(definition);
+    if (q.trim()) query.set("q", q.trim());
     if (definition.type) query.set("type", definition.type);
     query.set("page", String(page));
     query.set("limit", "24");
@@ -1234,24 +1308,14 @@ export async function search(params, signal, actions) {
     }
     return node;
   }
-  if (filterActive)
-    results.append(
-      el(
-        "p",
-        { class: "muted" },
-        translateUI(
-          "Filtry se použijí, když je pole hledání prázdné; teď hledám podle názvu.",
-        ),
-      ),
-    );
   const session = await api("session", { signal }).catch(() => null);
   const expectedOwner = session?.account?.id && session?.profile?.id
     ? { accountId: session.account.id, profileId: session.profile.id } : null;
-  const openSearchResult = (result, ranked) => {
+  const openSearchResult = (result, ranked, offset = 0) => {
     if (expectedOwner) {
       void api("track-search", { method: "POST", expectedOwner, body: {
         query: q.trim(), title_id: result.id, interaction_type: "click",
-        position_in_results: Math.max(1, ranked.findIndex((t) => t.id === result.id) + 1),
+        position_in_results: offset + Math.max(1, ranked.findIndex((t) => t.id === result.id) + 1),
       } }).catch(() => console.warn("Search click could not be recorded"));
     }
     actions.detail(result);
@@ -1275,7 +1339,13 @@ export async function search(params, signal, actions) {
     filtered?.parsed?.matched && Array.isArray(filtered.results)
       ? filtered.results.map(title)
       : [];
-  if (filteredItems.length) {
+  const grouped = splitExactSearch(items, q);
+  const supplementalItems = supplementalSearchItems(items, filteredItems);
+  if (grouped.exact.length) results.append(el("section", {class: "exact-search-results"},
+    el("h2", {class: "results-heading"}, translateUI("Přesná shoda názvu")),
+    el("div", {class: "catalog-grid"}, grouped.exact.map((item) => poster(item, (selected) => openSearchResult(selected, items, (page - 1) * 24)))),
+  ));
+  if (supplementalItems.length) {
     results.append(
       el(
         "section",
@@ -1298,7 +1368,7 @@ export async function search(params, signal, actions) {
         el(
           "div",
           { class: "catalog-grid" },
-          filteredItems.map((t) => poster(t, (selected) => openSearchResult(selected, filteredItems))),
+          supplementalItems.map((t) => poster(t, (selected) => openSearchResult(selected, filteredItems))),
         ),
       ),
     );
@@ -1323,13 +1393,13 @@ export async function search(params, signal, actions) {
   if (w) results.append(w);
   results.append(
     ...[
-      items.length
+      grouped.related.length
         ? el(
             "div",
             { class: "catalog-grid" },
-            items.map((t) => poster(t, (selected) => openSearchResult(selected, items))),
+            grouped.related.map((t) => poster(t, (selected) => openSearchResult(selected, items, (page - 1) * 24))),
           )
-        : filteredItems.length
+        : supplementalItems.length || grouped.exact.length
           ? null
           : empty(
               translateUI("Nic jsme nenašli"),

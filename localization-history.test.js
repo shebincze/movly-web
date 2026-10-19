@@ -36,16 +36,27 @@ test("search history isolates accounts and profiles, limits and removes durable 
     removeSearch,
     clearSearchHistory,
   } = await import("./app/search-history.js");
-  setSearchOwner({ username: "first" }, { id: 1 });
+  setSearchOwner({ id: 1, username: "first" }, { id: 1 }, "a".repeat(32));
   rememberSearch("  Duna ");
   rememberSearch("DUNA");
   assert.deepEqual(searchHistory(), ["DUNA"]);
-  setSearchOwner({ username: "first" }, { id: 2 });
+  setSearchOwner({ id: 1, username: "first" }, { id: 2 }, "a".repeat(32));
   assert.deepEqual(searchHistory(), []);
   rememberSearch("profile two");
-  setSearchOwner({ username: "second" }, { id: 1 });
+  setSearchOwner({ id: 2, username: "second" }, { id: 1 }, "a".repeat(32));
   assert.deepEqual(searchHistory(), []);
-  setSearchOwner({ username: "first" }, { id: 1 });
+  setSearchOwner({ id: 1, username: "first" }, { id: 1 }, "a".repeat(32));
+  assert.deepEqual(searchHistory(), ["DUNA"]);
+  setSearchOwner({ id: 1, username: "renamed" }, { id: 1 }, "a".repeat(32));
+  assert.deepEqual(searchHistory(), ["DUNA"]);
+  setSearchOwner({ id: 1, username: "first" }, { id: 1 }, "b".repeat(32));
+  assert.deepEqual(searchHistory(), []);
+  rememberSearch("test environment");
+  setSearchOwner({ id: 1, username: "first" }, { id: 1 });
+  assert.deepEqual(searchHistory(), []);
+  rememberSearch("no trusted environment");
+  values.set("movly.searchHistory.first:1", JSON.stringify(["legacy unscoped"]));
+  setSearchOwner({ id: 1, username: "first" }, { id: 1 }, "a".repeat(32));
   assert.deepEqual(searchHistory(), ["DUNA"]);
   for (let index = 0; index < 25; index++) rememberSearch("term" + index);
   assert.equal(searchHistory().length, 20);
@@ -68,7 +79,7 @@ test("search history isolates accounts and profiles, limits and removes durable 
       throw Error("blocked");
     },
   };
-  setSearchOwner({ username: "first" }, { id: 1 });
+  setSearchOwner({ id: 1, username: "first" }, { id: 1 }, "a".repeat(32));
   assert.doesNotThrow(() => {
     rememberSearch("optional");
     removeSearch("optional");
