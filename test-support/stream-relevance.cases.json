@@ -1,0 +1,3364 @@
+{
+  "version": 2,
+  "currentYear": 2026,
+  "normalize": [
+    {
+      "input": "Mission: Impossible – Fallout",
+      "expected": "mission impossible fallout"
+    },
+    {
+      "input": "Pelíšky",
+      "expected": "pelisky"
+    },
+    {
+      "input": "Ocean's Eleven",
+      "expected": "ocean eleven"
+    },
+    {
+      "input": "OCEAN'S 11",
+      "expected": "oceans 11"
+    },
+    {
+      "input": "Spider-Man: No Way Home",
+      "expected": "spiderman no way home"
+    },
+    {
+      "input": "A   B",
+      "expected": "a b"
+    },
+    {
+      "input": "a     b",
+      "expected": "a  b"
+    },
+    {
+      "input": "Čtyřlístek 2.0",
+      "expected": "ctyrlistek 20"
+    },
+    {
+      "input": "  Kuky se vrací ",
+      "expected": " kuky se vraci "
+    },
+    {
+      "input": "Twin Peaks | Městečko",
+      "expected": "twin peaks mestecko"
+    },
+    {
+      "input": "Název / 2",
+      "expected": "nazev 2"
+    },
+    {
+      "input": "Obcy – ósmy pasażer Nostromo",
+      "expected": "obcy osmy pasazer nostromo"
+    }
+  ],
+  "tokenize": [
+    {
+      "input": "Mission.Impossible.Fallout.2018.1080p.BluRay.x264-GROUP.mkv",
+      "expected": [
+        "mission",
+        "impossible",
+        "fallout",
+        "2018",
+        "1080p",
+        "bluray",
+        "x264",
+        "group",
+        "mkv"
+      ]
+    },
+    {
+      "input": "Pelisky1999.CZ.avi",
+      "expected": [
+        "pelisky",
+        "1999",
+        "cz",
+        "avi"
+      ]
+    },
+    {
+      "input": "Show_S01E02_720p.mkv",
+      "expected": [
+        "show",
+        "s01e02",
+        "720p",
+        "mkv"
+      ]
+    },
+    {
+      "input": "Film (2020) [1080p] h264 10bit 6ch.mkv",
+      "expected": [
+        "film",
+        "2020",
+        "1080p",
+        "h264",
+        "10bit",
+        "6ch",
+        "mkv"
+      ]
+    },
+    {
+      "input": "Ocean's Eleven 2001.mkv",
+      "expected": [
+        "ocean",
+        "eleven",
+        "2001",
+        "mkv"
+      ]
+    },
+    {
+      "input": "Breaking.Bad.S02E01-E05.mkv",
+      "expected": [
+        "breaking",
+        "bad",
+        "s02e01",
+        "e05",
+        "mkv"
+      ]
+    },
+    {
+      "input": "Show.1920x1080.mkv",
+      "expected": [
+        "show",
+        "1920x1080",
+        "mkv"
+      ]
+    },
+    {
+      "input": "Alien3.1992.mkv",
+      "expected": [
+        "alien",
+        "3",
+        "1992",
+        "mkv"
+      ]
+    },
+    {
+      "input": "Top.Gun.Maverick.2022.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265.mkv",
+      "expected": [
+        "top",
+        "gun",
+        "maverick",
+        "2022",
+        "2160p",
+        "web",
+        "dl",
+        "ddp5",
+        "1",
+        "atmos",
+        "dv",
+        "hdr",
+        "h",
+        "265",
+        "mkv"
+      ]
+    },
+    {
+      "input": "Nebezpečná rychlost (1994) CZ dabing.avi",
+      "expected": [
+        "nebezpecna",
+        "rychlost",
+        "1994",
+        "cz",
+        "dabing",
+        "avi"
+      ]
+    }
+  ],
+  "titleVariants": [
+    {
+      "title": "Mission: Impossible - Fallout",
+      "originalTitle": null,
+      "allTitles": {},
+      "expectedFullTitles": [
+        "mission impossible fallout"
+      ],
+      "expectedVariants": [
+        "fallout",
+        "impossible",
+        "mission",
+        "mission impossible fallout"
+      ]
+    },
+    {
+      "title": "Spider-Man",
+      "originalTitle": "Spider-Man",
+      "allTitles": {},
+      "expectedFullTitles": [
+        "spiderman"
+      ],
+      "expectedVariants": [
+        "spiderman"
+      ]
+    },
+    {
+      "title": "1917",
+      "originalTitle": "1917",
+      "allTitles": {},
+      "expectedFullTitles": [],
+      "expectedVariants": []
+    },
+    {
+      "title": "It",
+      "originalTitle": "It",
+      "allTitles": {},
+      "expectedFullTitles": [
+        "it"
+      ],
+      "expectedVariants": [
+        "it"
+      ]
+    },
+    {
+      "title": "V",
+      "originalTitle": null,
+      "allTitles": {},
+      "expectedFullTitles": [],
+      "expectedVariants": []
+    },
+    {
+      "title": "Název / 2",
+      "originalTitle": null,
+      "allTitles": {},
+      "expectedFullTitles": [
+        "nazev 2"
+      ],
+      "expectedVariants": [
+        "nazev",
+        "nazev 2"
+      ]
+    },
+    {
+      "title": "Vetřelec",
+      "originalTitle": "Alien",
+      "allTitles": {
+        "cs": "Vetřelec",
+        "en": "Alien",
+        "fr": "Alien, le huitième passager",
+        "DE": "Alien – Das unheimliche Wesen aus einer fremden Welt",
+        "pl": "Obcy – ósmy pasażer Nostromo"
+      },
+      "expectedFullTitles": [
+        "alien",
+        "alien das unheimliche wesen aus einer fremden welt",
+        "obcy osmy pasazer nostromo",
+        "vetrelec"
+      ],
+      "expectedVariants": [
+        "alien",
+        "alien das unheimliche wesen aus einer fremden welt",
+        "obcy osmy pasazer nostromo",
+        "vetrelec"
+      ]
+    },
+    {
+      "title": "Harry Potter a Kámen mudrců",
+      "originalTitle": "Harry Potter and the Philosopher's Stone",
+      "allTitles": {},
+      "expectedFullTitles": [
+        "harry potter a kamen mudrcu",
+        "harry potter and the philosopher stone"
+      ],
+      "expectedVariants": [
+        "harry potter a kamen mudrcu",
+        "harry potter and the philosopher stone"
+      ]
+    },
+    {
+      "title": "Ocean's Eleven",
+      "originalTitle": "OCEAN'S 11",
+      "allTitles": {},
+      "expectedFullTitles": [
+        "ocean eleven",
+        "oceans 11"
+      ],
+      "expectedVariants": [
+        "ocean eleven",
+        "oceans 11"
+      ]
+    },
+    {
+      "title": "Kill Bill: Vol. 1",
+      "originalTitle": null,
+      "allTitles": {},
+      "expectedFullTitles": [
+        "kill bill vol 1"
+      ],
+      "expectedVariants": [
+        "kill bill",
+        "kill bill vol 1",
+        "vol 1"
+      ]
+    },
+    {
+      "title": "Pán prstenů: Společenstvo Prstenu",
+      "originalTitle": "The Lord of the Rings: The Fellowship of the Ring",
+      "allTitles": {},
+      "expectedFullTitles": [
+        "pan prstenu spolecenstvo prstenu",
+        "the lord of the rings the fellowship of the ring"
+      ],
+      "expectedVariants": [
+        "pan prstenu",
+        "pan prstenu spolecenstvo prstenu",
+        "spolecenstvo prstenu",
+        "the fellowship of the ring",
+        "the lord of the rings",
+        "the lord of the rings the fellowship of the ring"
+      ]
+    },
+    {
+      "title": "Twin Peaks | Městečko Twin Peaks",
+      "originalTitle": null,
+      "allTitles": {},
+      "expectedFullTitles": [
+        "twin peaks mestecko twin peaks"
+      ],
+      "expectedVariants": [
+        "mestecko twin peaks",
+        "twin peaks",
+        "twin peaks mestecko twin peaks"
+      ]
+    },
+    {
+      "title": "Harry Potter a Relikvie smrti - část 1",
+      "originalTitle": null,
+      "allTitles": {},
+      "expectedFullTitles": [
+        "harry potter a relikvie smrti cast 1"
+      ],
+      "expectedVariants": [
+        "cast 1",
+        "harry potter a relikvie smrti",
+        "harry potter a relikvie smrti cast 1"
+      ]
+    },
+    {
+      "title": "Matrix",
+      "originalTitle": "The Matrix",
+      "allTitles": {},
+      "extraTitles": [
+        "Matrix",
+        "The Matrix",
+        "Mátrix - Reloaded",
+        "V"
+      ],
+      "expectedVariants": [
+        "matrix",
+        "matrix reloaded",
+        "reloaded",
+        "the matrix"
+      ],
+      "expectedFullTitles": [
+        "matrix",
+        "matrix reloaded",
+        "the matrix"
+      ]
+    },
+    {
+      "title": "Pelíšky",
+      "originalTitle": null,
+      "allTitles": {
+        "fr": "Les Nids"
+      },
+      "extraTitles": [
+        "Cosy Dens",
+        "Pelíšky "
+      ],
+      "expectedVariants": [
+        "cosy dens",
+        "pelisky"
+      ],
+      "expectedFullTitles": [
+        "cosy dens",
+        "pelisky"
+      ]
+    }
+  ],
+  "patterns": [
+    {
+      "variants": [
+        "nebezpecna rychlost",
+        "speed"
+      ],
+      "expected": [
+        [
+          "nebezpecna",
+          "rychlost"
+        ],
+        [
+          "speed"
+        ]
+      ]
+    },
+    {
+      "variants": [
+        "it"
+      ],
+      "expected": []
+    },
+    {
+      "variants": [
+        "the thing"
+      ],
+      "expected": [
+        [
+          "thing"
+        ]
+      ]
+    },
+    {
+      "variants": [
+        "the a"
+      ],
+      "expected": []
+    },
+    {
+      "variants": [
+        "up"
+      ],
+      "expected": []
+    },
+    {
+      "variants": [
+        "v for vendetta"
+      ],
+      "expected": [
+        [
+          "vendetta"
+        ]
+      ]
+    },
+    {
+      "variants": [
+        "x men"
+      ],
+      "expected": [
+        [
+          "x",
+          "men"
+        ]
+      ]
+    },
+    {
+      "variants": [
+        "1917"
+      ],
+      "expected": [
+        [
+          "1917"
+        ]
+      ]
+    },
+    {
+      "variants": [
+        "se7en"
+      ],
+      "expected": [
+        [
+          "se7en"
+        ]
+      ]
+    },
+    {
+      "variants": [
+        "the lord of the rings the fellowship of the ring"
+      ],
+      "expected": [
+        [
+          "lord",
+          "rings",
+          "fellowship",
+          "ring"
+        ]
+      ]
+    }
+  ],
+  "fuzzyEquals": [
+    {
+      "expected": "impossible",
+      "actual": "imposible",
+      "result": true
+    },
+    {
+      "expected": "fallout",
+      "actual": "falout",
+      "result": true
+    },
+    {
+      "expected": "alien",
+      "actual": "aliens",
+      "result": true
+    },
+    {
+      "expected": "alien",
+      "actual": "alein",
+      "result": false
+    },
+    {
+      "expected": "dune",
+      "actual": "dunes",
+      "result": false
+    },
+    {
+      "expected": "dune",
+      "actual": "dune",
+      "result": true
+    },
+    {
+      "expected": "matrix",
+      "actual": "matrixx",
+      "result": true
+    },
+    {
+      "expected": "rychlost",
+      "actual": "rychlos",
+      "result": true
+    },
+    {
+      "expected": "speed",
+      "actual": "spede",
+      "result": false
+    },
+    {
+      "expected": "potter",
+      "actual": "pottre",
+      "result": false
+    },
+    {
+      "expected": "avatar",
+      "actual": "avatarr",
+      "result": true
+    },
+    {
+      "expected": "thing",
+      "actual": "things",
+      "result": true
+    },
+    {
+      "expected": "rings",
+      "actual": "ring",
+      "result": true
+    },
+    {
+      "expected": "ring",
+      "actual": "rings",
+      "result": false
+    }
+  ],
+  "tokenGate": [
+    {
+      "pattern": [
+        "mission",
+        "impossible",
+        "fallout"
+      ],
+      "name": "Mission.Impossible.Fallout.2018.1080p.BluRay.x264",
+      "qualifies": true
+    },
+    {
+      "pattern": [
+        "mission",
+        "impossible",
+        "fallout"
+      ],
+      "name": "Mission.Impossible.2018.1080p",
+      "qualifies": false
+    },
+    {
+      "pattern": [
+        "harry",
+        "potter",
+        "kamen",
+        "mudrcu"
+      ],
+      "name": "Harry.Potter.a.Kamen.Mudrcu.2001.CZ.mkv",
+      "qualifies": true
+    },
+    {
+      "pattern": [
+        "harry",
+        "potter",
+        "kamen",
+        "mudrcu"
+      ],
+      "name": "Harry.Potter.Kamen.2001.mkv",
+      "qualifies": true
+    },
+    {
+      "pattern": [
+        "harry",
+        "potter",
+        "kamen",
+        "mudrcu"
+      ],
+      "name": "Harry.Potter.2001.mkv",
+      "qualifies": false
+    },
+    {
+      "pattern": [
+        "mission",
+        "impossible",
+        "fallout"
+      ],
+      "name": "Mission.Imposible.Falout.2018",
+      "qualifies": true
+    },
+    {
+      "pattern": [
+        "speed"
+      ],
+      "name": "Speed.1994.mkv",
+      "qualifies": true
+    },
+    {
+      "pattern": [
+        "speed"
+      ],
+      "name": "Spede.1994.mkv",
+      "qualifies": false
+    },
+    {
+      "pattern": [
+        "nebezpecna",
+        "rychlost"
+      ],
+      "name": "Nebezpecna.rychlos.1994.CZ.mkv",
+      "qualifies": true
+    },
+    {
+      "pattern": [
+        "lord",
+        "rings",
+        "fellowship",
+        "ring"
+      ],
+      "name": "LOTR.Fellowship.of.the.Ring.2001",
+      "qualifies": true
+    },
+    {
+      "pattern": [
+        "twin",
+        "peaks"
+      ],
+      "name": "Twin.Peaks.Fire.Walk.With.Me.1992",
+      "qualifies": true
+    },
+    {
+      "pattern": [
+        "kill",
+        "bill",
+        "vol",
+        "1"
+      ],
+      "name": "Kill.Bill.2003.mkv",
+      "qualifies": false
+    },
+    {
+      "pattern": [
+        "ocean",
+        "eleven"
+      ],
+      "name": "Oceans.Eleven.2001.1080p.mkv",
+      "qualifies": true
+    }
+  ],
+  "episodeSlot": [
+    {
+      "name": "Breaking.Bad.S02E03.720p",
+      "expected": {
+        "tag": 0,
+        "season": 2,
+        "episodeLow": 3,
+        "episodeHigh": 3
+      }
+    },
+    {
+      "name": "Breaking Bad 2x03",
+      "expected": {
+        "tag": 0,
+        "season": 2,
+        "episodeLow": 3,
+        "episodeHigh": 3
+      }
+    },
+    {
+      "name": "Show.S01E02E03",
+      "expected": {
+        "tag": 0,
+        "season": 1,
+        "episodeLow": 2,
+        "episodeHigh": 3
+      }
+    },
+    {
+      "name": "Show.S01E02.E05.mkv",
+      "expected": {
+        "tag": 0,
+        "season": 1,
+        "episodeLow": 2,
+        "episodeHigh": 5
+      }
+    },
+    {
+      "name": "Show.S01E02.05.1.mkv",
+      "expected": {
+        "tag": 0,
+        "season": 1,
+        "episodeLow": 2,
+        "episodeHigh": 2
+      }
+    },
+    {
+      "name": "Show.S01E02.05.mkv",
+      "expected": {
+        "tag": 0,
+        "season": 1,
+        "episodeLow": 2,
+        "episodeHigh": 5
+      }
+    },
+    {
+      "name": "Show.S01E02.E52",
+      "expected": {
+        "tag": 0,
+        "season": 1,
+        "episodeLow": 2,
+        "episodeHigh": 2
+      }
+    },
+    {
+      "name": "Show.S01E02.E51",
+      "expected": {
+        "tag": 0,
+        "season": 1,
+        "episodeLow": 2,
+        "episodeHigh": 51
+      }
+    },
+    {
+      "name": "Show.S01E02.E01",
+      "expected": {
+        "tag": 0,
+        "season": 1,
+        "episodeLow": 2,
+        "episodeHigh": 2
+      }
+    },
+    {
+      "name": "Show.S02E03-E04",
+      "expected": {
+        "tag": 0,
+        "season": 2,
+        "episodeLow": 3,
+        "episodeHigh": 4
+      }
+    },
+    {
+      "name": "Show.Season.2.Complete",
+      "expected": {
+        "tag": 1,
+        "seasonLow": 2,
+        "seasonHigh": 2,
+        "genericPack": false
+      }
+    },
+    {
+      "name": "Show.Complete.Series.1080p",
+      "expected": {
+        "tag": 1,
+        "seasonLow": 0,
+        "seasonHigh": 0,
+        "genericPack": true
+      }
+    },
+    {
+      "name": "Show.S01.S03.Pack",
+      "expected": {
+        "tag": 1,
+        "seasonLow": 1,
+        "seasonHigh": 3,
+        "genericPack": false
+      }
+    },
+    {
+      "name": "Show.S02.1080p",
+      "expected": {
+        "tag": 1,
+        "seasonLow": 2,
+        "seasonHigh": 2,
+        "genericPack": false
+      }
+    },
+    {
+      "name": "Show.Episode.7.mkv",
+      "expected": {
+        "tag": 2,
+        "episode": 7
+      }
+    },
+    {
+      "name": "Show.ep07.mkv",
+      "expected": {
+        "tag": 2,
+        "episode": 7
+      }
+    },
+    {
+      "name": "Show.E07.mkv",
+      "expected": {
+        "tag": 2,
+        "episode": 7
+      }
+    },
+    {
+      "name": "Show.1x05",
+      "expected": {
+        "tag": 0,
+        "season": 1,
+        "episodeLow": 5,
+        "episodeHigh": 5
+      }
+    },
+    {
+      "name": "Show.1920x1080.mkv",
+      "expected": null
+    },
+    {
+      "name": "Film.2018.1080p",
+      "expected": null
+    },
+    {
+      "name": "Show.s01.e02.mkv",
+      "expected": {
+        "tag": 0,
+        "season": 1,
+        "episodeLow": 2,
+        "episodeHigh": 2
+      }
+    },
+    {
+      "name": "Show.season.1.episode.4",
+      "expected": {
+        "tag": 0,
+        "season": 1,
+        "episodeLow": 4,
+        "episodeHigh": 4
+      }
+    },
+    {
+      "name": "Show.S1E2",
+      "expected": {
+        "tag": 0,
+        "season": 1,
+        "episodeLow": 2,
+        "episodeHigh": 2
+      }
+    },
+    {
+      "name": "Show.sezona.3.dil.12",
+      "expected": {
+        "tag": 0,
+        "season": 3,
+        "episodeLow": 12,
+        "episodeHigh": 12
+      }
+    }
+  ],
+  "providerType": [
+    {
+      "name": "Film.Trailer.mkv",
+      "expected": {
+        "type": "trailer"
+      }
+    },
+    {
+      "name": "Film-Teaser.mp4",
+      "expected": {
+        "type": "trailer"
+      }
+    },
+    {
+      "name": "film_teaser_hd.mkv",
+      "expected": {
+        "type": "trailer"
+      }
+    },
+    {
+      "name": "Show.S02E03.trailer.mkv",
+      "expected": {
+        "type": "trailer"
+      }
+    },
+    {
+      "name": "Film.2018.mkv",
+      "expected": {
+        "type": "movie"
+      }
+    },
+    {
+      "name": "Film.2018.MKV",
+      "expected": {
+        "type": "movie"
+      }
+    },
+    {
+      "name": "Film.2018.txt",
+      "expected": {
+        "type": "other"
+      }
+    },
+    {
+      "name": "readme.nfo",
+      "expected": {
+        "type": "other"
+      }
+    },
+    {
+      "name": "Film.2018",
+      "expected": {
+        "type": "other"
+      }
+    },
+    {
+      "name": "Show.S02E03.mkv",
+      "expected": {
+        "type": "episode",
+        "season": 2,
+        "episode": 3
+      }
+    },
+    {
+      "name": "Show.2x03.avi",
+      "expected": {
+        "type": "episode",
+        "season": 2,
+        "episode": 3
+      }
+    },
+    {
+      "name": "Show Season 2 Episode 3.mkv",
+      "expected": {
+        "type": "episode",
+        "season": 2,
+        "episode": 3
+      }
+    },
+    {
+      "name": "Show.Episode.3.mkv",
+      "expected": {
+        "type": "episode",
+        "season": null,
+        "episode": 3
+      }
+    },
+    {
+      "name": "Show.E03.mkv",
+      "expected": {
+        "type": "episode",
+        "season": null,
+        "episode": 3
+      }
+    },
+    {
+      "name": "Show.2.03.mkv",
+      "expected": {
+        "type": "episode",
+        "season": 2,
+        "episode": 3
+      }
+    },
+    {
+      "name": "Show.[2x03].mkv",
+      "expected": {
+        "type": "episode",
+        "season": 2,
+        "episode": 3
+      }
+    },
+    {
+      "name": "Show (s02 e03).mkv",
+      "expected": {
+        "type": "episode",
+        "season": 2,
+        "episode": 3
+      }
+    },
+    {
+      "name": "Show.s02.e03.mkv",
+      "expected": {
+        "type": "episode",
+        "season": 2,
+        "episode": 3
+      }
+    }
+  ],
+  "hashSuffixKey": [
+    {
+      "name": "Film-0123456789abcdef.mkv",
+      "expected": "0123456789abcdef.mkv"
+    },
+    {
+      "name": "JinyNazev-0123456789abcdef.mkv",
+      "expected": "0123456789abcdef.mkv"
+    },
+    {
+      "name": "Film-0123456789abcdef.mp4",
+      "expected": "0123456789abcdef.mp4"
+    },
+    {
+      "name": "Film-0123456789abcdef",
+      "expected": null
+    },
+    {
+      "name": "Film-0123456789abcdef..mkv",
+      "expected": null
+    },
+    {
+      "name": "Film-GROUP.mkv",
+      "expected": null
+    },
+    {
+      "name": "Film-0123456789abcdef.mkv-GROUP",
+      "expected": null
+    },
+    {
+      "name": "Film-0123456789.mkv.part",
+      "expected": "0123456789.mkv.part"
+    },
+    {
+      "name": "Film-012345678.mkv",
+      "expected": null
+    },
+    {
+      "name": "NoDash.mkv",
+      "expected": null
+    }
+  ],
+  "earlyProviderGate": [
+    {
+      "kind": "movie",
+      "title": "The Speed",
+      "year": 1994,
+      "season": null,
+      "episode": null,
+      "name": "Speed.1994.1080p.mkv",
+      "expected": true
+    },
+    {
+      "kind": "movie",
+      "title": "The Speed",
+      "year": 1994,
+      "season": null,
+      "episode": null,
+      "name": "Speed.1995.mkv",
+      "expected": false
+    },
+    {
+      "kind": "movie",
+      "title": "Speed",
+      "year": 1994,
+      "season": null,
+      "episode": null,
+      "name": "Speed.1080p.mkv",
+      "expected": true
+    },
+    {
+      "kind": "movie",
+      "title": "Speed",
+      "year": 1994,
+      "season": null,
+      "episode": null,
+      "name": "Spee.1994.mkv",
+      "expected": false
+    },
+    {
+      "kind": "movie",
+      "title": "Nebezpečná rychlost",
+      "year": 1994,
+      "season": null,
+      "episode": null,
+      "name": "Nebezpecna.rychlost.1994.CZ.mkv",
+      "expected": true
+    },
+    {
+      "kind": "movie",
+      "title": "A Beautiful Mind",
+      "year": 2001,
+      "season": null,
+      "episode": null,
+      "name": "Beautiful.Mind.2001.mkv",
+      "expected": true
+    },
+    {
+      "kind": "movie",
+      "title": "Speed",
+      "year": null,
+      "season": null,
+      "episode": null,
+      "name": "Speed.1995.mkv",
+      "expected": true
+    },
+    {
+      "kind": "episode",
+      "title": "Breaking Bad",
+      "year": null,
+      "season": 2,
+      "episode": 3,
+      "name": "Breaking.Bad.S02E03.mkv",
+      "expected": true
+    },
+    {
+      "kind": "episode",
+      "title": "Breaking Bad",
+      "year": null,
+      "season": 2,
+      "episode": 3,
+      "name": "Breaking.Bad.S02E04.mkv",
+      "expected": false
+    },
+    {
+      "kind": "episode",
+      "title": "Breaking Bad",
+      "year": null,
+      "season": 2,
+      "episode": 3,
+      "name": "Breaking.Bad.Episode.3.mkv",
+      "expected": false
+    },
+    {
+      "kind": "episode",
+      "title": "Breaking Bad",
+      "year": null,
+      "season": 2,
+      "episode": 3,
+      "name": "Breaking.Bad.2x03.mkv",
+      "expected": true
+    },
+    {
+      "kind": "episode",
+      "title": "Breaking Bad",
+      "year": null,
+      "season": 2,
+      "episode": 3,
+      "name": "Better.Call.Saul.S02E03.mkv",
+      "expected": false
+    }
+  ],
+  "trailerFilter": [
+    {
+      "variants": [
+        "speed"
+      ],
+      "candidates": [
+        {
+          "name": "Speed.1994.mkv"
+        },
+        {
+          "name": "Speed.Trailer.mkv"
+        },
+        {
+          "name": "Speed.1994.teaser.mp4"
+        },
+        {
+          "name": "Speed.upoutavka.mkv"
+        }
+      ],
+      "expectedKeptNames": [
+        "Speed.1994.mkv"
+      ]
+    },
+    {
+      "variants": [
+        "trailer park boys"
+      ],
+      "candidates": [
+        {
+          "name": "Trailer.Park.Boys.2006.mkv"
+        },
+        {
+          "name": "Trailer.Park.Boys.Teaser.mkv"
+        }
+      ],
+      "expectedKeptNames": [
+        "Trailer.Park.Boys.2006.mkv"
+      ]
+    },
+    {
+      "variants": [
+        "speed"
+      ],
+      "candidates": [
+        {
+          "name": "Speed.1994.mkv",
+          "typeHint": "trailer"
+        },
+        {
+          "name": "Speed.1994.CZ.mkv"
+        }
+      ],
+      "expectedKeptNames": [
+        "Speed.1994.CZ.mkv"
+      ]
+    },
+    {
+      "variants": [
+        "trailer park boys"
+      ],
+      "candidates": [
+        {
+          "name": "Trailer.Park.Boys.2006.mkv",
+          "typeHint": "trailer"
+        }
+      ],
+      "expectedKeptNames": [
+        "Trailer.Park.Boys.2006.mkv"
+      ]
+    },
+    {
+      "variants": [
+        "speed"
+      ],
+      "candidates": [
+        {
+          "name": "Speed (1994)",
+          "sourceFilename": "Speed.1994.Trailer.mkv"
+        }
+      ],
+      "expectedKeptNames": []
+    }
+  ],
+  "relevanceRequests": {
+    "SPEED": {
+      "kind": "movie",
+      "variants": [
+        "nebezpecna rychlost",
+        "speed"
+      ],
+      "fullTitles": [
+        "nebezpecna rychlost",
+        "speed"
+      ],
+      "year": 1994,
+      "runtimeMinutes": 116
+    },
+    "SPEED_NOYEAR": {
+      "kind": "movie",
+      "variants": [
+        "nebezpecna rychlost",
+        "speed"
+      ],
+      "fullTitles": [
+        "nebezpecna rychlost",
+        "speed"
+      ],
+      "year": null,
+      "runtimeMinutes": 116
+    },
+    "IRONMAN2": {
+      "kind": "movie",
+      "variants": [
+        "iron man 2"
+      ],
+      "fullTitles": [
+        "iron man 2"
+      ],
+      "year": 2010,
+      "runtimeMinutes": 124
+    },
+    "IRONMAN2_NOYEAR": {
+      "kind": "movie",
+      "variants": [
+        "iron man 2"
+      ],
+      "fullTitles": [
+        "iron man 2"
+      ],
+      "year": null,
+      "runtimeMinutes": 124
+    },
+    "ROCKY": {
+      "kind": "movie",
+      "variants": [
+        "rocky"
+      ],
+      "fullTitles": [
+        "rocky"
+      ],
+      "year": 1976,
+      "runtimeMinutes": 120
+    },
+    "ROCKY_NOYEAR": {
+      "kind": "movie",
+      "variants": [
+        "rocky"
+      ],
+      "fullTitles": [
+        "rocky"
+      ],
+      "year": null,
+      "runtimeMinutes": 120
+    },
+    "KILLBILL": {
+      "kind": "movie",
+      "variants": [
+        "kill bill vol 1",
+        "kill bill",
+        "vol 1"
+      ],
+      "fullTitles": [
+        "kill bill vol 1"
+      ],
+      "year": 2003,
+      "runtimeMinutes": 111
+    },
+    "KILLBILL_NOYEAR": {
+      "kind": "movie",
+      "variants": [
+        "kill bill vol 1",
+        "kill bill",
+        "vol 1"
+      ],
+      "fullTitles": [
+        "kill bill vol 1"
+      ],
+      "year": null,
+      "runtimeMinutes": 111
+    },
+    "TPB": {
+      "kind": "movie",
+      "variants": [
+        "trailer park boys the movie",
+        "trailer park boys"
+      ],
+      "fullTitles": [
+        "trailer park boys the movie"
+      ],
+      "year": 2006,
+      "runtimeMinutes": 95
+    },
+    "OCEAN": {
+      "kind": "movie",
+      "variants": [
+        "ocean eleven"
+      ],
+      "fullTitles": [
+        "ocean eleven"
+      ],
+      "year": 2001,
+      "runtimeMinutes": 116
+    },
+    "Y1917": {
+      "kind": "movie",
+      "variants": [],
+      "fullTitles": [],
+      "year": 2019,
+      "runtimeMinutes": 119
+    },
+    "ODYSSEY": {
+      "kind": "movie",
+      "variants": [
+        "2001 a space odyssey"
+      ],
+      "fullTitles": [
+        "2001 a space odyssey"
+      ],
+      "year": 1968,
+      "runtimeMinutes": 149
+    },
+    "BLADE2049": {
+      "kind": "movie",
+      "variants": [
+        "blade runner 2049"
+      ],
+      "fullTitles": [
+        "blade runner 2049"
+      ],
+      "year": 2017,
+      "runtimeMinutes": 164
+    },
+    "ALIEN3": {
+      "kind": "movie",
+      "variants": [
+        "alien 3"
+      ],
+      "fullTitles": [
+        "alien 3"
+      ],
+      "year": 1992,
+      "runtimeMinutes": 114
+    },
+    "TWINPEAKS_FWWM": {
+      "kind": "movie",
+      "variants": [
+        "twin peaks fire walk with me",
+        "twin peaks",
+        "fire walk with me"
+      ],
+      "fullTitles": [
+        "twin peaks fire walk with me"
+      ],
+      "year": 1992,
+      "runtimeMinutes": 134
+    },
+    "HP7_1": {
+      "kind": "movie",
+      "variants": [
+        "harry potter a relikvie smrti cast 1",
+        "harry potter a relikvie smrti",
+        "cast 1"
+      ],
+      "fullTitles": [
+        "harry potter a relikvie smrti cast 1"
+      ],
+      "year": 2010,
+      "runtimeMinutes": 146
+    },
+    "BB_S2E3": {
+      "kind": "episode",
+      "variants": [
+        "breaking bad"
+      ],
+      "fullTitles": [
+        "breaking bad"
+      ],
+      "seriesStartYear": 2008,
+      "season": 2,
+      "episode": 3
+    },
+    "BB_S1E3": {
+      "kind": "episode",
+      "variants": [
+        "breaking bad"
+      ],
+      "fullTitles": [
+        "breaking bad"
+      ],
+      "seriesStartYear": 2008,
+      "season": 1,
+      "episode": 3
+    },
+    "TLOU_S1E1": {
+      "kind": "episode",
+      "variants": [
+        "the last of us"
+      ],
+      "fullTitles": [
+        "the last of us"
+      ],
+      "season": 1,
+      "episode": 1,
+      "seriesStartYear": 2023
+    },
+    "CZECH_MAKING_TITLE": {
+      "kind": "episode",
+      "variants": [
+        "jak vznikal serial the last of us"
+      ],
+      "fullTitles": [
+        "jak vznikal serial the last of us"
+      ],
+      "season": 1,
+      "episode": 1
+    },
+    "CZECH_MAKING_MOVIE_TITLE": {
+      "kind": "movie",
+      "variants": [
+        "jak vznikl film speed"
+      ],
+      "fullTitles": [
+        "jak vznikl film speed"
+      ]
+    }
+  },
+  "relevance": [
+    {
+      "id": "speed-exact",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1994.1080p.BluRay.x264-GROUP.mkv",
+        "sizeBytes": 8000000000,
+        "durationSeconds": 6960
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-year-plus-one",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1995.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-year-plus-two",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1996.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "yearMismatch"
+      }
+    },
+    {
+      "id": "speed-sequel-year",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.2.Cruise.Control.1997.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "yearMismatch"
+      }
+    },
+    {
+      "id": "speed-sequel-noyear",
+      "request": "SPEED_NOYEAR",
+      "candidate": {
+        "name": "Speed.2.Cruise.Control.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "sequelMismatch"
+      }
+    },
+    {
+      "id": "speed-trailer",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1994.Trailer.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "bonusContent"
+      }
+    },
+    {
+      "id": "speed-making-of",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1994.Making.of.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "bonusContent"
+      }
+    },
+    {
+      "id": "speed-sample",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1994.sample.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "bonusContent"
+      }
+    },
+    {
+      "id": "speed-typehint-trailer",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1994.mkv",
+        "typeHint": "trailer"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "bonusContent"
+      }
+    },
+    {
+      "id": "speed-too-small",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1994.mkv",
+        "sizeBytes": 99999999
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "tooSmall"
+      }
+    },
+    {
+      "id": "speed-size-boundary",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1994.mkv",
+        "sizeBytes": 100000000
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-size-zero",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1994.mkv",
+        "sizeBytes": 0
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-too-short",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1994.mkv",
+        "durationSeconds": 3479
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "tooShort"
+      }
+    },
+    {
+      "id": "speed-duration-boundary",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1994.mkv",
+        "durationSeconds": 3480
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-racer-year",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.Racer.2008.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "yearMismatch"
+      }
+    },
+    {
+      "id": "speed-racer-noyear",
+      "request": "SPEED_NOYEAR",
+      "candidate": {
+        "name": "Speed.Racer.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "extraTitleWords"
+      }
+    },
+    {
+      "id": "speed-czech-dub",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Nebezpecna.rychlost.1994.CZ.dabing.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-cesky-dabing",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Nebezpecna rychlost 1994 cesky dabing.avi"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-czech-year-first",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.1994.Cesky.Dabing.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-episode-in-movie",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.S01E01.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "seasonEpisodeMismatch"
+      }
+    },
+    {
+      "id": "speed-generic-pack-passes",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed.Complete.Collection.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-the-stopword",
+      "request": "SPEED",
+      "candidate": {
+        "name": "The.Speed.1994.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-the-movie",
+      "request": "SPEED_NOYEAR",
+      "candidate": {
+        "name": "Speed.The.Movie.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-fuzzy",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Nebezpecna.rychlos.1994.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-no-match",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Fast.and.Furious.1994.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": null
+      }
+    },
+    {
+      "id": "speed-name-vs-sourcefilename",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Speed (1994) 1080p",
+        "sourceFilename": "Speed.Racer.2008.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "yearMismatch"
+      }
+    },
+    {
+      "id": "tpb-title-protects-trailer",
+      "request": "TPB",
+      "candidate": {
+        "name": "Trailer.Park.Boys.The.Movie.2006.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "ocean-fuzzy-plural",
+      "request": "OCEAN",
+      "candidate": {
+        "name": "Oceans.Eleven.2001.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "no-patterns-fallback",
+      "request": "Y1917",
+      "candidate": {
+        "name": "Random.File.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "odyssey-year-in-title",
+      "request": "ODYSSEY",
+      "candidate": {
+        "name": "2001.A.Space.Odyssey.1968.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "blade-2049-not-year",
+      "request": "BLADE2049",
+      "candidate": {
+        "name": "Blade.Runner.2049.2017.2160p.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "alien3-joined-number",
+      "request": "ALIEN3",
+      "candidate": {
+        "name": "Alien3.1992.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "ironman2-exact",
+      "request": "IRONMAN2",
+      "candidate": {
+        "name": "Iron.Man.2.2010.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "ironman2-first-movie-year",
+      "request": "IRONMAN2",
+      "candidate": {
+        "name": "Iron.Man.2008.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": null
+      }
+    },
+    {
+      "id": "ironman2-first-movie-noyear",
+      "request": "IRONMAN2_NOYEAR",
+      "candidate": {
+        "name": "Iron.Man.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": null
+      }
+    },
+    {
+      "id": "ironman2-third-noyear",
+      "request": "IRONMAN2_NOYEAR",
+      "candidate": {
+        "name": "Iron.Man.3.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": null
+      }
+    },
+    {
+      "id": "ironman2-number-outside-title",
+      "request": "IRONMAN2_NOYEAR",
+      "candidate": {
+        "name": "Iron.Man.1080p.CZ.2.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "titleNumberOutsideTitle"
+      }
+    },
+    {
+      "id": "rocky-ii-year",
+      "request": "ROCKY",
+      "candidate": {
+        "name": "Rocky.II.1979.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "yearMismatch"
+      }
+    },
+    {
+      "id": "rocky-ii-noyear",
+      "request": "ROCKY_NOYEAR",
+      "candidate": {
+        "name": "Rocky.II.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "sequelMismatch"
+      }
+    },
+    {
+      "id": "rocky-exact",
+      "request": "ROCKY",
+      "candidate": {
+        "name": "Rocky.1976.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "rocky-balboa-extra",
+      "request": "ROCKY_NOYEAR",
+      "candidate": {
+        "name": "Rocky.Balboa.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "extraTitleWords"
+      }
+    },
+    {
+      "id": "rocky-cd2",
+      "request": "ROCKY_NOYEAR",
+      "candidate": {
+        "name": "Rocky.CD2.avi"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "killbill-vol2-year",
+      "request": "KILLBILL",
+      "candidate": {
+        "name": "Kill.Bill.Vol.2.2004.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "sequelMismatch"
+      }
+    },
+    {
+      "id": "killbill-vol2-noyear",
+      "request": "KILLBILL_NOYEAR",
+      "candidate": {
+        "name": "Kill.Bill.Vol.2.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "sequelMismatch"
+      }
+    },
+    {
+      "id": "killbill-vol1-exact",
+      "request": "KILLBILL",
+      "candidate": {
+        "name": "Kill.Bill.Vol.1.2003.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "killbill-any-pattern-passes",
+      "request": "KILLBILL",
+      "candidate": {
+        "name": "Kill.Bill.2003.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "twinpeaks-episode-in-movie",
+      "request": "TWINPEAKS_FWWM",
+      "candidate": {
+        "name": "Twin.Peaks.S01E01.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "seasonEpisodeMismatch"
+      }
+    },
+    {
+      "id": "twinpeaks-movie-exact",
+      "request": "TWINPEAKS_FWWM",
+      "candidate": {
+        "name": "Twin.Peaks.Fire.Walk.With.Me.1992.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "hp7-part2-year-tolerance",
+      "request": "HP7_1",
+      "candidate": {
+        "name": "Harry.Potter.a.Relikvie.smrti.cast.2.2011.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "sequelMismatch"
+      }
+    },
+    {
+      "id": "hp7-part1-exact",
+      "request": "HP7_1",
+      "candidate": {
+        "name": "Harry.Potter.a.Relikvie.smrti.cast.1.2010.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "hp7-czech-order",
+      "request": "HP7_1",
+      "candidate": {
+        "name": "Harry.Potter.a.Relikvie.smrti.2.cast.2011.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "sequelMismatch"
+      }
+    },
+    {
+      "id": "bb-exact",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.S02E03.720p.HDTV.mkv",
+        "sizeBytes": 500000000
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "bb-wrong-episode",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.S02E04.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "seasonEpisodeMismatch"
+      }
+    },
+    {
+      "id": "bb-wrong-season",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.S03E03.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "seasonEpisodeMismatch"
+      }
+    },
+    {
+      "id": "bb-range",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.S02E01-E05.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "bb-season-pack",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.S02.Complete.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "seasonPack"
+      }
+    },
+    {
+      "id": "bb-complete-series",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.Complete.Series.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "seasonPack"
+      }
+    },
+    {
+      "id": "bb-movie-in-episode",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.2008.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "movieInEpisodeSearch"
+      }
+    },
+    {
+      "id": "bb-no-marker",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "bb-too-small",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.S02E03.mkv",
+        "sizeBytes": 19999999
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "tooSmall"
+      }
+    },
+    {
+      "id": "bb-size-boundary",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.S02E03.mkv",
+        "sizeBytes": 20000000
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "bb-older-than-series",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.2006.S02E03.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "showOlderThanSeries"
+      }
+    },
+    {
+      "id": "bb-year-boundary",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.2007.S02E03.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "bb-episode-no-season-s2",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.Episode.3.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "bb-episode-no-season-s1-match",
+      "request": "BB_S1E3",
+      "candidate": {
+        "name": "Breaking.Bad.Episode.3.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "bb-episode-no-season-s1-mismatch",
+      "request": "BB_S1E3",
+      "candidate": {
+        "name": "Breaking.Bad.Episode.5.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "seasonEpisodeMismatch"
+      }
+    },
+    {
+      "id": "bb-nxm",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.2x03.avi"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "bb-other-show",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Better.Call.Saul.S02E03.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": null
+      }
+    },
+    {
+      "id": "bb-deleted-scenes",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.S02E03.Deleted.Scenes.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "bonusContent"
+      }
+    },
+    {
+      "id": "bb-no-too-short",
+      "request": "BB_S2E3",
+      "candidate": {
+        "name": "Breaking.Bad.S02E03.mkv",
+        "durationSeconds": 60
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "ironman2-number-present-year-off",
+      "request": "IRONMAN2",
+      "candidate": {
+        "name": "Iron.Man.2.2013.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "yearMismatch"
+      }
+    },
+    {
+      "id": "tlou-czech-making-real-prefix",
+      "request": "TLOU_S1E1",
+      "candidate": {
+        "name": "Jak vznikal seriál The Last of Us S01E01 1080p CZtit",
+        "sizeBytes": 814188485,
+        "durationSeconds": 1801
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "bonusContent"
+      }
+    },
+    {
+      "id": "tlou-czech-making-real-repeated",
+      "request": "TLOU_S1E1",
+      "candidate": {
+        "name": "Jak vznikal seriál The Last of Us_S01E01_Jak vznikal seriál The Last of Us",
+        "sizeBytes": 814188485,
+        "durationSeconds": 1801
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "bonusContent"
+      }
+    },
+    {
+      "id": "tlou-czech-making-prefix-normalized",
+      "request": "TLOU_S1E1",
+      "candidate": {
+        "name": "JAK.VZNIKL.SERIÁL.The.Last.of.Us.S01E01.1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "bonusContent"
+      }
+    },
+    {
+      "id": "tlou-czech-making-source-filename",
+      "request": "TLOU_S1E1",
+      "candidate": {
+        "name": "The Last of Us S01E01",
+        "sourceFilename": "Jak vznikal seriál The Last of Us S01E01.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "bonusContent"
+      }
+    },
+    {
+      "id": "speed-czech-making-film",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Jak vznikal film Speed 1994 1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "bonusContent"
+      }
+    },
+    {
+      "id": "speed-czech-made-film",
+      "request": "SPEED",
+      "candidate": {
+        "name": "Jak vznikl film Speed 1994 1080p.mkv"
+      },
+      "expected": {
+        "bucket": "demoted",
+        "reason": "bonusContent"
+      }
+    },
+    {
+      "id": "tlou-ordinary-episode-stays-accepted",
+      "request": "TLOU_S1E1",
+      "candidate": {
+        "name": "The Last of Us S01E01 1080p CZtit"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "tlou-range-stays-accepted",
+      "request": "TLOU_S1E1",
+      "candidate": {
+        "name": "The Last of Us S01E01-09 1080p CZtit"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "czech-making-catalog-series-title-protected",
+      "request": "CZECH_MAKING_TITLE",
+      "candidate": {
+        "name": "Jak vznikal seriál The Last of Us S01E01 1080p CZtit"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "czech-making-catalog-film-title-protected",
+      "request": "CZECH_MAKING_MOVIE_TITLE",
+      "candidate": {
+        "name": "Jak vznikl film Speed 1080p.mkv"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "tlou-czech-incomplete-phrase-not-bonus",
+      "request": "TLOU_S1E1",
+      "candidate": {
+        "name": "Jak vznikal The Last of Us S01E01 1080p"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    },
+    {
+      "id": "tlou-czech-series-label-not-bonus",
+      "request": "TLOU_S1E1",
+      "candidate": {
+        "name": "Seriál The Last of Us S01E01 1080p"
+      },
+      "expected": {
+        "bucket": "accepted",
+        "reason": null
+      }
+    }
+  ],
+  "wikidataQuery": [
+    {
+      "imdb": "tt0133093",
+      "language": "cs",
+      "expected": "SELECT ?film ?filmLabel ?originalTitle ?publicationDate ?instanceOf WHERE { ?film wdt:P345 \"tt0133093\" . OPTIONAL { ?film wdt:P1476 ?originalTitle . } OPTIONAL { ?film wdt:P577 ?publicationDate . } OPTIONAL { ?film wdt:P31 ?instanceOf . } SERVICE wikibase:label { bd:serviceParam wikibase:language \"cs\". } } LIMIT 20"
+    },
+    {
+      "imdb": " tt0133093 ",
+      "language": "en",
+      "expected": "SELECT ?film ?filmLabel ?originalTitle ?publicationDate ?instanceOf WHERE { ?film wdt:P345 \"tt0133093\" . OPTIONAL { ?film wdt:P1476 ?originalTitle . } OPTIONAL { ?film wdt:P577 ?publicationDate . } OPTIONAL { ?film wdt:P31 ?instanceOf . } SERVICE wikibase:label { bd:serviceParam wikibase:language \"en\". } } LIMIT 20"
+    },
+    {
+      "imdb": "tt0133093",
+      "language": "sk",
+      "expected": "SELECT ?film ?filmLabel ?originalTitle ?publicationDate ?instanceOf WHERE { ?film wdt:P345 \"tt0133093\" . OPTIONAL { ?film wdt:P1476 ?originalTitle . } OPTIONAL { ?film wdt:P577 ?publicationDate . } OPTIONAL { ?film wdt:P31 ?instanceOf . } SERVICE wikibase:label { bd:serviceParam wikibase:language \"sk\". } } LIMIT 20"
+    },
+    {
+      "imdb": "0133093",
+      "language": "cs",
+      "expected": null
+    },
+    {
+      "imdb": "tt0133093\" } #",
+      "language": "cs",
+      "expected": null
+    },
+    {
+      "imdb": "",
+      "language": "cs",
+      "expected": null
+    },
+    {
+      "imdb": null,
+      "language": "cs",
+      "expected": null
+    },
+    {
+      "imdb": "tt0133093",
+      "language": "de",
+      "expected": null
+    }
+  ],
+  "wikidataParse": [
+    {
+      "id": "label and original title from cs",
+      "language": "cs",
+      "response": {
+        "head": {
+          "vars": [
+            "film",
+            "filmLabel",
+            "originalTitle",
+            "publicationDate",
+            "instanceOf"
+          ]
+        },
+        "results": {
+          "bindings": [
+            {
+              "film": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q83495"
+              },
+              "filmLabel": {
+                "type": "literal",
+                "value": "Matrix",
+                "xml:lang": "cs"
+              },
+              "originalTitle": {
+                "xml:lang": "en",
+                "type": "literal",
+                "value": "The Matrix"
+              },
+              "publicationDate": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "type": "literal",
+                "value": "1999-03-31T00:00:00Z"
+              },
+              "instanceOf": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q11424"
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        "Matrix",
+        "The Matrix"
+      ]
+    },
+    {
+      "id": "sk branch ignores original title",
+      "language": "sk",
+      "response": {
+        "head": {
+          "vars": [
+            "film",
+            "filmLabel",
+            "originalTitle",
+            "publicationDate",
+            "instanceOf"
+          ]
+        },
+        "results": {
+          "bindings": [
+            {
+              "film": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q83495"
+              },
+              "filmLabel": {
+                "type": "literal",
+                "value": "Matrix",
+                "xml:lang": "sk"
+              },
+              "originalTitle": {
+                "xml:lang": "en",
+                "type": "literal",
+                "value": "The Matrix"
+              },
+              "publicationDate": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "type": "literal",
+                "value": "1999-03-31T00:00:00Z"
+              },
+              "instanceOf": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q11424"
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        "Matrix"
+      ]
+    },
+    {
+      "id": "missing label falls back to Q-id which is dropped",
+      "language": "en",
+      "response": {
+        "head": {
+          "vars": [
+            "film",
+            "filmLabel",
+            "originalTitle",
+            "publicationDate",
+            "instanceOf"
+          ]
+        },
+        "results": {
+          "bindings": [
+            {
+              "film": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q83495"
+              },
+              "filmLabel": {
+                "type": "literal",
+                "value": "Q83495"
+              },
+              "originalTitle": {
+                "xml:lang": "en",
+                "type": "literal",
+                "value": "The Matrix"
+              },
+              "publicationDate": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "type": "literal",
+                "value": "1999-03-31T00:00:00Z"
+              },
+              "instanceOf": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q11424"
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        "The Matrix"
+      ]
+    },
+    {
+      "id": "repeated bindings (several P31) dedup",
+      "language": "cs",
+      "response": {
+        "head": {
+          "vars": [
+            "film",
+            "filmLabel",
+            "originalTitle",
+            "publicationDate",
+            "instanceOf"
+          ]
+        },
+        "results": {
+          "bindings": [
+            {
+              "film": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q83495"
+              },
+              "filmLabel": {
+                "type": "literal",
+                "value": "Matrix",
+                "xml:lang": "cs"
+              },
+              "originalTitle": {
+                "xml:lang": "en",
+                "type": "literal",
+                "value": "The Matrix"
+              },
+              "publicationDate": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "type": "literal",
+                "value": "1999-03-31T00:00:00Z"
+              },
+              "instanceOf": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q11424"
+              }
+            },
+            {
+              "film": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q83495"
+              },
+              "filmLabel": {
+                "type": "literal",
+                "value": "Matrix",
+                "xml:lang": "cs"
+              },
+              "originalTitle": {
+                "xml:lang": "en",
+                "type": "literal",
+                "value": "The Matrix"
+              },
+              "publicationDate": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "type": "literal",
+                "value": "1999-03-31T00:00:00Z"
+              },
+              "instanceOf": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q24869"
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        "Matrix",
+        "The Matrix"
+      ]
+    },
+    {
+      "id": "dedup by normalized key keeps first raw form",
+      "language": "cs",
+      "response": {
+        "head": {
+          "vars": [
+            "film",
+            "filmLabel",
+            "originalTitle",
+            "publicationDate",
+            "instanceOf"
+          ]
+        },
+        "results": {
+          "bindings": [
+            {
+              "film": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q83495"
+              },
+              "filmLabel": {
+                "type": "literal",
+                "value": "Pelíšky",
+                "xml:lang": "cs"
+              },
+              "originalTitle": {
+                "xml:lang": "en",
+                "type": "literal",
+                "value": "Pelíšky "
+              },
+              "publicationDate": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "type": "literal",
+                "value": "1999-03-31T00:00:00Z"
+              },
+              "instanceOf": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q11424"
+              }
+            },
+            {
+              "film": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q83495"
+              },
+              "filmLabel": {
+                "type": "literal",
+                "value": "PELISKY",
+                "xml:lang": "cs"
+              },
+              "publicationDate": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "type": "literal",
+                "value": "1999-03-31T00:00:00Z"
+              },
+              "instanceOf": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q11424"
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        "Pelíšky"
+      ]
+    },
+    {
+      "id": "titles with one letter or empty are dropped",
+      "language": "cs",
+      "response": {
+        "head": {
+          "vars": [
+            "film",
+            "filmLabel",
+            "originalTitle",
+            "publicationDate",
+            "instanceOf"
+          ]
+        },
+        "results": {
+          "bindings": [
+            {
+              "film": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q83495"
+              },
+              "filmLabel": {
+                "type": "literal",
+                "value": "V",
+                "xml:lang": "cs"
+              },
+              "originalTitle": {
+                "xml:lang": "en",
+                "type": "literal",
+                "value": "  "
+              },
+              "publicationDate": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "type": "literal",
+                "value": "1999-03-31T00:00:00Z"
+              },
+              "instanceOf": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q11424"
+              }
+            },
+            {
+              "film": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q83495"
+              },
+              "filmLabel": {
+                "type": "literal",
+                "value": "",
+                "xml:lang": "cs"
+              },
+              "originalTitle": {
+                "xml:lang": "en",
+                "type": "literal",
+                "value": "1917"
+              },
+              "publicationDate": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "type": "literal",
+                "value": "1999-03-31T00:00:00Z"
+              },
+              "instanceOf": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q11424"
+              }
+            }
+          ]
+        }
+      },
+      "expected": []
+    },
+    {
+      "id": "two films for one imdb keep both labels",
+      "language": "en",
+      "response": {
+        "head": {
+          "vars": [
+            "film",
+            "filmLabel",
+            "originalTitle",
+            "publicationDate",
+            "instanceOf"
+          ]
+        },
+        "results": {
+          "bindings": [
+            {
+              "film": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q1"
+              },
+              "filmLabel": {
+                "type": "literal",
+                "value": "Cosy Dens",
+                "xml:lang": "en"
+              },
+              "originalTitle": {
+                "xml:lang": "en",
+                "type": "literal",
+                "value": "Pelíšky"
+              },
+              "publicationDate": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "type": "literal",
+                "value": "1999-03-31T00:00:00Z"
+              },
+              "instanceOf": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q11424"
+              }
+            },
+            {
+              "film": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q2"
+              },
+              "filmLabel": {
+                "type": "literal",
+                "value": "Cozy Dens",
+                "xml:lang": "en"
+              },
+              "originalTitle": {
+                "xml:lang": "en",
+                "type": "literal",
+                "value": "Pelíšky"
+              },
+              "publicationDate": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "type": "literal",
+                "value": "1999-03-31T00:00:00Z"
+              },
+              "instanceOf": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q11424"
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        "Cosy Dens",
+        "Pelíšky",
+        "Cozy Dens"
+      ]
+    },
+    {
+      "id": "empty bindings",
+      "language": "cs",
+      "response": {
+        "head": {
+          "vars": [
+            "film",
+            "filmLabel",
+            "originalTitle",
+            "publicationDate",
+            "instanceOf"
+          ]
+        },
+        "results": {
+          "bindings": []
+        }
+      },
+      "expected": []
+    },
+    {
+      "id": "malformed response without results",
+      "language": "cs",
+      "response": {
+        "head": {
+          "vars": []
+        }
+      },
+      "expected": []
+    },
+    {
+      "id": "binding without filmLabel and originalTitle",
+      "language": "cs",
+      "response": {
+        "head": {
+          "vars": [
+            "film",
+            "filmLabel",
+            "originalTitle",
+            "publicationDate",
+            "instanceOf"
+          ]
+        },
+        "results": {
+          "bindings": [
+            {
+              "film": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q83495"
+              },
+              "publicationDate": {
+                "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+                "type": "literal",
+                "value": "1999-03-31T00:00:00Z"
+              },
+              "instanceOf": {
+                "type": "uri",
+                "value": "http://www.wikidata.org/entity/Q11424"
+              }
+            }
+          ]
+        }
+      },
+      "expected": []
+    }
+  ],
+  "wikidataMerge": [
+    {
+      "id": "all branches",
+      "branches": {
+        "cs": [
+          "Matrix",
+          "The Matrix"
+        ],
+        "en": [
+          "The Matrix"
+        ],
+        "sk": [
+          "Matrix"
+        ]
+      },
+      "expected": [
+        "Matrix",
+        "The Matrix"
+      ]
+    },
+    {
+      "id": "failed cs branch does not cancel others",
+      "branches": {
+        "cs": null,
+        "en": [
+          "The Matrix"
+        ],
+        "sk": [
+          "Matrix"
+        ]
+      },
+      "expected": [
+        "The Matrix",
+        "Matrix"
+      ]
+    },
+    {
+      "id": "all failed",
+      "branches": {
+        "cs": null,
+        "en": null,
+        "sk": null
+      },
+      "expected": []
+    },
+    {
+      "id": "dedup is accent and case insensitive",
+      "branches": {
+        "cs": [
+          "Pelíšky"
+        ],
+        "en": [
+          "Cosy Dens",
+          "pelisky"
+        ],
+        "sk": [
+          "PELÍŠKY"
+        ]
+      },
+      "expected": [
+        "Pelíšky",
+        "Cosy Dens"
+      ]
+    }
+  ],
+  "searchWaves": [
+    {
+      "id": "name only",
+      "title": "Pelíšky",
+      "originalTitle": null,
+      "allTitles": {},
+      "extraTitles": [],
+      "expectedBase": [
+        "Pelíšky"
+      ],
+      "expectedExtra": []
+    },
+    {
+      "id": "original and allowed alternative titles",
+      "title": "Matrix",
+      "originalTitle": "The Matrix",
+      "allTitles": {
+        "en": "The Matrix",
+        "de": "Matrix",
+        "pl": "Matrix",
+        "fr": "La Matrice",
+        "sk": "Matrix"
+      },
+      "extraTitles": [],
+      "expectedBase": [
+        "Matrix"
+      ],
+      "expectedExtra": [
+        "The Matrix"
+      ]
+    },
+    {
+      "id": "alternative titles in allowed-language order then wikidata",
+      "title": "Pelíšky",
+      "originalTitle": null,
+      "allTitles": {
+        "pl": "Pelisky",
+        "en": "Cosy Dens",
+        "sk": "Pelíšky",
+        "de": "Kuschelnester"
+      },
+      "extraTitles": [
+        "Cozy Dens",
+        "cosy dens",
+        "Pelíšky"
+      ],
+      "expectedBase": [
+        "Pelíšky"
+      ],
+      "expectedExtra": [
+        "Cosy Dens",
+        "Kuschelnester",
+        "Cozy Dens"
+      ]
+    },
+    {
+      "id": "whitespace titles are trimmed and blank dropped",
+      "title": "  Matrix ",
+      "originalTitle": "  ",
+      "allTitles": {
+        "en": ""
+      },
+      "extraTitles": [
+        " The Matrix "
+      ],
+      "expectedBase": [
+        "Matrix"
+      ],
+      "expectedExtra": [
+        "The Matrix"
+      ]
+    },
+    {
+      "id": "blank title gives no base but keeps extra",
+      "title": "",
+      "originalTitle": "The Matrix",
+      "allTitles": {},
+      "extraTitles": [],
+      "expectedBase": [],
+      "expectedExtra": [
+        "The Matrix"
+      ]
+    },
+    {
+      "id": "numeric and one-letter titles stay searchable",
+      "title": "1917",
+      "originalTitle": "1917",
+      "allTitles": {
+        "en": "V"
+      },
+      "extraTitles": [
+        "Nineteen Seventeen"
+      ],
+      "expectedBase": [
+        "1917"
+      ],
+      "expectedExtra": [
+        "V",
+        "Nineteen Seventeen"
+      ]
+    },
+    {
+      "id": "punctuation-only title gives no base",
+      "title": "...",
+      "originalTitle": "—",
+      "allTitles": {},
+      "extraTitles": [
+        "Tři tečky"
+      ],
+      "expectedBase": [],
+      "expectedExtra": [
+        "Tři tečky"
+      ]
+    }
+  ],
+  "canonicalFileKey": [
+    {
+      "name": "Film-0123456789abcdef.mkv",
+      "expected": "0123456789abcdef.mkv"
+    },
+    {
+      "name": "Jiny.Nazev-0123456789ABCDEF.MKV",
+      "expected": "0123456789abcdef.mkv"
+    },
+    {
+      "name": "  Pelíšky 1999.mkv ",
+      "expected": "pelisky 1999.mkv"
+    },
+    {
+      "name": "Film-GROUP.mkv",
+      "expected": "film-group.mkv"
+    },
+    {
+      "name": "Matrix.1999.1080p.mkv",
+      "expected": "matrix.1999.1080p.mkv"
+    },
+    {
+      "name": "",
+      "expected": null
+    },
+    {
+      "name": "   ",
+      "expected": null
+    },
+    {
+      "name": null,
+      "expected": null
+    }
+  ],
+  "referenceDedup": [
+    {
+      "id": "same provider same id is dropped, other provider kept",
+      "references": [
+        {
+          "provider": "webshare",
+          "id": "abc123",
+          "name": "Matrix.1999.mkv"
+        }
+      ],
+      "candidates": [
+        {
+          "provider": "webshare",
+          "id": "ABC123",
+          "name": "Other.mkv"
+        },
+        {
+          "provider": "hellspy",
+          "id": "abc123",
+          "name": "Other2.mkv"
+        },
+        {
+          "provider": "webshare",
+          "id": "abc1234",
+          "name": "Other3.mkv"
+        }
+      ],
+      "expectedKeptIndexes": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "reference id with slash suffix matches candidate prefix",
+      "references": [
+        {
+          "provider": "hellspy",
+          "id": "123/abcdef",
+          "name": "Matrix.mkv"
+        }
+      ],
+      "candidates": [
+        {
+          "provider": "hellspy",
+          "id": "123",
+          "name": "A.mkv"
+        },
+        {
+          "provider": "hellspy",
+          "id": "12",
+          "name": "B.mkv"
+        },
+        {
+          "provider": "hellspy",
+          "id": "123/abcdef",
+          "name": "C.mkv"
+        },
+        {
+          "provider": "hellspy",
+          "id": "123/",
+          "name": "D.mkv"
+        }
+      ],
+      "expectedKeptIndexes": [
+        1,
+        3
+      ]
+    },
+    {
+      "id": "hash suffix key matches across names and providers, extension matters",
+      "references": [
+        {
+          "provider": "webshare",
+          "id": "w1",
+          "name": "Matrix-0123456789abcdef.mkv"
+        }
+      ],
+      "candidates": [
+        {
+          "provider": "fastshare",
+          "id": "f1",
+          "name": "Jiny.Nazev-0123456789ABCDEF.mkv"
+        },
+        {
+          "provider": "webshare",
+          "id": "w2",
+          "name": "Matrix-0123456789abcdef.mp4"
+        },
+        {
+          "provider": "webshare",
+          "id": "w3",
+          "name": "Matrix-0123456789abcdef.mkv"
+        }
+      ],
+      "expectedKeptIndexes": [
+        1
+      ]
+    },
+    {
+      "id": "plain name is trimmed, folded and lowercased; separators are not normalized",
+      "references": [
+        {
+          "provider": "webshare",
+          "id": "w1",
+          "name": " Pelíšky 1999.mkv"
+        }
+      ],
+      "candidates": [
+        {
+          "provider": "webshare",
+          "id": "w2",
+          "name": "pelisky 1999.mkv"
+        },
+        {
+          "provider": "hellspy",
+          "id": "h1",
+          "name": "PELISKY 1999.MKV"
+        },
+        {
+          "provider": "webshare",
+          "id": "w3",
+          "name": "pelisky.1999.mkv"
+        }
+      ],
+      "expectedKeptIndexes": [
+        2
+      ]
+    },
+    {
+      "id": "missing or blank name is never a match",
+      "references": [
+        {
+          "provider": "webshare",
+          "id": "w1",
+          "name": null
+        },
+        {
+          "provider": "hellspy",
+          "id": "h1",
+          "name": ""
+        }
+      ],
+      "candidates": [
+        {
+          "provider": "webshare",
+          "id": "w2",
+          "name": null
+        },
+        {
+          "provider": "hellspy",
+          "id": "h2",
+          "name": ""
+        },
+        {
+          "provider": "fastshare",
+          "id": "f1",
+          "name": "   "
+        }
+      ],
+      "expectedKeptIndexes": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "id": "no references keeps everything",
+      "references": [],
+      "candidates": [
+        {
+          "provider": "webshare",
+          "id": "w1",
+          "name": "A.mkv"
+        },
+        {
+          "provider": "webshare",
+          "id": "w1",
+          "name": "A.mkv"
+        }
+      ],
+      "expectedKeptIndexes": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "provider comparison is case insensitive",
+      "references": [
+        {
+          "provider": "Webshare",
+          "id": "w1",
+          "name": "A.mkv"
+        }
+      ],
+      "candidates": [
+        {
+          "provider": "webshare",
+          "id": "W1",
+          "name": "B.mkv"
+        },
+        {
+          "provider": "WEBSHARE",
+          "id": "w2",
+          "name": "C.mkv"
+        }
+      ],
+      "expectedKeptIndexes": [
+        1
+      ]
+    }
+  ]
+}

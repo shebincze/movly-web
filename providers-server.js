@@ -164,6 +164,7 @@ async function searchFiles(provider, query, token) {
         source_stream_id: `${f.id}${typeof f.fileHash === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(f.fileHash) ? `/${f.fileHash}` : ""}`,
         file_name: f.title,
         file_size: f.size,
+        duration_seconds: typeof f.duration === "number" && Number.isFinite(f.duration) && f.duration > 0 ? f.duration : null,
         available: Boolean(f.fileHash),
       }));
   }
