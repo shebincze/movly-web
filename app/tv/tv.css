@@ -531,3 +531,15 @@ button[disabled].tv-f {
 .tv-osd-controls .tv-osd-play {
   min-width: 10rem;
 }
+
+/* Search remains usable with spatial/D-pad focus on ES5 television engines. */
+.tv-search-actions, .tv-search-term { display: flex; flex-wrap: wrap; margin-bottom: 1rem; }
+.tv-search-actions .tv-button, .tv-search-term .tv-button, .tv-filter-facets .tv-button { margin-right: 0.8rem; margin-bottom: 0.8rem; }
+.tv-filter-field { display: block; margin: 1rem 0; }
+.tv-filter-field > span { display: block; margin-bottom: 0.5rem; }
+.tv-filter-field .tv-input { max-width: 38rem; }
+#tv-search-suggestions .tv-button { display: block; width: 100%; margin-bottom: 0.5rem; text-align: left; }
+.tv-screen-search-filters h3 { margin-top: 2rem; }
+.tv-screen-search .tv-button { margin-right: 0.8rem; margin-bottom: 0.8rem; }
+.tv-filter-facets .tv-button[aria-pressed="true"] { background: #673baa; }
+.tv-filter-facets .tv-button[aria-pressed="true"]:focus { background: #ff4f6d; color: #0a0a12; }
