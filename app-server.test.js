@@ -75,7 +75,6 @@ function makeHandler(role, calls, premiumUntil = null, capabilityResult = null) 
     calls.push({ path, method, body });
     if (path === "v1/auth/login") return { payload: { token: "tok-1", user } };
     if (path === "v1/auth/me") return { payload: user };
-    if (path.startsWith("v1/feedback/items") && method === "GET") return { payload: { items: [], total: 0 } };
     if (path === "v1/capabilities/negotiate" && method === "POST") {
       if (capabilityResult instanceof Error) throw capabilityResult;
       return { payload: capabilityResult || { schema_version: 1, revision: `cap1.${"a".repeat(64)}`, cache_ttl_seconds: 300,
@@ -412,16 +411,15 @@ test("only admin can permanently delete feedback; empty upstream response become
   }
 });
 
-test("feedback proxy permits free users regardless of obsolete subscription fields, without admin access", async () => {
-  for (const until of [null, "bad-date", "2000-01-01T00:00:00Z"]) {
+test("feedback proxy denies free, expired and malformed subscriptions before forwarding", async () => {
+  for (const until of [null, "bad-date", "2030", "2030-01-01", "2030-02-30T00:00:00Z", "2000-01-01T00:00:00Z", 9999999999999]) {
     const calls = [], handle = makeHandler("user", calls, until), cookie = await login(handle);
-    const res = fakeResponse();
-    await handle(requestFor(cookie, "GET", "feedback/items"), res, new URL("http://localhost/api/app/feedback/items"));
-    assert.equal(res.statusCode, 200);
-    assert.equal(calls.filter(c => c.path.startsWith("v1/feedback/items")).length, 1);
-    const admin = fakeResponse();
-    await handle(requestFor(cookie, "GET", "admin/feedback/items"), admin, new URL("http://localhost/api/app/admin/feedback/items"));
-    assert.equal(admin.statusCode, 403);
-    assert.equal(calls.filter(c => c.path.startsWith("v1/admin/feedback/")).length, 0);
+    for (const [method, target] of [["GET", "feedback/items"], ["POST", "feedback/handoffs/consume"], ["PUT", "feedback/items/7/vote"]]) {
+      const res = fakeResponse();
+      await handle(requestFor(cookie, method, target, {}), res, new URL(`http://localhost/api/app/${target}`));
+      assert.equal(res.statusCode, 403);
+      assert.equal(res.body.code, "feedback_premium_required");
+    }
+    assert.equal(calls.filter(c => c.path.startsWith("v1/feedback/")).length, 0);
   }
 });

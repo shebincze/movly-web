@@ -10,6 +10,15 @@ const { directSource, appRequired } = require("./direct-media");
 const nativeProviders = require("./native-providers");
 const { offlineSigner } = require("./offline-grant");
 
+function feedbackPremiumActive(value, now = Date.now()) {
+  if (typeof value !== "string") return false;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|([+-])(\d{2}):(\d{2}))$/.exec(value);
+  if (!m) return false;
+  const [, y, month, d, h, minute, second, sign, oh = "0", om = "0"] = m;
+  const probe = new Date(Date.UTC(+y, +month - 1, +d));
+  return probe.getUTCFullYear() === +y && probe.getUTCMonth() === +month - 1 && probe.getUTCDate() === +d && +h < 24 && +minute < 60 && +second < 60 && +oh < 24 && +om < 60 && !(sign === "-" && +oh === 0 && +om === 0) && Number.isFinite(Date.parse(value)) && Date.parse(value) > now;
+}
+
 // Deliberately closed BFF: neither upstream URLs nor authentication/profile
 // headers are accepted from the browser. The core API remains authoritative.
 function createAppHandler({
@@ -173,7 +182,7 @@ function createAppHandler({
       coins:
         Number.isSafeInteger(user.coins) && user.coins >= 0 ? user.coins : 0,
       premiumUntil: user.premium_until || null,
-      premiumPurchaseEnabled: false,
+      premiumPurchaseEnabled: user.premium_purchase_enabled === true,
       isFromLight: user.is_from_light === true,
       canModerate: role === "moderator" || role === "admin",
     };
@@ -820,10 +829,9 @@ function createAppHandler({
         json(res, 200, { account, profile: s.profile || null });
         return true;
       }
-      // Movly is free even when an older upstream still advertises paid plans.
-      if (target === "auth/premium/plans" || target === "auth/premium/purchase")
-        throw new HttpError(403, "Movly je zdarma. Nákup Premium není dostupný.", { code: "premium_purchase_unavailable" });
       if (/^(?:admin\/)?feedback\//.test(target)) {
+        if (!["premium", "vip", "moderator", "admin"].includes(account.role) && !feedbackPremiumActive(account.premiumUntil))
+          throw new HttpError(403, "Pomozte zlepšovat Movly je dostupné s Premium.", { code: "feedback_premium_required" });
         const isAdmin = target.startsWith("admin/");
         if (isAdmin && account.role !== "admin") throw new HttpError(403, "K této akci nemáš oprávnění.");
         const feedbackTarget = target.replace(/^admin\//, "");
@@ -1539,7 +1547,16 @@ function createAppHandler({
       let body = null;
       if (["POST", "PUT"].includes(req.method)) {
         body = objectBody(await readBody(req, 8192));
-        if (target === "recommendations/action") {
+        if (target === "auth/premium/purchase") {
+          if (!account.premiumPurchaseEnabled || account.isFromLight)
+            throw new HttpError(
+              403,
+              "Nákup Premium není pro tento účet dostupný.",
+            );
+          if (!integer(body.plan_id))
+            throw new HttpError(400, "Vyber platný plán Premium.");
+          body = { plan_id: Number(body.plan_id) };
+        } else if (target === "recommendations/action") {
           if (typeof body.request_id !== "string" || !body.request_id || body.request_id.length > 200 ||
               !integer(body.title_id) || !["view", "click"].includes(body.action) ||
               !Number.isSafeInteger(body.position) || body.position < 1 || body.position > 10000 ||

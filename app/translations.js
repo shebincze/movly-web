@@ -1,7 +1,4 @@
 export const translations = {
-  "Movly je zdarma": ["Movly je zadarmo", "Movly is free"],
-  "Funkce Movly nevyžadují placený tarif. Účty a podmínky externích úložišť zůstávají samostatné.": ["Funkcie Movly nevyžadujú platený tarif. Účty a podmienky externých úložísk zostávajú samostatné.", "Movly features do not require a paid plan. External provider accounts and terms remain separate."],
-  "Přihlas se aktivním ověřeným Movly účtem.": ["Prihlás sa aktívnym overeným Movly účtom.", "Sign in with an active, verified Movly account."],
   "Jazyk audia": ["Jazyk zvuku", "Audio language"],
   "Jazyk titulků": ["Jazyk titulkov", "Subtitle language"],
   "Rozlišení": ["Rozlíšenie", "Resolution"],

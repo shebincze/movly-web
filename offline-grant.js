@@ -6,9 +6,12 @@ function offlineSigner(secret, environment = "local") {
   const publicKey = crypto.createPublicKey(key).export({ format: "jwk" });
   return { issue(user, profile, session, now = Date.now()) {
     if (!Number.isSafeInteger(user.id) || !user.is_active || !user.is_verified ||
+      !(new Date(user.premium_until).getTime() > now || ["vip", "moderator", "admin"].includes(user.role)) ||
       !profile || profile.is_kids !== false || !Number.isInteger(profile.max_certification) || profile.max_certification < 18 || typeof profile.has_pin !== "boolean" || profile.allow_unrated !== true)
-      throw Object.assign(new Error("Offline knihovna vyžaduje aktivní ověřený účet a dospělý profil bez věkového omezení."), { status: 403 });
+      throw Object.assign(new Error("Offline knihovna vyžaduje aktivní Premium a dospělý profil bez věkového omezení."), { status: 403 });
     let expiresAt = now + 7 * 86400000;
+    if (!["vip", "moderator", "admin"].includes(user.role))
+      expiresAt = Math.min(expiresAt, Date.parse(user.premium_until));
     if (profile.has_pin) {
       const pinExpiry = Date.parse(session.grantExpiresAt);
       if (!Number.isFinite(pinExpiry) || pinExpiry <= now)

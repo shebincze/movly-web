@@ -86,7 +86,7 @@ export async function registerOffline() {
 }
 export async function synchronizeOfflineContext() {
   const activeBefore = await get("settings", "active").catch(() => null);
-  // Personal-data sync is independent of the profile-scoped offline media grant.
+  // Personal-data sync is independent of the Premium-only offline media grant.
   // Its mirror uses its own IndexedDB store and never mutates the watch-history outbox.
   void syncPersonalDataMirror(api).catch((error) => {
     if (error?.name !== "AbortError" && error?.status !== 404)
