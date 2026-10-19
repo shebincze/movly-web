@@ -39,3 +39,20 @@ fixture limitation; no production page errors were observed in completed flows.
 
 Actual coordinated Go/SQL persistence, peer sync and final owner/PIN/CAS cohorts
 are pending the backend runtime. No deployment, release or version increment.
+
+The personal-change → full Movie reload → immediate Series route transition exposed
+an old page aborting a shared policy postvalidation probe. Controlled preview showed
+`Context changed` on Series before correction. Home/typed catalogue/collection policy
+probes now use context lifetime; their content requests and render admission still
+check the captured abort signal/context/generation. The same transition renders the
+Series feed after correction. No shared policy module or content route was changed.
+
+Exact final local suite627/627 and npm check/six ES5 scripts passed. Additional
+controlled DOM regressions: touchCancel restores draft before a successful touch
+reorder; same-page Series→Home→Series rejects held old Done/Reset with zero writes;
+409 remains blocked with draft visible across foreground GET until explicit Reload.
+Actual 30s timer detected a changed Series document and reloaded full typed /main;
+blur cancelled metadata reads for a complete interval, focus reconciled again.
+Personal mutations requested full typed /main and no /main/personal; typed collection
+links retained movie/tv. Receipts: lifecycle-conflict.json, emulated-touch.json,
+feed-poll.json. These remain controlled preview evidence, not actual Go persistence.

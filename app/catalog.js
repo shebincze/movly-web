@@ -110,8 +110,11 @@ function feedRail(group, actions, source = "main", type, admit = () => true) {
   }
   return node;
 }
+// Policy probes are shared within the API context. A disappearing page must not
+// abort a probe that the next typed page has already joined; content stays abortable.
 export async function home(signal, actions) {
-  const policy = await effectiveContentPolicy({ signal, refresh: true });
+  const policy = await effectiveContentPolicy({ refresh: true });
+  if (signal?.aborted) throw new DOMException("Context changed", "AbortError");
   return serverHome(signal, actions, carousel, policy);
 }
 // Stale-while-revalidate pro Filmy/Seriály: návrat na stránku vykreslí hned
@@ -189,9 +192,9 @@ async function revalidateCatalog(type, page, actions, signal, required = false) 
   page.movlyCatalogGeneration = generation;
   if (required) page.querySelector(".catalog-rails").replaceChildren(loading());
   try {
-    const policy = await effectiveContentPolicy({ signal, refresh: true });
+    const policy = await effectiveContentPolicy({ refresh: true });
     const fresh = await api(`main?type=${type}&limit=30`, { signal });
-    await assertEffectivePolicyUnchanged(policy, { signal });
+    await assertEffectivePolicyUnchanged(policy);
     if (epoch !== catalogEpoch || key !== catalogKey(type) || signal?.aborted || page.movlyCatalogGeneration !== generation || !page.isConnected) return;
     const cached = catalogCache.get(key);
     catalogCache.set(key, { data: fresh, at: Date.now() });
@@ -229,7 +232,8 @@ document.addEventListener("movly:personal-changed", () => {
 export async function catalog(route, params, signal, actions) {
   if (params.get("view") === "grid")
     return catalogGrid(route, params, signal, actions);
-  const policy = await effectiveContentPolicy({ signal, refresh: true });
+  const policy = await effectiveContentPolicy({ refresh: true });
+  if (signal?.aborted) throw new DOMException("Context changed", "AbortError");
   const type = route === "series" ? "tv" : "movie",
     key = catalogKey(type),
     cached = catalogCache.get(key),
@@ -239,7 +243,7 @@ export async function catalog(route, params, signal, actions) {
   else {
     const epoch = catalogEpoch;
     data = await api(`main?type=${type}&limit=30`, { signal });
-    await assertEffectivePolicyUnchanged(policy, { signal });
+    await assertEffectivePolicyUnchanged(policy);
     if (epoch !== catalogEpoch || key !== catalogKey(type) || signal?.aborted) throw new DOMException("Context changed", "AbortError");
     catalogCache.set(key, { data, at: Date.now() });
   }
@@ -1496,10 +1500,11 @@ export async function collection(params, signal, actions) {
   const source = params.get("source");
   const fromHome = source === "home" || source === "home_collection";
   const type = ["movie", "tv"].includes(params.get("type")) ? params.get("type") : null;
-  const policy = await effectiveContentPolicy({ signal, refresh: true });
+  const policy = await effectiveContentPolicy({ refresh: true });
   const data = await api(fromHome ? homeQuery({ [source === "home" ? "section" : "collection"]: slug, page }) :
     `${source === "themed" ? "themed-lists" : "main/lists"}/${slug}?page=${page}&limit=30${source !== "themed" && type ? `&type=${type}` : ""}`, { signal });
-  await assertEffectivePolicyUnchanged(policy, { signal });
+  await assertEffectivePolicyUnchanged(policy);
+  if (signal?.aborted) throw new DOMException("Context changed", "AbortError");
   const rows = fromHome ? homeSections(data) : null;
   if (fromHome && (rows.length !== 1 || rows[0].slug !== slug || rows[0].pagination?.page !== page)) throw new Error(translateUI("Neplatná řada Domů."));
   const list = fromHome ? rows[0] : data.list || data;
