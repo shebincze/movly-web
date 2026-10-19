@@ -1422,7 +1422,8 @@ function createAppHandler({
           provider === "hellspy" &&
           /^[1-9]\d*\/[a-zA-Z0-9_-]{1,128}$/.test(ident || "")
         ) {
-          link = `https://api.hellspy.to/gw/video/${ident}/download`;
+          try { link = await timed("bff_source_resolve", () => providerClient.resolveHellspy(ident)); }
+          catch (error) { error.diagnosticStage = "source_resolve"; throw error; }
         } else {
           if (!nativeProviders.supported.test(provider))
             throw new HttpError(422, "Neznámý poskytovatel zdroje.");

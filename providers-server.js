@@ -105,6 +105,31 @@ async function login(username, password) {
     vip: xml(data, "vip") === "1",
   };
 }
+// Resolve only the official gateway; media stays between the CDN and browser.
+async function resolveHellspy(ident) {
+  if (!/^[1-9]\d*\/[a-zA-Z0-9_-]{1,128}$/.test(ident || ""))
+    throw Object.assign(new Error("Zdroj nemá platný Hellspy identifikátor."), { status: 422 });
+  const endpoint = `https://api.hellspy.to/gw/video/${ident}/download`;
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      redirect: "manual", signal: AbortSignal.timeout(15000),
+      headers: { Range: "bytes=0-0" },
+    });
+    if (![301, 302, 303, 307, 308].includes(response.status))
+      throw new Error("Hellspy neposkytl přímý odkaz k přehrání.");
+    const location = response.headers.get("location");
+    if (!location) throw new Error("Hellspy neposkytl přímý odkaz k přehrání.");
+    const url = new URL(location, endpoint);
+    if (url.protocol !== "https:" || url.username || url.password)
+      throw new Error("Hellspy neposkytl bezpečný odkaz k přehrání.");
+    return url.href;
+  } catch {
+    throw Object.assign(new Error("Hellspy neposkytl bezpečný přímý odkaz k přehrání."), { status: 502 });
+  } finally {
+    await response?.body?.cancel().catch(() => {});
+  }
+}
 async function resolve(token, ident) {
   if (!/^[a-zA-Z0-9_-]{1,128}$/.test(ident || ""))
     throw Object.assign(
@@ -170,4 +195,4 @@ async function searchFiles(provider, query, token) {
   }
   throw new Error("Nepodporovaný poskytovatel.");
 }
-module.exports = { login, resolve, md5crypt, searchFiles };
+module.exports = { login, resolve, resolveHellspy, md5crypt, searchFiles };
