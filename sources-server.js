@@ -249,12 +249,17 @@ async function search(provider, title, episode, token, request) {
           f.file_name,
         ),
       );
+      // Numeric-only titles have no canonical patterns (for example 1917).
+      // Retain the existing name/year/episode guard for those titles, since
+      // evaluate intentionally accepts empty patterns and earlyGate may treat
+      // the title's digits as a release year.
       if (
-        !early &&
-        pats.length &&
-        !pats.some((p) =>
-          relevance.tokenGate(p, relevance.tokenize(f.file_name)),
-        )
+        !pats.length
+          ? !matches(f, title, episode)
+          : !early &&
+            !pats.some((p) =>
+              relevance.tokenGate(p, relevance.tokenize(f.file_name)),
+            )
       )
         return false;
       if (
