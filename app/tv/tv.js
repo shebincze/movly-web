@@ -739,7 +739,7 @@
     var input = h("input", { type: "search", maxlength: 200, className: "tv-f tv-input tv-autofocus", autocomplete: "off", "aria-label": "Hledat název nebo výraz", placeholder: "Název filmu, seriálu nebo popis", role: "combobox", "aria-expanded": "false", "aria-controls": "tv-search-suggestions" });
     var suggestions = h("div", { id: "tv-search-suggestions", role: "listbox", "aria-label": "Návrhy hledání" });
     var status = statusBox("Napiš název a potvrď Hledat.", "info"), results = h("div"), idle = h("div"), activeFilters = h("p", { className: "tv-hint" });
-    var timer = null, suggestTimer = null, suggestionRequest = null, activeRequest = null, definition = {}, page = 1, natural = false, pendingResultFocus = false, s;
+    var suggestTimer = null, suggestionRequest = null, activeRequest = null, definition = {}, page = 1, natural = false, committedQuery = null, lastResult = null, pendingResultFocus = false, s;
     function valid() { return alive && scope === searchScope(); }
     function active() { return valid() && current() === s && !s.el.hidden; }
     function searchAction(label, action, className) {
@@ -751,7 +751,7 @@
       if (suggestionRequest) { suggestionRequest.abort(); suggestionRequest = null; }
       clear(suggestions); input.setAttribute("aria-expanded", "false");
     }
-    function termButton(term) { return searchAction(term, function () { input.value = term; page = 1; natural = false; run(true); }); }
+    function termButton(term) { return searchAction(term, function () { input.value = term; page = 1; natural = false; commitSearch(); }); }
     function renderHistory() {
       clear(idle);
       if (input.value.replace(/\s/g, "")) return;
@@ -810,6 +810,7 @@
       });
     }
     function renderResults(data, focus, searchText, resultOffset, generation) {
+      lastResult = { data: data, text: searchText, offset: resultOffset, policy: policyRevision };
       var items = filter(map((data && data.results) || [], titleOf), Boolean);
       clear(results);
       setStatus(status, items.length ? "Nalezeno: " + (typeof data.total === "number" ? data.total : items.length) : "Nic jsme nenašli.", items.length ? null : "info");
@@ -838,11 +839,16 @@
       results.appendChild(pages);
       if (focus && current() === s) focusEl(firstFocusable(results) || input);
     }
-    function run(focus) {
+    function commitSearch() {
       if (!active()) return;
-      clearTimeout(timer); if (focus) cancelSuggestions();
-      var q = input.value.replace(/^\s+|\s+$/g, ""), params = filterQuery(definition), mine = ++revision, resultOffset = (page - 1) * 30;
-      clear(results); clear(idle);
+      committedQuery = input.value.replace(/^\s+|\s+$/g, "");
+      run(true);
+    }
+    function run(focus) {
+      if (!active() || committedQuery === null || input.value.replace(/^\s+|\s+$/g, "") !== committedQuery) return;
+      if (focus) cancelSuggestions();
+      var q = committedQuery, params = filterQuery(definition), mine = ++revision, resultOffset = (page - 1) * 30;
+      lastResult = null; clear(results); clear(idle);
       if (!q && !Object.keys(params).length) { setStatus(status, "Napiš název nebo nastav filtry.", "info"); renderHistory(); return; }
       if (q.length > 200) return;
       if (q && focus) rememberTerm(owner, q);
@@ -856,11 +862,11 @@
       if (path === "search/filters") params = { q: q, page: page, limit: 30 };
       function done(err, data) {
         if (!valid() || mine !== revision) return;
-        if (err) { setStatus(status, err.message, "error"); results.appendChild(searchAction("Zkusit znovu", function () { run(focus); })); return; }
+        if (err) { setStatus(status, err.message, "error"); results.appendChild(searchAction("Zkusit znovu", function () { if (mine === revision) run(focus); })); return; }
         if (path === "search/filters" && data && data.parsed && data.parsed.matched === false) {
           activeRequest = api("search" + query({ q: q, type: "both", limit: 30, offset: (page - 1) * 30 }), {}, function (fallbackError, fallback) {
             if (!valid() || mine !== revision) return;
-            if (fallbackError) { setStatus(status, fallbackError.message, "error"); results.appendChild(searchAction("Zkusit znovu", function () { run(focus); })); return; }
+            if (fallbackError) { setStatus(status, fallbackError.message, "error"); results.appendChild(searchAction("Zkusit znovu", function () { if (mine === revision) run(focus); })); return; }
             renderResults(fallback || {}, focus, q, resultOffset, mine);
           });
           return;
@@ -871,16 +877,19 @@
     }
     input.addEventListener("input", function () {
       if (!active()) return;
-      revision++; cancelSuggestions(); clearTimeout(timer); page = 1; natural = false;
+      revision++; cancelSuggestions(); committedQuery = null; lastResult = null; page = 1; natural = false;
+      if (activeRequest) { activeRequest.abort(); activeRequest = null; }
+      clear(results); clear(idle);
       if (!input.value.replace(/\s/g, "")) { clear(results); setStatus(status, "Napiš název nebo nastav filtry.", "info"); renderHistory(); return; }
-      suggestTimer = setTimeout(suggest, 250); timer = setTimeout(function () { run(false); }, 900);
+      setStatus(status, "Potvrď Hledat nebo vyber návrh.", "info");
+      suggestTimer = setTimeout(suggest, 250);
     }, false);
     var form = h("form", { className: "tv-form tv-search-form", novalidate: true, role: "search" }, [input, suggestions,
-      h("div", { className: "tv-search-actions" }, [searchAction("Hledat", function () { page = 1; natural = false; run(true); }), searchAction("Rozpoznat filtry z textu", function () { page = 1; natural = true; run(true); }), searchAction("Filtry a uložené filtry", function () {
-        clearTimeout(timer); cancelSuggestions(); revision++;
+      h("div", { className: "tv-search-actions" }, [searchAction("Hledat", function () { page = 1; natural = false; commitSearch(); }), searchAction("Rozpoznat filtry z textu", function () { page = 1; natural = true; commitSearch(); }), searchAction("Filtry a uložené filtry", function () {
+        cancelSuggestions(); revision++;
         push(searchFilterScreen(definition, function (next) { definition = next; natural = false; page = 1; activeFilters.textContent = Object.keys(next).length ? "Použité filtry: " + filterDescription(next) : ""; pendingResultFocus = true; back(); }));
-      }), searchAction("Zrušit filtry", function () { definition = {}; activeFilters.textContent = ""; page = 1; run(true); })])]);
-    form.onsubmit = function (event) { event.preventDefault(); page = 1; natural = false; run(true); };
+      }), searchAction("Zrušit filtry", function () { definition = {}; activeFilters.textContent = ""; page = 1; commitSearch(); })])]);
+    form.onsubmit = function (event) { event.preventDefault(); page = 1; natural = false; commitSearch(); };
     s = makeScreen("search", [header("Hledat"), form, activeFilters, status, idle, results], {
       onShow: function () {
         if (!valid()) return;
@@ -895,7 +904,9 @@
           discoveryError = !!err || !policy || policy.user_id !== account.id || policy.profile_id !== profile.id || typeof policy.is_kids !== "boolean";
           discoveryAllowed = !err && policy && policy.schema_version === 1 && policy.user_id === account.id && policy.profile_id === profile.id && policy.is_kids === false && policy.age_controls_active === false && /^ep1\.[a-f0-9]{64}$/.test(policy.revision || "");
           renderHistory();
-          if (input.value || Object.keys(definition).length) { var focus = pendingResultFocus; pendingResultFocus = false; run(focus); }
+          if (pendingResultFocus) { pendingResultFocus = false; commitSearch(); }
+          else if (lastResult && lastResult.policy === policyRevision && lastResult.text === committedQuery) renderResults(lastResult.data, false, lastResult.text, lastResult.offset, revision);
+          else if (committedQuery !== null) setStatus(status, "Potvrď Hledat pro obnovení výsledků.", "info");
         });
         renderHistory();
       },
@@ -907,7 +918,7 @@
         if (suggestions.contains(event.target) && event.keyCode === KEY.UP && event.target === firstFocusable(suggestions)) { focusEl(input); return true; }
         return false;
       },
-      onDestroy: function () { alive = false; policyGeneration++; revision++; clearTimeout(timer); cancelSuggestions(); if (activeRequest) activeRequest.abort(); }
+      onDestroy: function () { alive = false; policyGeneration++; revision++; cancelSuggestions(); if (activeRequest) activeRequest.abort(); }
     });
     return s;
   }
