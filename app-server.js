@@ -1857,7 +1857,7 @@ function createAppHandler({
       );
       if (target === "home/preferences") {
         let verified;
-        try { verified = homePreferences.document(result, s.profile.id); }
+        try { verified = req.method === "PUT" ? homePreferences.receipt(result, s.profile.id, body.revision) : homePreferences.document(result, s.profile.id); }
         catch { throw new HttpError(502, "Server vrátil neplatné nastavení řad Domů."); }
         json(res, 200, verified);
         return true;

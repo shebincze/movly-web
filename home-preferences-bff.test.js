@@ -1,10 +1,10 @@
 'use strict';
 const{test}=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events'),{createAppHandler}=require('./app-server');
 class HttpError extends Error{constructor(status,message,extra={}){super(message);this.status=status;this.payload=extra;}}
-function fixture(){let revision=0,wrong=false,locked=false;const calls=[],user={id:1,username:'fixture',is_active:true,is_verified:true};const doc=()=>({profile_id:wrong?9:2,revision,catalog_revision:'a'.repeat(64),sections:[{slug:'hero',kind:'hero',name:'Server Hero',visible:true,display_order:0,default_order:0}]});
+function fixture(){let revision=0,wrong=false,locked=false,sameReceipt=false;const calls=[],user={id:1,username:'fixture',is_active:true,is_verified:true};const doc=()=>({profile_id:wrong?9:2,revision:sameReceipt?Math.max(0,revision-1):revision,catalog_revision:'a'.repeat(64),sections:[{slug:'hero',kind:'hero',name:'Server Hero',visible:true,display_order:0,default_order:0}]});
  const handler=createAppHandler({secret:'synthetic-home-preferences',production:false,HttpError,readBody:async req=>req.body,json:(res,status,body)=>{res.status=status;res.body=body;res.writableEnded=true;res.emit('close');},api:async(path,method,body)=>{calls.push({path,method,body});if(path==='v1/auth/login')return{payload:{token:'fixture',user}};if(path==='v1/auth/me')return{payload:user};if(path==='v1/profiles')return{payload:[{id:2,name:'Fixture',max_certification:18}]};if(path==='v1/profiles/2/select')return{payload:{profile_id:2,name:'Fixture'}};if(path.startsWith('v1/home/preferences?')){if(locked)throw new HttpError(403,'PIN required',{code:'profile_grant_required'});if(method==='PUT'){if(body.revision!==revision||body.catalog_revision!=='a'.repeat(64))throw new HttpError(409,'Conflict',{code:'home_preferences_conflict'});revision++;}return{payload:doc()};}throw Error(path);}});
  async function request(method,path,body,cookie='',headers={}){const req=Object.assign(new EventEmitter(),{method,body,headers:{host:'localhost',origin:'http://localhost','x-movly-app':'1',cookie,...headers}}),res=Object.assign(new EventEmitter(),{headers:{},setHeader(k,v){this.headers[k]=v;}});await handler(req,res,new URL('http://localhost/api/app/'+path));return res;}
- return{calls,request,setWrong:()=>{wrong=true},setLocked:()=>{locked=true}};
+ return{calls,request,setSameReceipt:()=>{sameReceipt=true},setWrong:()=>{wrong=true},setLocked:()=>{locked=true}};
 }
 async function login(f){const a=await f.request('POST','login',{username:'fixture',password:'synthetic'}),b=await f.request('POST','profile',{id:2},a.headers['Set-Cookie'].split(';')[0]);return b.headers['Set-Cookie'].split(';')[0];}
 const body=()=>({revision:0,catalog_revision:'a'.repeat(64),order:['hero'],hidden:['hero']});
@@ -22,4 +22,8 @@ test('Home preferences malformed bodies, duplicate slugs, query injection and st
 test('Home preferences preserves conflict/PIN errors and rejects a foreign-profile success document',async()=>{
  const f=fixture(),cookie=await login(f);assert.equal((await f.request('PUT','home/preferences',{...body(),revision:99},cookie)).status,409);f.setLocked();assert.equal((await f.request('GET','home/preferences',null,cookie)).status,403);
  const other=fixture(),otherCookie=await login(other);other.setWrong();assert.equal((await other.request('GET','home/preferences',null,otherCookie)).status,502);
+});
+
+test('Home preferences BFF refuses a successful PUT receipt whose revision did not advance',async()=>{
+ const f=fixture(),cookie=await login(f);f.setSameReceipt();const r=await f.request('PUT','home/preferences',body(),cookie);assert.equal(r.status,502);assert.equal(r.body.revision,undefined);
 });

@@ -613,7 +613,7 @@
   }
   function homePreferencesScreen() {
     var model = window.MovlyHomePreferences, lang = homeLanguage(), scope = searchScope(), profileId = profile.id;
-    var alive = true, generation = 0, request = null, busy = false, ready = false, conflict = false, doc = null, draft = null, policyRevision = "", screen;
+    var alive = true, generation = 0, request = null, busy = false, ready = false, conflict = false, doc = null, draft = null, policyRevision = "", dirty = false, screen;
     var status = statusBox(""), rows = h("div", { className: "tv-home-preferences" }), actions = h("div", { className: "tv-search-actions" });
     function text(key) { return model.text(key, lang); }
     function present() { return alive && scope === searchScope() && current() === screen && !screen.el.hidden; }
@@ -632,7 +632,7 @@
         each(["up", "down", hidden ? "show" : "hide"], function (key) {
           var control = action(text(key), function () {
             if (key === "up" || key === "down") model.move(draft, slug, key === "up" ? -1 : 1); else model.toggle(draft, slug);
-            paint(slug + ":" + key);
+            dirty = true; paint(slug + ":" + key);
           }, key === "up" ? index > 0 : key === "down" ? index < draft.order.length - 1 : true);
           control.setAttribute("aria-label", text(key) + " " + (row.name || slug)); control.setAttribute("data-home-action", slug + ":" + key); group.appendChild(control);
         });
@@ -656,7 +656,7 @@
         done(null, value);
       });
     }
-    function load() {
+    function load(preserve) {
       if (!present() || busy) return;
       cancel(); var mine = generation; busy = true; ready = false; setStatus(status, text("loading")); paint();
       freshPolicy(mine, function (policyError, policy) {
@@ -664,8 +664,11 @@
         request = api("home/preferences" + query({ lang: lang }), {}, function (err, value) {
           if (!present() || mine !== generation) return;
           busy = false;
-          if (!err) try { doc = model.document(value, profileId); draft = model.draft(doc); policyRevision = policy.revision; ready = true; conflict = false; } catch (invalid) { err = invalid; }
-          setStatus(status, err ? text("loadError") : "", err ? "error" : null); paint(); autoFocus(screen, rows);
+          if (!err) try { var fresh = model.document(value, profileId);
+            var next = model.reconcile(doc, draft, fresh, preserve && dirty, policy.revision === policyRevision);
+            doc = next.document; draft = next.draft; dirty = next.dirty; ready = next.ready; conflict = next.conflict;
+            if (!dirty) policyRevision = policy.revision; } catch (invalid) { err = invalid; }
+          setStatus(status, err ? text("loadError") : conflict ? text(ready ? "conflict" : "context") : "", err || conflict ? "error" : null); paint(); autoFocus(screen, rows);
         });
       });
     }
@@ -677,7 +680,7 @@
         request = api("home/preferences" + query({ lang: lang }), { method: "PUT", body: body }, function (err, value) {
           if (!present() || mine !== generation) return;
           busy = false;
-          if (!err) try { doc = model.document(value, profileId); draft = model.draft(doc); } catch (invalid) { err = invalid; }
+          if (!err) try { doc = model.receipt(value, profileId, body.revision); draft = model.draft(doc); dirty = false; } catch (invalid) { err = invalid; }
           conflict = !!err && err.status === 409;
           setStatus(status, text(err ? conflict ? "conflict" : "error" : "saved"), err ? "error" : null); paint();
         });
@@ -686,7 +689,7 @@
     screen = makeScreen("home-preferences", [header(text("title")), h("p", { text: text("description") }), status, rows, actions], {
       onShow: function () { screen.el.hidden = false; if (!doc) load(); else paint(); },
       onBlur: function () { cancel(); ready = false; screen.el.hidden = true; },
-      onFocus: function () { verifySearchScope(screen, scope, function () { ready = false; setStatus(status, text("context"), "info"); paint(); }); },
+      onFocus: function () { verifySearchScope(screen, scope, function () { load(true); }); },
       onDestroy: function () { alive = false; cancel(); }
     });
     return screen;

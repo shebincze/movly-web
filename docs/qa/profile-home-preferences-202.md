@@ -68,3 +68,26 @@ and `web-revision14-sql.json`. Other client write cohorts were held during this
 bounded web cohort; defaults were restored before releasing the slot. No production
 user writes, deployment, release or build increment. Own BFF/worktree/cookie cleanup
 is required after final main merge; shared Go/PG cleanup belongs to its coordinator.
+
+## Final review corrections
+
+The final shared document validator requires dense unique display_order0..N-1;
+PUT receipts in the BFF and both clients must advance beyond the submitted revision
+before reporting Saved. Malformed/same-version receipt regressions cover both.
+Foreground now fetches current policy/preferences for both editors: clean drafts
+accept the current document; dirty drafts with unchanged base are preserved and
+remain usable, while a changed base/policy preserves the draft and requires explicit
+Reload/reapply. The shared reconciliation helper has focused cases for every path.
+
+Actual isolated PINprofile12523 proof after these fixes: primary focus fetched an
+unchanged base and preserved its dirty draft; actual Save advanced0→1. TV focus
+fetched that new document while preserving its own dirty draft and blocked Save
+until explicit Reload. TV Reset advanced1→2 and restored defaults. Both PUTs carried
+expected-profile12523; profile1PUTcount0. Independent SQL verified PINrevision2
+order[]/hidden[]/sync3 while concurrent adult profile1 remained exactly its separate
+Macrevision15/hiddenpopular/sync18. See `focus-pin-review.json` and sibling
+`profile-home-preferences/web-pin-revision2-sql.json`.
+
+Read-only EN/SK primary and TV labels, controlled initial GET503→Reload recovery,
+390px mobile primary layout and absence of preference localStorage passed. Final
+state/BFF focused suite11 passed; full web suite622/622 and npm check/ES5 passed.
