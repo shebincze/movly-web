@@ -815,62 +815,21 @@ test("tracking rejects unknown providers, malformed code, foreign origins and an
   );
 });
 
-test("Premium requires an eligible account and forwards only the plan ID", async () => {
-  const user = {
-    id: 7,
-    username: "test",
-    is_active: true,
-    is_verified: true,
-    role: "user",
-    coins: 250,
-    premium_purchase_enabled: true,
-    is_from_light: false,
-    premium_until: null,
-  };
-  const h = harness({
-    override: (path, method, body) =>
-      path === "v1/auth/me"
-        ? { payload: user }
-        : path.startsWith("v1/auth/premium/plans")
-          ? { payload: [{ id: 1, price_coins: 100, duration_days: 30 }] }
-          : path.startsWith("v1/auth/premium/purchase")
-            ? { payload: { success: true, coins_remaining: 150 } }
-            : undefined,
-  });
+test("free service blocks obsolete Premium plans and purchases even if upstream advertises eligibility", async () => {
+  const user = { id: 7, username: "test", is_active: true, is_verified: true,
+    role: "user", coins: 250, premium_purchase_enabled: true, is_from_light: false, premium_until: null };
+  const h = harness({ override: path => path === "v1/auth/me" ? { payload: user } : undefined });
   const s = await h.selected();
-  assert.equal(
-    (await h.request("auth/premium/plans", { cookie: s.cookie })).status,
-    200,
-  );
-  assert.equal(
-    (
-      await h.request("auth/premium/purchase", {
-        cookie: s.cookie,
-        method: "POST",
-        body: { plan_id: 1, coins: 99999, user_id: 123 },
-      })
-    ).status,
-    200,
-  );
-  const purchase = h.calls.find(([p]) =>
-    p.startsWith("v1/auth/premium/purchase"),
-  );
-  assert.deepEqual(purchase[2], { plan_id: 1 });
-  user.is_from_light = true;
-  assert.equal(
-    (
-      await h.request("auth/premium/purchase", {
-        cookie: s.cookie,
-        method: "POST",
-        body: { plan_id: 1 },
-      })
-    ).status,
-    403,
-  );
-  assert.equal(
-    h.calls.filter(([p]) => p.startsWith("v1/auth/premium/purchase")).length,
-    1,
-  );
+  for (const isFromLight of [false, true]) {
+    user.is_from_light = isFromLight;
+    assert.equal((await h.request("auth/premium/plans", { cookie: s.cookie })).status, 403);
+    const purchase = await h.request("auth/premium/purchase", { cookie: s.cookie, method: "POST", body: { plan_id: 1, coins: 99999, user_id: 123 } });
+    assert.equal(purchase.status, 403);
+    assert.equal(purchase.body.code, "premium_purchase_unavailable");
+  }
+  assert.equal(h.calls.filter(([p]) => p.startsWith("v1/auth/premium/")).length, 0);
+  const session = await h.request("session", { cookie: s.cookie });
+  assert.equal(session.body.account.premiumPurchaseEnabled, false);
 });
 test("offline BFF resolves the real managed device, honors owner boundaries and preserves conflict evidence", async () => {
   const managed = "00000000-0000-0000-0000-000000000007";

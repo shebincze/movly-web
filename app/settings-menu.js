@@ -23,7 +23,6 @@ export function openSettingsMenu({ openProviders }) {
       entry(translateUI("Přeskakování intra"), translateUI("Nabídka nebo automatické přeskočení"), () => void openIntroSettings()),
       entry(notificationLabel("NotificationsEntry"), translateUI("Kam posílat upozornění a přehled novinek"), () => void openNotifications()),
       entry(translateUI("Úložiště a přehrávání"), translateUI("Webshare, FastShare, doplňky a Trakt / Simkl"), () => void openProviders()),
-      entry(translateUI("Premium a mince"), translateUI("Zůstatek mincí a prodloužení Premium"), "#premium"),
       feedbackAllowed() ? entry(translateUI("Vylepšit Movly"), translateUI("Nahlas chybu nebo navrhni funkci"), "#feedback") : null,
     ),
   ));

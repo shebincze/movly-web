@@ -424,7 +424,7 @@ test('Windows podepsaný update feed je veřejný, odkazy zůstávají autentizo
     assert.match(unauthenticated.body.message, /Manifest/);
 
     const manualDownloads = await request(server, 'GET', '/api/downloads', 'free-user-token');
-    assert.equal(manualDownloads.status, 403);
+    assert.equal(manualDownloads.status, 200);
 
     const manualWindowsLink = await request(
       server,
@@ -432,7 +432,7 @@ test('Windows podepsaný update feed je veřejný, odkazy zůstávají autentizo
       '/api/downloads/windows-x64/link',
       'free-user-token',
     );
-    assert.equal(manualWindowsLink.status, 403);
+    assert.equal(manualWindowsLink.status, 404);
 
     const updateFeed = await request(server, 'GET', '/api/updates/windows', 'free-user-token');
     assert.equal(updateFeed.status, 404);
@@ -556,7 +556,7 @@ test('Legacy-v1 feed zůstává kompatibilní s buildem 90, secure update link j
       'free-user-token',
     );
     assert.equal(updateLink.status, 500);
-    assert.match(updateLink.body.message, /legacy-v1.*jen pro ruční Premium stažení/);
+    assert.match(updateLink.body.message, /legacy-v1.*jen pro ruční stažení/);
 
     const incompleteSigned = JSON.stringify({ ...JSON.parse(legacySigned), security: false });
     fs.writeFileSync(manifestPath, JSON.stringify({

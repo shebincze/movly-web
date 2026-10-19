@@ -808,9 +808,6 @@
       session.hasDownloadAccess
         ? `<span class="mini-badge good">${escapeHtml(session.accessLabel || 'Access granted')}</span>`
         : '<span class="mini-badge warn">Unavailable</span>',
-      account.coins !== null && account.coins !== undefined
-        ? `<span class="mini-badge">${escapeHtml(account.coins)} coins</span>`
-        : '',
     ].join('');
     downloadEls.form.hidden = true;
     downloadEls.account.hidden = false;
