@@ -79,3 +79,51 @@ test('supplemental natural-language titles do not duplicate exact or related car
  assert.deepEqual(visible.map(t=>t.id),[30]);
  assert.equal(supplemental.findIndex(t=>t.id===visible[0].id)+1,2);
 });
+
+test('saved multi-language arrays survive apply URL API and save, including unknown codes',async()=>{
+ const c=await catalog();
+ const saved={type:'movie',audio_languages:['en','cs','zul'],subtitle_languages:['sk','cs'],original_languages:['ja','fr'],countries:['US','CZ'],video_height_min:2160,sort_by:'rating'};
+ for(const grid of [true,false]){
+  const params=c.definitionToParams(saved,{grid});
+  const back=c.paramsToDefinition(params,'movie',{grid});
+  assert.deepEqual(back.audio_languages,['cs','en','zul']);
+  assert.deepEqual(back.subtitle_languages,['cs','sk']);
+  assert.deepEqual(back.original_languages,['fr','ja']);
+  assert.deepEqual(back.countries,['CZ','US']);
+  const query=c.definitionQuery(back);
+  assert.equal(query.get('audio_language'),'cs,en,zul');
+  assert.equal(query.get('subtitle_language'),'cs,sk');
+  assert.equal(query.get('original_language'),'fr,ja');
+  assert.equal(query.get('countries'),'CZ,US');
+  assert.equal(query.get('video_height_min'),'2160');
+  assert.equal(query.get('sort_by'),'rating');
+  assert.deepEqual(c.paramsToDefinition(c.definitionToParams(back,{grid}),'movie',{grid}),back);
+ }
+});
+test('legacy singular language fields merge with arrays without loss',async()=>{
+ const c=await catalog();
+ const params=c.definitionToParams({audio_language:'cs',audio_languages:['en'],subtitle_language:'sk',subtitle_languages:['cs'],original_language:'fr',original_languages:['ja']});
+ assert.equal(params.get('audio'),'cs,en');assert.equal(params.get('sub'),'cs,sk');assert.equal(params.get('orig'),'fr,ja');
+});
+
+test('saved explicit sort order and zero rating bounds survive roundtrip',async()=>{
+ const c=await catalog();const params=c.definitionToParams({sort_by:'year',sort_order:'asc',rating_from:0,rating_to:0},{grid:false});
+ const d=c.paramsToDefinition(params,null,{grid:false});assert.equal(d.sort_order,'asc');assert.equal(d.rating_from,0);assert.equal(d.rating_to,0);
+ assert.equal(c.definitionQuery(d).get('sort_order'),'asc');assert.equal(c.definitionQuery(d).get('rating_to'),'0');
+});
+
+test('an ascending default sort remains active Search criteria',async()=>{
+ const c=await catalog();const d=c.paramsToDefinition(c.definitionToParams({sort_by:'popularity',sort_order:'asc'},{grid:false}),null,{grid:false});
+ assert.equal(c.hasCriteria(d),true);assert.equal(c.definitionQuery(d).get('sort_order'),'asc');assert.ok(c.definitionChips(d,new Map()).some(v=>v.includes('vzestupně')));
+});
+
+test('valid backend vote_count sort and fractional rating thresholds stay lossless',async()=>{
+ const c=await catalog();
+ for(const grid of [true,false]){
+  const saved={sort_by:'vote_count',sort_order:'asc',rating_from:7.55,rating_to:8.25,video_height_min:1440};
+  const back=c.paramsToDefinition(c.definitionToParams(saved,{grid}),null,{grid});
+  for(const key of Object.keys(saved))assert.equal(back[key],saved[key],key);
+  assert.equal(c.definitionQuery(back).get('sort_by'),'vote_count');
+  assert.equal(c.definitionQuery(back).get('rating_from'),'7.55');
+ }
+});
