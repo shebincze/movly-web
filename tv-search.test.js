@@ -35,3 +35,31 @@ test("TV exact titles are grouped first, deduplicated and keep original raw resu
  assert.equal(f.run('exactTitleKey("Pán prstenů!")'),'pan prstenu');
  assert.equal(f.run('exactTitleKey("東京!")'),'東京');
 });
+
+// Execute the production search screen with a small DOM and deterministic timers.
+function searchFlow() {
+ const f=fixture(),timers=new Map(),requests=[];let next=0,current,scope='owner';
+ function node(tag,attrs={},children=[]) {const n={tag,attrs,children:[],value:attrs.value||'',hidden:false,events:{},textContent:attrs.text||'',appendChild(c){this.children.push(c);return c;},setAttribute(k,v){this.attrs[k]=String(v);},addEventListener(k,fn){this.events[k]=fn;},contains(c){return this===c||this.children.some(x=>x.contains&&x.contains(c));}};children.forEach(c=>n.appendChild(c));return n;}
+ const policy={schema_version:1,user_id:1,profile_id:2,is_kids:false,age_controls_active:false,revision:'ep1.'+'a'.repeat(64)};
+ Object.assign(f.context,{h:node,button:(label,fn)=>{const n=node('button',{text:label});n.click=fn;return n;},statusBox:text=>node('status',{text}),setStatus:(n,text)=>{n.textContent=text;},clear:n=>{n.children=[];},header:()=>node('header'),makeScreen:(name,children,extra)=>Object.assign({el:node('screen',{},children)},extra),current:()=>current,searchScope:()=>scope,query:params=>'?'+new URLSearchParams(params),filterDescription:()=>'',posterCard:(title,fn)=>{const n=node('card');n.click=fn;return n;},firstFocusable:n=>n.children[0]||n,focusEl:()=>{},setTimeout:(fn,ms)=>{timers.set(++next,{fn,ms});return next;},clearTimeout:id=>timers.delete(id),api:(path,options,done)=>{const req={path,options,done,aborted:false,abort(){this.aborted=true;}};requests.push(req);if(path==='profiles/effective-content-policy')done(null,policy);else if(path.startsWith('autocomplete?'))done(null,{suggestions:['Duna']});return req;}});
+ vm.runInContext(source.slice(source.indexOf('  function searchScreen()'),source.indexOf('  function filterDescription(')),f.context);
+ current=vm.runInContext('searchScreen()',f.context);current.onShow();
+ const nodes=(n=current.el)=>[n,...n.children.flatMap(nodes)],input=nodes().find(n=>n.tag==='input'),click=label=>nodes().find(n=>n.tag==='button'&&n.textContent===label).click();
+ return {requests,input,click,screen:current,nodes,change:value=>{input.value=value;input.events.input();},flush:()=>{const pending=[...timers.values()];timers.clear();pending.forEach(v=>v.fn());},history:()=>f.run('historyTerms(searchOwner())'),primary:()=>requests.filter(r=>/^search(?:\?|\/filters\?)/.test(r.path)),changeScope:()=>{scope='foreign';}};
+}
+test('TV draft pauses and focus do not submit primary/NLP/history; Enter submits only the committed full query',()=>{
+ const f=searchFlow();for(const draft of ['D','Du','Duna']){f.change(draft);f.flush();assert.equal(f.primary().length,0);assert.deepEqual(f.history(),[]);}
+ f.screen.onBlur();f.screen.el.hidden=false;f.screen.onShow();assert.equal(f.primary().length,0,'focus must not commit a draft');
+ const form=f.nodes().find(n=>n.tag==='form');form.onsubmit({preventDefault(){}});
+ assert.equal(f.primary().length,1);assert.equal(new URLSearchParams(f.primary()[0].path.split('?')[1]).get('q'),'Duna');assert.deepEqual(f.history(),['Duna']);
+ f.primary()[0].done(null,{results:[{id:4,title:'Duna',type:'movie'}],total:1});assert.equal(f.nodes().filter(n=>n.tag==='card').length,1);
+ f.screen.onBlur();f.screen.el.hidden=false;f.screen.onShow();assert.equal(f.primary().length,1,'focus restores policy-matched results without another primary query');assert.equal(f.nodes().filter(n=>n.tag==='card').length,1);
+ const old=f.nodes().find(n=>n.tag==='card');f.change('new draft');f.flush();assert.equal(f.nodes().filter(n=>n.tag==='card').length,0);old.click();assert.equal(f.requests.filter(r=>r.path==='track-search').length,0);
+ f.change('');f.flush();assert.equal(f.primary().length,1);assert.equal(f.nodes().some(n=>n.textContent==='Poslední hledání'),true);
+});
+test('TV suggestion confirmation and retry preserve the committed query while detached retries and foreign owners cannot submit',()=>{
+ const f=searchFlow();f.change('Du');f.flush();f.click('Duna');assert.equal(f.primary().length,1);assert.equal(f.input.value,'Duna');
+ f.primary()[0].done({message:'synthetic failure'});f.click('Zkusit znovu');assert.equal(f.primary().length,2);assert.equal(f.primary()[1].path,f.primary()[0].path);
+ f.primary()[1].done({message:'synthetic failure'});const oldRetry=f.nodes().find(n=>n.textContent==='Zkusit znovu');f.change('different');oldRetry.click();f.flush();assert.equal(f.primary().length,2);
+ f.changeScope();f.click('Hledat');assert.equal(f.primary().length,2);
+});
