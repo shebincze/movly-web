@@ -285,6 +285,7 @@ const SORT_OPTIONS = [
   ["year", translateUI("Nejnovější")],
   ["title", translateUI("Podle názvu")],
   ["runtime", translateUI("Nejdelší")],
+  ["vote_count", translateUI("Počet hodnocení")],
 ];
 // URL parametry mřížky (#movies?view=grid&…) ↔ dokument uloženého filtru.
 const FILTER_PARAM_KEYS = [
@@ -327,7 +328,12 @@ function paramsToDefinition(params, type, { grid = true } = {}) {
   const sort = SORT_OPTIONS.some(([v]) => v === params.get("sort"))
     ? params.get("sort")
     : "popularity";
-  const pct = (v) => (v == null ? null : v / 10);
+  const rating = (key) => {
+    const raw = params.get(key);
+    if (raw == null || raw.trim() === "") return null;
+    const value = Number(raw);
+    return Number.isFinite(value) && value >= 0 && value <= 100 ? value / 10 : null;
+  };
   return {
     type,
     genre_ids: genreIds.length
@@ -336,8 +342,8 @@ function paramsToDefinition(params, type, { grid = true } = {}) {
     genre_match: params.get("gm") ? "all" : "any",
     year_from: intParam(params, "yf", 2100),
     year_to: intParam(params, "yt", 2100),
-    rating_from: pct(intParam(params, "rf", 100, 0)),
-    rating_to: pct(intParam(params, "rt", 100, 0)),
+    rating_from: rating("rf"),
+    rating_to: rating("rt"),
     runtime_from: intParam(params, "df", 1440),
     runtime_to: intParam(params, "dt", 1440),
     video_height_min: intParam(params, grid ? "q" : "quality", 4320),
@@ -359,8 +365,8 @@ function definitionToParams(d, { grid = true } = {}) {
   if (d.year_from) q.set("yf", String(d.year_from));
   if (d.year_to) q.set("yt", String(d.year_to));
   if (d.rating_from != null)
-    q.set("rf", String(Math.round(d.rating_from * 10)));
-  if (d.rating_to != null) q.set("rt", String(Math.round(d.rating_to * 10)));
+    q.set("rf", String(d.rating_from * 10));
+  if (d.rating_to != null) q.set("rt", String(d.rating_to * 10));
   if (d.runtime_from) q.set("df", String(d.runtime_from));
   if (d.runtime_to) q.set("dt", String(d.runtime_to));
   if (d.video_height_min) q.set(grid ? "q" : "quality", String(d.video_height_min));
@@ -554,20 +560,21 @@ function filterBuilder({
   );
   const genreMatch = el("input", { type: "checkbox", name: "gm", value: "1" });
   genreMatch.checked = definition.genre_match === "all";
-  const number = (name, value, placeholder, max, min = 1) =>
+  const number = (name, value, placeholder, max, min = 1, step = 1) =>
     el("input", {
       type: "number",
       name,
       min,
       max,
+      step,
       placeholder,
       value: value == null ? "" : String(value),
     });
-  const pct = (v) => (v == null ? null : Math.round(v * 10));
+  const pct = (v) => (v == null ? null : v * 10);
   const yearFrom = number("yf", definition.year_from, "od", 2100),
     yearTo = number("yt", definition.year_to, "do", 2100),
-    ratingFrom = number("rf", pct(definition.rating_from), "od %", 100, 0),
-    ratingTo = number("rt", pct(definition.rating_to), "do %", 100, 0),
+    ratingFrom = number("rf", pct(definition.rating_from), "od %", 100, 0, "any"),
+    ratingTo = number("rt", pct(definition.rating_to), "do %", 100, 0, "any"),
     runtimeFrom = number("df", definition.runtime_from, "od min", 1440),
     runtimeTo = number("dt", definition.runtime_to, "do min", 1440);
   const select = (name, options, value) => {
@@ -579,16 +586,11 @@ function filterBuilder({
     node.value = value ?? "";
     return node;
   };
+  const height = definition.video_height_min;
   const quality = select(
     grid ? "q" : "quality",
-    QUALITY_OPTIONS,
-    definition.video_height_min
-      ? definition.video_height_min >= 2160
-        ? "2160"
-        : definition.video_height_min >= 1080
-          ? "1080"
-          : "720"
-      : "",
+    [...QUALITY_OPTIONS, ...(height && !QUALITY_OPTIONS.some(([value]) => value === String(height)) ? [[String(height), `${height}p+`]] : [])],
+    height ? String(height) : "",
   );
   const hdr = el("input", { type: "checkbox", name: "hdr", value: "1" });
   hdr.checked = !!definition.hdr;
