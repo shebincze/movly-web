@@ -435,9 +435,9 @@
       caption ? h("span", { className: "tv-card-meta", text: caption }) : null
     ]);
   }
-  function rail(name, items) {
+  function rail(name, items, onOpen) {
     var track = h("div", { className: "tv-rail-track tv-scroll-x" }, map(items, function (t) {
-      return posterCard(t, function () { openDetail(t); });
+      return posterCard(t, function () { (onOpen || openDetail)(t); });
     }));
     return h("section", { className: "tv-rail" }, [h("h2", { text: name }), scroller(track)]);
   }
@@ -599,18 +599,124 @@
     });
   }
 
+  function homeLanguage() {
+    try { var value = localStorage.getItem("movly.uiLanguage"); if (value === "en" || value === "sk") return value; } catch (e) { /* no UI-language storage */ }
+    return "cs";
+  }
+  function tvSettingsScreen() {
+    var words = window.MovlyHomePreferences, lang = homeLanguage(), scope = searchScope(), screen;
+    var entry = button(words.text("title", lang), function () {
+      if (scope === searchScope() && current() === screen && screen.el.contains(entry)) push(homePreferencesScreen());
+    });
+    screen = makeScreen("settings", [header(words.text("settings", lang)), entry]);
+    return screen;
+  }
+  function homePreferencesScreen() {
+    var model = window.MovlyHomePreferences, lang = homeLanguage(), scope = searchScope(), profileId = profile.id;
+    var alive = true, generation = 0, request = null, busy = false, ready = false, conflict = false, doc = null, draft = null, policyRevision = "", dirty = false, screen;
+    var status = statusBox(""), rows = h("div", { className: "tv-home-preferences" }), actions = h("div", { className: "tv-search-actions" });
+    function text(key) { return model.text(key, lang); }
+    function present() { return alive && scope === searchScope() && current() === screen && !screen.el.hidden; }
+    function action(label, fn, enabled) {
+      var control = button(label, function () { if (present() && ready && !busy && !conflict && screen.el.contains(control)) fn(); });
+      control.disabled = !ready || busy || conflict || enabled === false;
+      return control;
+    }
+    function paint(focusKey) {
+      clear(rows); clear(actions);
+      if (doc && draft) each(draft.order, function (slug, index) {
+        var row = null;
+        each(doc.sections, function (item) { if (item.slug === slug) row = item; });
+        var hidden = draft.hidden.indexOf(slug) >= 0;
+        var group = h("section", { className: "tv-home-preference-row", "data-home-slug": slug }, [h("h2", { text: row.name || slug }), h("p", { text: text(hidden ? "hidden" : "visible") })]);
+        each(["up", "down", hidden ? "show" : "hide"], function (key) {
+          var control = action(text(key), function () {
+            if (key === "up" || key === "down") model.move(draft, slug, key === "up" ? -1 : 1); else model.toggle(draft, slug);
+            dirty = true; paint(slug + ":" + key);
+          }, key === "up" ? index > 0 : key === "down" ? index < draft.order.length - 1 : true);
+          control.setAttribute("aria-label", text(key) + " " + (row.name || slug)); control.setAttribute("data-home-action", slug + ":" + key); group.appendChild(control);
+        });
+        rows.appendChild(group);
+      });
+      if (doc && !doc.sections.length) rows.appendChild(h("p", { text: text("empty") }));
+      actions.appendChild(action(text("save"), function () { save(false); }));
+      actions.appendChild(action(text("reset"), function () { save(true); }));
+      var reload = button(text("reload"), function () { if (present() && !busy && screen.el.contains(reload)) load(); });
+      reload.disabled = busy; actions.appendChild(reload);
+      if (focusKey) {
+        var choices = screen.el.querySelectorAll("[data-home-action]");
+        each(choices, function (node) { if (node.getAttribute("data-home-action") === focusKey && !node.disabled) focusEl(node); });
+      }
+    }
+    function cancel() { generation++; if (request) request.abort(); request = null; busy = false; }
+    function freshPolicy(mine, done) {
+      request = api("profiles/effective-content-policy", {}, function (err, value) {
+        if (!present() || mine !== generation) return;
+        if (err || !value || value.user_id !== account.id || value.profile_id !== profileId || !/^ep1\.[a-f0-9]{64}$/.test(value.revision || "")) { done(err || { message: text("context") }); return; }
+        done(null, value);
+      });
+    }
+    function load(preserve) {
+      if (!present() || busy) return;
+      cancel(); var mine = generation; busy = true; ready = false; setStatus(status, text("loading")); paint();
+      freshPolicy(mine, function (policyError, policy) {
+        if (policyError) { busy = false; setStatus(status, text("loadError"), "error"); paint(); return; }
+        request = api("home/preferences" + query({ lang: lang }), {}, function (err, value) {
+          if (!present() || mine !== generation) return;
+          busy = false;
+          if (!err) try { var fresh = model.document(value, profileId);
+            var next = model.reconcile(doc, draft, fresh, preserve && dirty, policy.revision === policyRevision);
+            doc = next.document; draft = next.draft; dirty = next.dirty; ready = next.ready; conflict = next.conflict;
+            if (!dirty) policyRevision = policy.revision; } catch (invalid) { err = invalid; }
+          setStatus(status, err ? text("loadError") : conflict ? text(ready ? "conflict" : "context") : "", err || conflict ? "error" : null); paint(); autoFocus(screen, rows);
+        });
+      });
+    }
+    function save(reset) {
+      if (!present() || !ready || busy || conflict || !doc) return;
+      cancel(); var mine = generation, body = model.body(doc, draft, reset); busy = true; setStatus(status, text("saving")); paint();
+      freshPolicy(mine, function (policyError, policy) {
+        if (policyError || policy.revision !== policyRevision) { busy = false; ready = false; setStatus(status, text("context"), "error"); paint(); return; }
+        request = api("home/preferences" + query({ lang: lang }), { method: "PUT", body: body }, function (err, value) {
+          if (!present() || mine !== generation) return;
+          busy = false;
+          if (!err) try { doc = model.receipt(value, profileId, body.revision); draft = model.draft(doc); dirty = false; } catch (invalid) { err = invalid; }
+          conflict = !!err && err.status === 409;
+          setStatus(status, text(err ? conflict ? "conflict" : "error" : "saved"), err ? "error" : null); paint();
+        });
+      });
+    }
+    screen = makeScreen("home-preferences", [header(text("title")), h("p", { text: text("description") }), status, rows, actions], {
+      onShow: function () { screen.el.hidden = false; if (!doc) load(); else paint(); },
+      onBlur: function () { cancel(); ready = false; screen.el.hidden = true; },
+      onFocus: function () { verifySearchScope(screen, scope, function () { load(true); }); },
+      onDestroy: function () { alive = false; cancel(); }
+    });
+    return screen;
+  }
+
   // ---------- Domů ----------
   function homeScreen() {
     var body = h("div", { className: "tv-home" });
     var status = statusBox("Načítám Domů…");
-    var s;
+    var s, scope = searchScope(), alive = true, generation = 0, request = null;
+    function valid() { return alive && scope === searchScope() && current() === s && !s.el.hidden; }
+    function homeAction(label, action) {
+      var control = button(label, function () { if (valid() && s.el.contains(control)) action(); });
+      return control;
+    }
+    function open(screen) { generation++; if (request) request.abort(); push(screen); }
     function load() {
-      setStatus(status, "Načítám Domů…");
-      api("home" + query({ include_highlights: "true", page: 1 }), {}, function (err, data) {
+      if (!valid()) return;
+      var mine = ++generation;
+      if (request) request.abort();
+      clear(body); setStatus(status, "Načítám Domů…");
+      request = api("home" + query({ include_highlights: "true", page: 1 }), {}, function (err, data) {
+        if (!valid() || mine !== generation) return;
         clear(body);
         if (err) {
           setStatus(status, err.message, "error");
-          body.appendChild(button("Zkusit znovu", load, "tv-autofocus"));
+          body.appendChild(homeAction("Zkusit znovu", load));
           autoFocus(s, body);
           return;
         }
@@ -625,7 +731,7 @@
             body.appendChild(h("section", { className: "tv-rail" }, [
               h("h2", { text: row.name }),
               scroller(h("div", { className: "tv-rail-track tv-scroll-x" }, map(banners, function (c) {
-                return h("button", { type: "button", className: "tv-f tv-collection", onclick: function () { push(collectionScreen(c)); } }, [
+                return h("button", { type: "button", className: "tv-f tv-collection", onclick: function () { if (valid()) open(collectionScreen(c)); } }, [
                   h("strong", { text: c.name }),
                   c.total_items ? h("span", { text: c.total_items + " titulů" }) : null
                 ]);
@@ -636,7 +742,7 @@
           }
           var items = filter(map(row.items || [], titleOf), Boolean);
           if (!items.length) return;
-          body.appendChild(rail(row.name, row.kind === "top10" ? items.slice(0, 10) : items));
+          body.appendChild(rail(row.name, row.kind === "top10" ? items.slice(0, 10) : items, function (title) { if (valid()) openDetail(title); }));
           shown++;
         });
         setStatus(status, shown ? "" : "Domů zatím nemá žádné řady.", shown ? null : "info");
@@ -645,13 +751,19 @@
     }
     s = makeScreen("home", [
       header(profile ? profile.name : "", [
-        button("Hledat", function () { push(searchScreen()); }),
-        button("Změnit profil", function () { resetTo(profilesScreen()); }),
-        button("Odhlásit se", doLogout)
+        homeAction("Hledat", function () { open(searchScreen()); }),
+        homeAction(window.MovlyHomePreferences.text("settings", homeLanguage()), function () { open(tvSettingsScreen()); }),
+        homeAction("Změnit profil", function () { resetTo(profilesScreen()); }),
+        homeAction("Odhlásit se", doLogout)
       ]),
       status,
       body
-    ], { onShow: function () { if (!body.firstChild) load(); } });
+    ], {
+      onShow: function () { s.el.hidden = false; load(); },
+      onBlur: function () { generation++; if (request) request.abort(); s.el.hidden = true; },
+      onFocus: function () { verifySearchScope(s, scope, load); },
+      onDestroy: function () { alive = false; generation++; if (request) request.abort(); }
+    });
     return s;
   }
   function collectionScreen(c) {

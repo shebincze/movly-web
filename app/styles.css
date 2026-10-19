@@ -2079,3 +2079,9 @@ footer a:hover {
 .playback-quality-table th, .playback-quality-table td { padding: .6rem; text-align: left; white-space: nowrap; }
 
 .playback-quality-controls { display: flex; gap: .5rem; margin: .75rem 0; }
+
+.home-preferences-rows { list-style: none; margin: 1rem 0; padding: 0; display: flex; flex-direction: column; gap: .75rem; }
+.home-preferences-rows li { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; padding: .75rem; border: 1px solid var(--line); border-radius: .75rem; }
+.home-preferences-name { flex: 1 1 12rem; font-weight: 650; }
+.home-preferences-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.home-preferences-status { min-height: 1.5em; }

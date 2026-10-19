@@ -2,6 +2,7 @@
 const { createWorkTiming } = require("./playback-work-timing");
 const validPlaybackAttempt = require("./playback-attempt-policy");
 const tvDiagnosticPolicy = require("./app/tv/diagnostics.js");
+const homePreferences = require("./app/tv/home-preferences-state.js");
 
 const crypto = require("node:crypto");
 const providers = require("./providers-server");
@@ -525,6 +526,8 @@ function createAppHandler({
     ["GET", /^party\/v2\/[a-f0-9]{32}$/, []],
     ["POST", /^party\/v2\/[a-f0-9]{32}\/(?:preparation|leave)$/, []],
     ["PUT", /^party\/v2\/[a-f0-9]{32}\/state$/, []],
+    ["GET", /^home\/preferences$/, ["lang"]],
+    ["PUT", /^home\/preferences$/, ["lang"]],
     ["GET", /^home$/, ["section", "collection", "page", "include_highlights", "layout_only"]],
     ["POST", /^recommendations\/action$/, []],
     ["GET", /^themed-lists$/, []],
@@ -626,6 +629,7 @@ function createAppHandler({
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     const target = url.pathname.slice("/api/app/".length);
+    if (target === "home/preferences") res.setHeader("Cache-Control", "private, no-store");
     if (!["GET", "HEAD"].includes(req.method)) sameOrigin(req);
     // Response close means the consumer left only when the response did not
     // finish normally. IncomingMessage.close also fires on ordinary GETs.
@@ -1489,9 +1493,10 @@ function createAppHandler({
           404,
           "Tato funkce není ve webové aplikaci dostupná.",
         );
+      if (target === "home/preferences" && url.searchParams.has("lang") && !["cs", "sk", "en"].includes(url.searchParams.get("lang"))) throw new HttpError(400, "Neplatný jazyk.");
       let query = target === "titles/batch" ? "" : /^sync\/v2\/profile-data\/(?:snapshot|changes)$/.test(target)
         ? cleanPersonalDataQuery(url, rule[2])
-        : cleanQuery(url, rule[2], language);
+        : cleanQuery(url, rule[2], target === "home/preferences" ? url.searchParams.get("lang") || language : language);
       if (target === "profiles/effective-content-policy") {
         try {
           json(res, 200, await call(s, target + query));
@@ -1552,8 +1557,13 @@ function createAppHandler({
         query += "&expand=watch_history,streams,ratings";
       let body = null;
       if (["POST", "PUT"].includes(req.method)) {
-        body = objectBody(await readBody(req, 8192));
-        if (target === "auth/premium/purchase") {
+        body = objectBody(await readBody(req, target === "home/preferences" ? 65536 : 8192));
+        if (target === "home/preferences") {
+          const keys = Object.keys(body), fields = ["revision", "catalog_revision", "order", "hidden"];
+          const slugs = value => Array.isArray(value) && value.length <= 256 && new Set(value).size === value.length && value.every(slug => typeof slug === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(slug));
+          if (keys.length !== fields.length || keys.some(key => !fields.includes(key)) || !Number.isSafeInteger(body.revision) || body.revision < 0 || typeof body.catalog_revision !== "string" || !/^[a-f0-9]{64}$/.test(body.catalog_revision) || !slugs(body.order) || !slugs(body.hidden)) throw new HttpError(400, "Neplatné nastavení řad Domů.");
+          body = { revision: body.revision, catalog_revision: body.catalog_revision, order: body.order, hidden: body.hidden };
+        } else if (target === "auth/premium/purchase") {
           if (!account.premiumPurchaseEnabled || account.isFromLight)
             throw new HttpError(
               403,
@@ -1845,6 +1855,13 @@ function createAppHandler({
           : target === "titles/filter/facets" ? { "X-Movly-Facets-Policy": "scoped-v1" }
           : /^streaming2?\//.test(target) ? { "X-Cache-Refresh": "true" } : {},
       );
+      if (target === "home/preferences") {
+        let verified;
+        try { verified = req.method === "PUT" ? homePreferences.receipt(result, s.profile.id, body.revision) : homePreferences.document(result, s.profile.id); }
+        catch { throw new HttpError(502, "Server vrátil neplatné nastavení řad Domů."); }
+        json(res, 200, verified);
+        return true;
+      }
       if (
         target.endsWith("/public-link") &&
         req.method === "POST" &&

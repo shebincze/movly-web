@@ -492,7 +492,7 @@ async function render() {
       : "home",
     params = new URLSearchParams(query);
   document.body.dataset.route = route;
-  const navPage = route === "movies" && params.get("view") === "grid" ? "genres" : route;
+  const navPage = route;
   document.querySelectorAll("[data-page]").forEach((link) => {
     if (link.dataset.page === navPage) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
