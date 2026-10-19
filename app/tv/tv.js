@@ -871,16 +871,14 @@
     function demoted(x) { return Boolean(x.relevance && x.relevance.bucket === "demoted"); }
     // Doporučení jako stream-recommendations.js; jinak nejvyšší kvalita jako automatické přehrání v player.js.
     function best() {
-      var cap = displayCap(), seen = {}, recommended = [];
-      each(results, function (x) {
-        if (x.origin < 2 || demoted(x) || !playable(x) || rank(x) > cap || !identityMatches(x, t, episode)) return;
-        var key = x.source_stream_id ? String(x.provider_name || "").toLowerCase() + ":" + x.source_stream_id : x.origin + ":" + x.id;
-        if (seen[key]) return;
-        seen[key] = true;
-        recommended.push(x);
-      });
-      recommended.sort(function (a, b) { return rank(b) - rank(a) || (b.file_size || 0) - (a.file_size || 0); });
-      if (recommended.length) return recommended[0];
+      var cap = displayCap();
+      var recommended = window.MovlyTvScoring.recommended(results, {
+        displayMaxRank: cap,
+        runtimeMinutes: episode && episode.runtime || t.runtime,
+        primaryLanguage: document.documentElement.lang || "cs",
+        downlinkMbps: navigator.connection && navigator.connection.downlink
+      }, playable, function (x) { return identityMatches(x, t, episode); });
+      if (recommended) return recommended;
       var options = filter(results, function (x) { return !demoted(x) && playable(x) && rank(x) <= cap; });
       if (!options.length) options = filter(results, function (x) { return !demoted(x) && playable(x); });
       options.sort(function (a, b) { return (b.video_height || 0) - (a.video_height || 0); });

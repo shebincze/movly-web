@@ -61,7 +61,11 @@
     var policy = document.createElement("script");
     policy.src = "/app/tv/diagnostics.js";
     policy.onerror = show;
-    policy.onload = function () { head.appendChild(script); };
+    var scoring = document.createElement("script");
+    scoring.src = "/app/tv/stream-scoring.js";
+    scoring.onerror = show;
+    scoring.onload = function () { head.appendChild(script); };
+    policy.onload = function () { head.appendChild(scoring); };
     head.appendChild(policy);
     setTimeout(function () {
       if (!window.__movlyTvStarted) show();
