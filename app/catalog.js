@@ -324,15 +324,20 @@ const FILTER_PARAM_KEYS = [
   "co",
   "streams",
   "sort",
+  "order",
 ];
-function intParam(params, key, max) {
+function intParam(params, key, max, min = 1) {
   const value = Number.parseInt(params.get(key) || "", 10);
-  return Number.isInteger(value) && value > 0 ? Math.min(value, max) : null;
+  return Number.isInteger(value) && value >= min ? Math.min(value, max) : null;
 }
 // Jazyky titulků jsou v uloženém filtru seznam (nativní aplikace mohou uložit
 // více jazyků); v URL mřížky je to "sub=cs,en".
-function subtitleCodes(raw) {
-  return [...new Set(String(raw || "").split(",").map((code) => code.trim().toLowerCase()).filter((code) => /^[a-z]{2,3}$/.test(code)))].sort();
+function filterCodes(raw, countries = false) {
+  const values = Array.isArray(raw) ? raw : String(raw || "").split(",");
+  return [...new Set(values.map((v) => String(v).trim()).map((v) => countries ? v.toUpperCase() : v.toLowerCase()).filter((v) => countries ? /^[A-Z]{2}$/.test(v) : /^[a-z]{2,3}$/.test(v)))].sort();
+}
+function languageCodes(definition, key) {
+  return filterCodes([...(definition[`${key}s`] || []), ...filterCodes(definition[key])]);
 }
 function paramsToDefinition(params, type, { grid = true } = {}) {
   const genreIds = (params.get("genre") || "")
@@ -351,19 +356,19 @@ function paramsToDefinition(params, type, { grid = true } = {}) {
     genre_match: params.get("gm") ? "all" : "any",
     year_from: intParam(params, "yf", 2100),
     year_to: intParam(params, "yt", 2100),
-    rating_from: pct(intParam(params, "rf", 100)),
-    rating_to: pct(intParam(params, "rt", 100)),
+    rating_from: pct(intParam(params, "rf", 100, 0)),
+    rating_to: pct(intParam(params, "rt", 100, 0)),
     runtime_from: intParam(params, "df", 1440),
     runtime_to: intParam(params, "dt", 1440),
     video_height_min: intParam(params, grid ? "q" : "quality", 4320),
     hdr: !!params.get("hdr") || null,
-    audio_language: params.get("audio") || null,
-    subtitle_languages: subtitleCodes(params.get("sub")),
-    original_language: params.get("orig") || null,
-    countries: (params.get("co") || "").split(",").map((code) => code.trim().toUpperCase()).filter((code) => /^[A-Z]{2}$/.test(code)),
+    audio_languages: filterCodes(params.get("audio")),
+    subtitle_languages: filterCodes(params.get("sub")),
+    original_languages: filterCodes(params.get("orig")),
+    countries: filterCodes(params.get("co"), true),
     has_streams: params.get("streams") === "1",
     sort_by: sort,
-    sort_order: sort === "title" ? "asc" : "desc",
+    sort_order: ["asc", "desc"].includes(params.get("order")) ? params.get("order") : sort === "title" ? "asc" : "desc",
   };
 }
 function definitionToParams(d, { grid = true } = {}) {
@@ -380,12 +385,13 @@ function definitionToParams(d, { grid = true } = {}) {
   if (d.runtime_to) q.set("dt", String(d.runtime_to));
   if (d.video_height_min) q.set(grid ? "q" : "quality", String(d.video_height_min));
   if (d.hdr) q.set("hdr", "1");
-  if (d.audio_language) q.set("audio", d.audio_language);
-  if (d.subtitle_languages?.length) q.set("sub", subtitleCodes(d.subtitle_languages.join(",")).join(","));
-  if (d.original_language) q.set("orig", d.original_language);
+  if (languageCodes(d, "audio_language").length) q.set("audio", languageCodes(d, "audio_language").join(","));
+  if (languageCodes(d, "subtitle_language").length) q.set("sub", languageCodes(d, "subtitle_language").join(","));
+  if (languageCodes(d, "original_language").length) q.set("orig", languageCodes(d, "original_language").join(","));
   if (d.countries?.length) q.set("co", d.countries.join(","));
   if (d.has_streams) q.set("streams", "1");
   if (d.sort_by && d.sort_by !== "popularity") q.set("sort", d.sort_by);
+  if (["asc", "desc"].includes(d.sort_order)) q.set("order", d.sort_order);
   return q;
 }
 // Search q always means a title. Grid q remains the legacy quality parameter.
@@ -409,12 +415,11 @@ function definitionQuery(d) {
     "runtime_from",
     "runtime_to",
     "video_height_min",
-    "audio_language",
-    "original_language",
   ])
     if (d[key] != null && d[key] !== "") query.set(key, String(d[key]));
+  for (const key of ["audio_language", "subtitle_language", "original_language"])
+    if (languageCodes(d, key).length) query.set(key, languageCodes(d, key).join(","));
   if (d.countries?.length) query.set("countries", d.countries.join(","));
-  if (d.subtitle_languages?.length) query.set("subtitle_language", d.subtitle_languages.join(","));
   if (d.has_streams) query.set("has_streams", "true");
   if (d.hdr) query.set("hdr", "true");
   query.set("sort_by", d.sort_by || "popularity");
@@ -432,9 +437,9 @@ function hasCriteria(d) {
       d.runtime_to ||
       d.video_height_min ||
       d.hdr ||
-      d.audio_language ||
-      d.subtitle_languages?.length ||
-      d.original_language ||
+      languageCodes(d, "audio_language").length ||
+      languageCodes(d, "subtitle_language").length ||
+      languageCodes(d, "original_language").length ||
       d.countries?.length ||
       d.has_streams ||
       (d.sort_by && d.sort_by !== "popularity"),
@@ -471,12 +476,12 @@ function definitionChips(d, genreNames) {
           : "HD+",
     );
   if (d.hdr) chips.push("HDR");
-  if (d.audio_language)
-    chips.push(translateUI("zvuk {0}", d.audio_language.toUpperCase()));
-  if (d.subtitle_languages?.length)
-    chips.push(translateUI("titulky {0}", d.subtitle_languages.map((code) => code.toUpperCase()).join(", ")));
-  if (d.original_language)
-    chips.push(`orig. ${d.original_language.toUpperCase()}`);
+  if (languageCodes(d, "audio_language").length)
+    chips.push(translateUI("zvuk {0}", languageCodes(d, "audio_language").join(", ").toUpperCase()));
+  if (languageCodes(d, "subtitle_language").length)
+    chips.push(translateUI("titulky {0}", languageCodes(d, "subtitle_language").join(", ").toUpperCase()));
+  if (languageCodes(d, "original_language").length)
+    chips.push(`orig. ${languageCodes(d, "original_language").join(", ").toUpperCase()}`);
   if (d.countries?.length) chips.push(translateUI("Země: {0}", d.countries.join(", ")));
   if (d.has_streams) chips.push(translateUI("Jen s dostupným zdrojem"));
   const sortLabel = SORT_OPTIONS.find(([v]) => v === d.sort_by)?.[1];
@@ -605,39 +610,66 @@ function filterBuilder({
   );
   const hdr = el("input", { type: "checkbox", name: "hdr", value: "1" });
   hdr.checked = !!definition.hdr;
-  const audio = select(
-    "audio",
-    [["", translateUI("Jakýkoli")], ...AUDIO_LANGUAGES],
-    definition.audio_language,
-  );
-  // Uložený filtr z jiné aplikace může mít kombinaci jazyků, kterou seznam
-  // nenabízí; zůstane jako vlastní volba, aby ji uložení neztratilo.
-  const subtitleValue = (definition.subtitle_languages || []).join(",");
-  const subtitles = select(
-    "sub",
-    [
-      ["", translateUI("Jakékoli")],
-      ...AUDIO_LANGUAGES,
-      ...(subtitleValue && !AUDIO_LANGUAGES.some(([code]) => code === subtitleValue)
-        ? [[subtitleValue, subtitleValue.toUpperCase()]]
-        : []),
-    ],
-    subtitleValue,
-  );
-  const original = select(
-    "orig",
-    [["", translateUI("Jakýkoli")], ...ORIGINAL_LANGUAGES],
-    definition.original_language,
-  );
-  const countries = el("input", {
-    type: "text",
-    name: "co",
-    maxlength: 100,
-    pattern: "[A-Za-z]{2}(,[A-Za-z]{2})*",
-    placeholder: "CZ,US",
-    value: (definition.countries || []).join(","),
-    "aria-label": translateUI("Kódy zemí původu oddělené čárkou"),
-  });
+  // Native multiple selects retain every selected code, including valid saved
+  // values that are absent from current catalog facets.
+  const multi = (name, values) => {
+    const node = el("select", { name, multiple: true, size: 5 });
+    for (const code of values) {
+      const option = el("option", { value: code }, code.toUpperCase());
+      option.selected = true;
+      node.append(option);
+    }
+    return node;
+  };
+  const audio = multi("audio", languageCodes(definition, "audio_language")),
+    subtitles = multi("sub", languageCodes(definition, "subtitle_language")),
+    original = multi("orig", languageCodes(definition, "original_language")),
+    countries = multi("co", filterCodes(definition.countries, true));
+  const facetStatus = el("span", { role: "status", class: "muted" }, translateUI("Načítání filtrů…"));
+  const retryFacets = button(translateUI("Zkusit znovu"), () => loadFacets());
+  retryFacets.type = "button";
+  retryFacets.hidden = true;
+  const facetContext = apiContextKey(), facetHash = location.hash;
+  let facetGeneration = 0;
+  async function loadFacets() {
+    const generation = ++facetGeneration;
+    const current = () => generation === facetGeneration && facetContext === apiContextKey() && facetHash === location.hash;
+    retryFacets.hidden = true;
+    facetStatus.textContent = translateUI("Načítání filtrů…");
+    try {
+      const policy = await effectiveContentPolicy({ refresh: true });
+      // Until the backend supplies policy-scoped facets, do not expose global
+      // counts to children. Selected saved values remain editable/removable.
+      if (policy.is_kids) {
+        if (current()) facetStatus.textContent = translateUI("Dostupné filtry tohoto profilu se načítají samostatně.");
+        return;
+      }
+      const data = await api("titles/filter/facets");
+      await assertEffectivePolicyUnchanged(policy);
+      if (!current()) return;
+      for (const [node, key, country] of [[audio, "audio_languages"], [subtitles, "subtitle_languages"], [original, "original_languages"], [countries, "countries", true]]) {
+        const selected = [...node.selectedOptions].map((option) => option.value);
+        const facets = array(data[key], translateUI("filtry"));
+        const options = new Map();
+        for (const facet of facets) {
+          const code = filterCodes([facet.code], country)[0];
+          if (code) options.set(code, `${facet.label || code.toUpperCase()} (${Number(facet.count) || 0})`);
+        }
+        for (const code of selected) if (!options.has(code)) options.set(code, code.toUpperCase());
+        node.replaceChildren(...[...options].map(([code, label]) => {
+          const option = el("option", { value: code }, label);
+          option.selected = selected.includes(code);
+          return option;
+        }));
+      }
+      facetStatus.textContent = translateUI("Vyber více hodnot pomocí Ctrl / Cmd nebo Shift.");
+    } catch (error) {
+      if (!current()) return;
+      facetStatus.textContent = error.message;
+      retryFacets.hidden = false;
+    }
+  }
+  void loadFacets();
   const hasStreams = el("input", { type: "checkbox", name: "streams", value: "1" });
   hasStreams.checked = !!definition.has_streams;
   const sort = select("sort", SORT_OPTIONS, definition.sort_by);
@@ -658,12 +690,18 @@ function filterBuilder({
         if (!grid && queryText()) q.set("q", queryText());
         const genreIds = [...genre.querySelectorAll("input:checked")].map((o) => o.value);
         if (genreIds.length) q.set("genre", genreIds.join(","));
-        for (const [k, v] of new FormData(filters))
-          if (v && k !== "genre") q.set(k, v);
+        const form = new FormData(filters);
+        for (const key of ["audio", "sub", "orig", "co"]) {
+          const values = filterCodes(form.getAll(key), key === "co");
+          if (values.length) q.set(key, values.join(","));
+        }
+        for (const [k, v] of form)
+          if (v && !["genre", "audio", "sub", "orig", "co"].includes(k)) q.set(k, v);
         location.hash = `${route}?${q}`;
       },
     },
     typeSelect,
+    el("input", { type: "hidden", name: "order", value: definition.sort_order }),
     genres.length
       ? el("fieldset", { class: "filter-group" }, el("legend", {}, translateUI("Žánry (více najednou)")), genre)
       : null,
@@ -681,7 +719,8 @@ function filterBuilder({
     formField(translateUI("Zvuk"), audio),
     formField(translateUI("Titulky"), subtitles),
     formField(translateUI("Původní jazyk"), original),
-    formField(translateUI("Země původu (ISO kódy)"), countries),
+    formField(translateUI("Země původu"), countries),
+    el("div", { class: "field" }, facetStatus, retryFacets),
     el("label", { class: "field checkbox" }, hasStreams, translateUI(" Jen s dostupným zdrojem")),
     formField(translateUI("Řazení"), sort),
     el(
