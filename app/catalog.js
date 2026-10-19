@@ -124,9 +124,18 @@ export function resetCatalogCache() {
   catalogCache.clear();
   resetHomeImpressions();
 }
+function refreshCatalogActionPage(page) {
+  queueMicrotask(() => {
+    if (!page?.isConnected || page.movlyActionSignal?.aborted ||
+        page.movlyActionContext !== apiContextKey() || page.movlyActionHash !== location.hash ||
+        page.movlyActionPolicyGeneration === catalogPolicyGeneration) return;
+    page.movlyActions?.refresh();
+  });
+}
 function refreshCatalogContext() {
   resetCatalogCache();
   const context = apiContextKey(), epoch = catalogEpoch;
+  refreshCatalogActionPage(document.querySelector(".search-page, .catalog-grid-page"));
   // Policy publication completes after dispatch; refresh only the still-visible
   // page belonging to this exact API generation, never a previous owner's DOM.
   queueMicrotask(() => {
@@ -514,7 +523,20 @@ export function interpretationChips(p) {
 // Response cancellation does not cancel a previously queued DOM action.
 function catalogActionGuard(signal, connected) {
   const context = apiContextKey(), policyGeneration = catalogPolicyGeneration, hash = location.hash;
-  return () => !signal?.aborted && context === apiContextKey() && policyGeneration === catalogPolicyGeneration && hash === location.hash && connected();
+  const admit = () => !signal?.aborted && context === apiContextKey() && policyGeneration === catalogPolicyGeneration && hash === location.hash && connected();
+  admit.attach = (node, actions) => {
+    node.movlyActions = actions;
+    node.movlyActionContext = context;
+    node.movlyActionSignal = signal;
+    node.movlyActionHash = hash;
+    node.movlyActionPolicyGeneration = policyGeneration;
+    // A policy event may arrive while this async page is still being built.
+    // Wait for the caller's render microtask to attach it before retrying.
+    if (policyGeneration !== catalogPolicyGeneration)
+      setTimeout(() => refreshCatalogActionPage(node), 0);
+    return node;
+  };
+  return admit;
 }
 function filterBuilder({
   route,
@@ -627,11 +649,13 @@ function filterBuilder({
     retryFacets.hidden = true;
     facetStatus.textContent = translateUI("Načítání filtrů…");
     try {
-      const policy = await effectiveContentPolicy({ signal, refresh: true });
+      // Policy probes are shared by API context; abort only this route's facet
+      // request, so the next route cannot inherit an aborted policy probe.
+      const policy = await effectiveContentPolicy({ refresh: true });
       const data = await api("titles/filter/facets", { signal });
       if (policy.is_kids && data.policy_scoped !== true)
         throw new Error(translateUI("Nabídka filtrů pro tento profil zatím není dostupná."));
-      await assertEffectivePolicyUnchanged(policy, { signal });
+      await assertEffectivePolicyUnchanged(policy);
       if (!current()) return;
       for (const [node, key, country] of [[audio, "audio_languages"], [subtitles, "subtitle_languages"], [original, "original_languages"], [countries, "countries", true]]) {
         const selected = [...node.selectedOptions].map((option) => option.value);
@@ -837,7 +861,7 @@ function filterBuilder({
       save,
     );
   }
-  return { filters, chipsRow, savedRow };
+  return { filters, chipsRow, savedRow, actionCurrent };
 }
 async function catalogGrid(route, params, signal, actions) {
   const policy = await effectiveContentPolicy({ signal, refresh: true });
@@ -861,7 +885,7 @@ async function catalogGrid(route, params, signal, actions) {
     savedFilters = savedResult
       ? array(savedResult.items, translateUI("uložené filtry"))
       : null;
-  const { filters, chipsRow, savedRow } = filterBuilder({
+  const { filters, chipsRow, savedRow, actionCurrent } = filterBuilder({
     route,
     params,
     definition,
@@ -909,7 +933,7 @@ async function catalogGrid(route, params, signal, actions) {
     throw new Error(translateUI("API nevrátilo stránkování katalogu."));
   const pager = pagination(route, params, page, data.total_pages);
   if (pager) results.append(pager);
-  return node;
+  return actionCurrent.attach(node, actions);
 }
 export function pagination(route, params, page, total, admit = () => true) {
   if (total <= 1) return null;
@@ -1316,7 +1340,7 @@ export async function search(params, signal, actions) {
         // Return the search input immediately while suggestions load.
         void loadDiscovery();
       }
-      return node;
+      return actionCurrent.attach(node, actions);
     }
     const query = definitionQuery(definition);
     if (q.trim()) query.set("q", q.trim());
@@ -1354,7 +1378,7 @@ export async function search(params, signal, actions) {
       const pager = pagination("search", params, page, data.total_pages, actionCurrent);
       if (pager) results.append(pager);
     }
-    return node;
+    return actionCurrent.attach(node, actions);
   }
   const session = await api("session", { signal }).catch(() => null);
   const expectedOwner = session?.account?.id && session?.profile?.id
@@ -1460,7 +1484,7 @@ export async function search(params, signal, actions) {
   );
   const pager = pagination("search", params, page, Math.ceil(data.total / 24), actionCurrent);
   if (pager) results.append(pager);
-  return node;
+  return actionCurrent.attach(node, actions);
 }
 export async function collection(params, signal, actions) {
   const slug = params.get("slug");
