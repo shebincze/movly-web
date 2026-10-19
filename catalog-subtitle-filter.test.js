@@ -91,3 +91,8 @@ test('saved explicit sort order and zero rating bounds survive roundtrip',async(
  const d=c.paramsToDefinition(params,null,{grid:false});assert.equal(d.sort_order,'asc');assert.equal(d.rating_from,0);assert.equal(d.rating_to,0);
  assert.equal(c.definitionQuery(d).get('sort_order'),'asc');assert.equal(c.definitionQuery(d).get('rating_to'),'0');
 });
+
+test('an ascending default sort remains active Search criteria',async()=>{
+ const c=await catalog();const d=c.paramsToDefinition(c.definitionToParams({sort_by:'popularity',sort_order:'asc'},{grid:false}),null,{grid:false});
+ assert.equal(c.hasCriteria(d),true);assert.equal(c.definitionQuery(d).get('sort_order'),'asc');assert.ok(c.definitionChips(d,new Map()).some(v=>v.includes('vzestupně')));
+});

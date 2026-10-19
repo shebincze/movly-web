@@ -422,7 +422,8 @@ function hasCriteria(d) {
       languageCodes(d, "original_language").length ||
       d.countries?.length ||
       d.has_streams ||
-      (d.sort_by && d.sort_by !== "popularity"),
+      (d.sort_by && d.sort_by !== "popularity") ||
+      (d.sort_order && d.sort_order !== (d.sort_by === "title" ? "asc" : "desc")),
   );
 }
 function definitionChips(d, genreNames) {
@@ -465,8 +466,9 @@ function definitionChips(d, genreNames) {
   if (d.countries?.length) chips.push(translateUI("Země: {0}", d.countries.join(", ")));
   if (d.has_streams) chips.push(translateUI("Jen s dostupným zdrojem"));
   const sortLabel = SORT_OPTIONS.find(([v]) => v === d.sort_by)?.[1];
-  if (d.sort_by && d.sort_by !== "popularity" && sortLabel)
-    chips.push(sortLabel.toLowerCase());
+  const reversedOrder = d.sort_order && d.sort_order !== (d.sort_by === "title" ? "asc" : "desc");
+  if (((d.sort_by && d.sort_by !== "popularity") || reversedOrder) && sortLabel)
+    chips.push(sortLabel.toLowerCase() + (reversedOrder ? ` (${translateUI(d.sort_order === "asc" ? "vzestupně" : "sestupně")})` : ""));
   return chips;
 }
 // Štítky toho, co server pochopil z textového hledání (/search/filters).
