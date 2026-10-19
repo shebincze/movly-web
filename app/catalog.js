@@ -552,11 +552,11 @@ function filterBuilder({
   );
   const genreMatch = el("input", { type: "checkbox", name: "gm", value: "1" });
   genreMatch.checked = definition.genre_match === "all";
-  const number = (name, value, placeholder, max) =>
+  const number = (name, value, placeholder, max, min = 1) =>
     el("input", {
       type: "number",
       name,
-      min: 1,
+      min,
       max,
       placeholder,
       value: value == null ? "" : String(value),
@@ -564,8 +564,8 @@ function filterBuilder({
   const pct = (v) => (v == null ? null : Math.round(v * 10));
   const yearFrom = number("yf", definition.year_from, "od", 2100),
     yearTo = number("yt", definition.year_to, "do", 2100),
-    ratingFrom = number("rf", pct(definition.rating_from), "od %", 100),
-    ratingTo = number("rt", pct(definition.rating_to), "do %", 100),
+    ratingFrom = number("rf", pct(definition.rating_from), "od %", 100, 0),
+    ratingTo = number("rt", pct(definition.rating_to), "do %", 100, 0),
     runtimeFrom = number("df", definition.runtime_from, "od min", 1440),
     runtimeTo = number("dt", definition.runtime_to, "do min", 1440);
   const select = (name, options, value) => {
@@ -677,7 +677,7 @@ function filterBuilder({
       },
     },
     typeSelect,
-    el("input", { type: "hidden", name: "order", value: definition.sort_order }),
+    params.has("order") ? el("input", { type: "hidden", name: "order", value: definition.sort_order }) : null,
     genres.length
       ? el("fieldset", { class: "filter-group" }, el("legend", {}, translateUI("Žánry (více najednou)")), genre)
       : null,
