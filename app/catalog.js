@@ -279,26 +279,6 @@ const QUALITY_OPTIONS = [
   ["1080", translateUI("Full HD a lepší")],
   ["2160", translateUI("4K")],
 ];
-const AUDIO_LANGUAGES = [
-  ["cs", translateUI("Čeština")],
-  ["sk", translateUI("Slovenština")],
-  ["en", translateUI("Angličtina")],
-  ["de", translateUI("Němčina")],
-  ["pl", translateUI("Polština")],
-  ["fr", translateUI("Francouzština")],
-  ["es", translateUI("Španělština")],
-  ["it", translateUI("Italština")],
-  ["ja", translateUI("Japonština")],
-  ["ko", translateUI("Korejština")],
-];
-const ORIGINAL_LANGUAGES = [
-  ...AUDIO_LANGUAGES,
-  ["hi", translateUI("Hindština")],
-  ["zh", translateUI("Čínština")],
-  ["ru", translateUI("Ruština")],
-  ["sv", translateUI("Švédština")],
-  ["da", translateUI("Dánština")],
-];
 const SORT_OPTIONS = [
   ["popularity", translateUI("Nejpopulárnější")],
   ["rating", translateUI("Nejlépe hodnocené")],
@@ -638,13 +618,9 @@ function filterBuilder({
     facetStatus.textContent = translateUI("Načítání filtrů…");
     try {
       const policy = await effectiveContentPolicy({ refresh: true });
-      // Until the backend supplies policy-scoped facets, do not expose global
-      // counts to children. Selected saved values remain editable/removable.
-      if (policy.is_kids) {
-        if (current()) facetStatus.textContent = translateUI("Dostupné filtry tohoto profilu se načítají samostatně.");
-        return;
-      }
       const data = await api("titles/filter/facets");
+      if (policy.is_kids && data.policy_scoped !== true)
+        throw new Error(translateUI("Nabídka filtrů pro tento profil zatím není dostupná."));
       await assertEffectivePolicyUnchanged(policy);
       if (!current()) return;
       for (const [node, key, country] of [[audio, "audio_languages"], [subtitles, "subtitle_languages"], [original, "original_languages"], [countries, "countries", true]]) {
