@@ -528,6 +528,9 @@ function filterBuilder({
   const grid = !allowType;
   const genreNames = new Map(genres.map((g) => [g.id, g.name_cs || g.name]));
   const selectedGenres = new Set(definition.genre_ids || []);
+  const genreChoices = [...genres, ...[...selectedGenres]
+    .filter((id) => !genres.some((genre) => genre.id === id))
+    .map((id) => ({ id, name: `#${id}` }))];
   // Typ jako přepínač a žánry jako štítky; FormData je čte stejně jako dřív select.
   const typeSelect = allowType
     ? el(
@@ -552,7 +555,7 @@ function filterBuilder({
   const genre = el(
     "div",
     { class: "genre-chips" },
-    genres.map((g) => {
+    genreChoices.map((g) => {
       const input = el("input", { type: "checkbox", name: "genre", value: g.id });
       input.checked = selectedGenres.has(g.id);
       return el("label", { class: "choice-chip" }, input, el("span", {}, g.name_cs || g.name));
@@ -682,7 +685,7 @@ function filterBuilder({
     },
     typeSelect,
     params.has("order") ? el("input", { type: "hidden", name: "order", value: definition.sort_order }) : null,
-    genres.length
+    genreChoices.length
       ? el("fieldset", { class: "filter-group" }, el("legend", {}, translateUI("Žánry (více najednou)")), genre)
       : null,
     el(
