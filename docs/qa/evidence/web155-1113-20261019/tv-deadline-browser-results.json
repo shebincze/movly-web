@@ -1,0 +1,9 @@
+[
+  {
+    "name": "unsupported",
+    "id": 205,
+    "failureMs": 24374,
+    "text": "Přehrávání selhalo\n\nTelevizor tento zdroj neotevřel. Zkus jiný zdroj, nebo ho otevři v aplikaci Movly.\n\nZkusit znovu\nZpět",
+    "errors": []
+  }
+]

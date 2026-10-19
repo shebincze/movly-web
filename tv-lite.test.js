@@ -126,3 +126,19 @@ test("explicit TV entry redirects to the ES5 page", () => {
   assert.equal(runLegacy({ modern: true, search: "?tv=1" }).replaced(), "/app/tv/");
   assert.equal(runLegacy({ modern: true, hash: "#tv" }).replaced(), "/app/tv/");
 });
+
+test("TV stalled media watchdog leaves budget before the 25 second UI deadline", () => {
+  const watchdog = read("app/tv/tv.js").match(/openTimer = setTimeout\(function \(\) \{[\s\S]*?\}, \d+\);/);
+  assert.ok(watchdog);
+  for (const state of [{}, { stopped: true }, { generation: 2 }, { loaded: true }, { video: { error: {} } }]) {
+    let fire, delay, failures = [];
+    const context = { stopped: false, mine: 1, generation: 1, loaded: false, video: { error: null },
+      fail: message => failures.push(message), setTimeout: (fn, ms) => { fire = fn; delay = ms; return 1; }, ...state };
+    vm.runInNewContext(watchdog[0], context);
+    assert.ok(delay <= 24000, "leave at least 1 second for startup/scheduling before the UI deadline");
+    assert.deepEqual(failures, []);
+    fire();
+    assert.equal(failures.length, Object.keys(state).length ? 0 : 1);
+    if (failures.length) assert.match(failures[0], /Zkus jiný zdroj/);
+  }
+});

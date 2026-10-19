@@ -24,7 +24,7 @@ Actual anonymous Hellspy: Mac resolved its API download endpoint and fetched1024
 
 ## TV ES5
 
-Actual TV app ran at1280×720 in Chromium, with synthetic API/session and generated media fulfilled at an HTTPS fixture host. MP4 used file engine and HLS native engine; both rendered320px and progressed beyond1s with no page errors. A stalled unsupported source displayed the actionable failure message at25.373s measured from playback API response; the production watchdog is25000ms after attach. This is a nominal25s watchdog observation, not strict proof of an end-to-end ≤25.000s deadline. No physical Smart TV claim. [Failure screen](evidence/web155-1113-20261019/tv-unsupported.png).
+Actual TV app ran at1280×720 in Chromium, with synthetic API/session and generated media fulfilled at an HTTPS fixture host. MP4 used file engine and HLS native engine; both rendered320px and progressed beyond1s with no page errors. A stalled unsupported source displayed the actionable failure message at25.373s measured from playback API response; the production watchdog is25000ms after attach. This original result failed the strict deadline. Follow-up #185 reduces the watchdog to24000ms to leave startup/scheduling reserve; the same targeted stalled-media browser run then displayed the actionable error in24374ms from playback API response, with no page errors. This passes the <25s requirement in the emulated browser. No physical Smart TV claim. [Failure screen](evidence/web155-1113-20261019/tv-unsupported.png).
 
 ## Actual provider segment data in the shared player
 
@@ -45,7 +45,7 @@ Anonymous live TheIntroDB v4 and IntroDB.app responses were saved unchanged in [
 - Real Webshare account cross-IP/codec coverage: no configured usable token/password found; admin Providers screen showed Webshare disconnected. Native sandbox preferences denied access; no TCC changes or bypass attempted. Existing account metadata alone is not a usable session. No account creation, purchase or terms acceptance.
 - Full actual Go Party + web clients on two networks subsequently passed; see the follow-up below.
 - #1113 specifically asks for an **episode** with a real post-credits scene. Bounded provider reads found actual movie post-credits data; queried episode responses had post_credits=null. A final TheIntroDB Mandalorian S2E8 probe returned403 and was not retried. The episode requirement remains open.
-- Strict TV error deadline across real browser engines cannot be inferred from Chromium's25.373s observation.
+- The TV stalled-source deadline now passes in the targeted emulated Chromium run after #185 (24374ms); no physical Smart TV timing claim.
 
 Validation of #179: `npm run check`, full579 tests passed after rebase onto Premium-restoring main d7fe16a. Actions disabled. Detailed local harness/scripts/logs retained outside the checkout at `/Users/shebin/.codex/logs/movly/web155-1113-20261019/`.
 
@@ -65,3 +65,5 @@ The fix resolves only the official gateway on the BFF using `Range: bytes=0-0`, 
 After the fix, **both real direct CDN requests returned206** and both Chromium players decoded1920px, progressed and entered released readiness round1, with no page errors. Host UI seek25s was allowed to settle before pause; the room clock advanced during network/seek processing. After pause, host27.532s/member27.377s differed by155ms and both were paused. Fresh PostgreSQL readback confirmed room `e4a7e88a78258f4a011d3ea4c2a090ca`, status paused, position27.377, version13, updated_by host1, two distinct members, two ready devices, and released preparation round1. This is actual two-egress browser/provider/Go/BFF proof, not physical-device or production-deployment proof.
 
 Evidence: [controlled two-network runtime](evidence/web155-1113-20261019/network-party-results.json), [actual Hellspy runtime](evidence/web155-1113-20261019/network-hellspy-party-results.json), [fenced PostgreSQL readback](evidence/web155-1113-20261019/party-postgres-readback.txt), [member after fix](evidence/web155-1113-20261019/network-hellspy-party-member.png), [gateway failure before fix](evidence/web155-1113-20261019/network-hellspy-party-failure-1.png). No signed URL, session token or real credentials are committed. Small playback/range reads only; no whole commercial title was saved.
+
+TV #185 targeted evidence: [strict deadline result](evidence/web155-1113-20261019/tv-deadline-browser-results.json). Regression test executes the production watchdog callback and verifies the budget plus stopped/stale/loaded/error guards. `npm run check` and full583 tests passed; no full media matrix rerun was needed.
