@@ -29,8 +29,31 @@ test('Home receipts require dense unique effective positions and an advancing re
 });
 test('Home foreground reconciles clean documents but preserves dirty drafts until explicit review',()=>{
  const old=state.document(document(),2),value=state.draft(old);state.move(value,'continue',-1);
- const same=state.reconcile(old,value,state.document(document(),2),true,true);assert.equal(same.draft,value);assert.equal(same.ready,true);assert.equal(same.conflict,false);
+ const same=state.reconcile(old,value,state.document(document(),2),true,true);assert.equal(same.draft,value);assert.equal(same.ready,true);assert.equal(same.conflict,false);assert.equal(state.reconcile(old,value,old,true,true,true).conflict,true);assert.equal(state.reconcile(old,value,old,false,true,true).conflict,true);
  const newer=state.document({...document(),revision:1},2),conflict=state.reconcile(old,value,newer,true,true);assert.equal(conflict.document,old);assert.equal(conflict.draft,value);assert.equal(conflict.conflict,true);
  assert.equal(state.reconcile(old,value,old,true,false).ready,false);assert.equal(state.reconcile(old,value,{...newer,catalog_revision:'b'.repeat(64)},true,true).conflict,true);
  const reload=state.reconcile(old,value,newer,false,true);assert.equal(reload.document,newer);assert.equal(reload.dirty,false);assert.equal(reload.conflict,false);assert.deepEqual(reload.draft.order,['hero','empty','continue']);
+});
+
+test('Page documents fence page identity while legacy Home stays shape-compatible',()=>{
+ for(const page of ['home','movies','series']){const source={...document(),page};const accepted=state.document(source,2,page);assert.equal(accepted.page,page);assert.equal(state.receipt({...source,revision:1},2,0,page).page,page);assert.throws(()=>state.document({...source,page:'foreign'},2,page));assert.throws(()=>state.document(document(),2,page));}
+ assert.equal(Object.hasOwn(state.document({...document(),page:'home'},2),'page'),false);assert.throws(()=>state.document({...document(),page:'unknown'},2,'unknown'));
+ const old=state.document({...document(),page:'movies'},2,'movies'),other=state.document({...document(),page:'series'},2,'series');assert.equal(state.reconcile(old,state.draft(old),other,true,true).conflict,true);
+});
+test('Handle relocation changes a bounded draft only and cancel snapshots remain independent',()=>{
+ const doc=state.document({...document(),page:'movies'},2,'movies'),draft=state.draft(doc),before=draft.order.slice();state.relocate(draft,'hero',2);assert.deepEqual(draft.order,['empty','continue','hero']);assert.deepEqual(before,['hero','empty','continue']);for(const index of [-1,3,1.5])state.relocate(draft,'hero',index);state.relocate(draft,'unknown',0);assert.deepEqual(draft.order,['empty','continue','hero']);assert.deepEqual(state.body(doc,draft,false).order,draft.order);
+});
+test('Visible page watcher bounds requests, compares document/catalogue/policy and fences late reads',()=>{
+ let visible=true,changed=0,abort=0,done,queued=[],reads=0;const watch=state.watch({active:()=>visible,changed:()=>changed++,setTimer:fn=>{queued.push(fn);return fn},clearTimer:fn=>{queued=queued.filter(v=>v!==fn)},read:cb=>{reads++;done=cb;return{abort:()=>abort++}}});
+ const doc={page:'movies',profile_id:2,revision:1,catalog_revision:'a',policy_revision:'p'};watch.start();watch.start();assert.equal(reads,1);done(null,doc);assert.equal(queued.length,1);queued.shift()();done(null,doc);assert.equal(changed,0);queued.shift()();done(null,{...doc,catalog_revision:'b'});assert.equal(changed,1);queued.shift()();const old=done;watch.stop();assert.equal(abort,1);old(null,{...doc,revision:9});assert.equal(changed,1);assert.equal(queued.length,0);visible=false;watch.start();assert.equal(reads,4);visible=true;watch.start();assert.equal(reads,5);done(null,{...doc,revision:2});assert.equal(changed,2);watch.stop();
+});
+
+test('New page DTO identities are exact ASCII strings without coercion or terminal newline',()=>{
+ for(const slug of [123,true,'hero\n','hero\r','hero\u2028']){const v={...document(),page:'home'};v.sections[0].slug=slug;assert.throws(()=>state.document(v,2,'home'));}
+ for(const hash of ['a'.repeat(64)+'\n','a'.repeat(63)+'\n'])assert.throws(()=>state.document({...document(),page:'movies',catalog_revision:hash},2,'movies'));
+ const legacy=document();legacy.sections[0].slug=123;assert.equal(state.document(legacy,2).sections[0].slug,123,'legacy Home wire admission is preserved');
+});
+test('First metadata handshake reconciles once after baseline admission and does not loop on restart',()=>{
+ let done,changed=0,queue=[];const watcher=state.watch({initial:true,active:()=>true,setTimer:fn=>{queue.push(fn);return fn},clearTimer:fn=>{queue=queue.filter(v=>v!==fn)},read:cb=>{done=cb;return{abort(){}}},changed:()=>changed++}),fresh={page:'movies',profile_id:2,revision:7,catalog_revision:'a',policy_revision:'p'};
+ watcher.start();done(null,fresh);assert.equal(changed,1);watcher.stop();watcher.start();done(null,fresh);assert.equal(changed,1);queue.shift()();done(null,{...fresh,catalog_revision:'b'});assert.equal(changed,2);watcher.stop();
 });

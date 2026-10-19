@@ -1,3 +1,4 @@
+import { watchPagePreferences } from "./page-preferences-watch.js";
 import { serverHome, homeItems, homeTracking, decorateHomeCards, resetHomeImpressions } from "./home.js";
 import { homeQuery, homeSections } from "./home-state.js";
 import { translateUI } from "./i18n.js";
@@ -81,7 +82,7 @@ function carousel(items, actions) {
       : null,
   );
 }
-function feedRail(group, actions, source = "main") {
+function feedRail(group, actions, source = "main", type, admit = () => true) {
   let items = array(group.items).map(title);
   // „Pokračovat ve sledování" bez titulů právě dokoukaných v tomto profilu.
   if (isContinueWatchingSlug(group.slug))
@@ -90,10 +91,11 @@ function feedRail(group, actions, source = "main") {
   const node = rail(
     group.name,
     items,
-    actions.detail,
-    `#collection?source=${source}&slug=${encodeURIComponent(group.slug)}`,
+    title => { if (admit()) actions.detail(title); },
+    `#collection?source=${source}&slug=${encodeURIComponent(group.slug)}${type ? `&type=${type}` : ""}`,
   );
   node.dataset.railSlug = group.slug || "";
+  node.addEventListener("click", event => { if (!admit()) { event.preventDefault(); event.stopImmediatePropagation(); } }, true);
   if (group.slug === "top-watched") {
     node.classList.add("top-ten");
     [...node.querySelectorAll(".poster-card")].forEach((card, i) =>
@@ -108,14 +110,15 @@ function feedRail(group, actions, source = "main") {
   }
   return node;
 }
+// Policy probes are shared within the API context. A disappearing page must not
+// abort a probe that the next typed page has already joined; content stays abortable.
 export async function home(signal, actions) {
-  const policy = await effectiveContentPolicy({ signal, refresh: true });
+  const policy = await effectiveContentPolicy({ refresh: true });
+  if (signal?.aborted) throw new DOMException("Context changed", "AbortError");
   return serverHome(signal, actions, carousel, policy);
 }
-// Stale-while-revalidate pro Filmy/Seriály: návrat na stránku vykreslí hned
-// poslední odpověď /main (do 5 min) a na pozadí ji tiše ověří. Osobní řady se
-// po vlastní změně vymění přes /main/personal (viz refreshPersonalRails).
-const CATALOG_TTL_MS = 5 * 60_000;
+// Cached typed data stays scoped to this API context. Every route entry verifies
+// the full feed before exposing rails: offscreen page preferences may have changed.
 const catalogCache = new Map();
 let catalogEpoch = 0, catalogPolicyGeneration = 0, personalRefreshTimer = 0;
 export function resetCatalogCache() {
@@ -150,7 +153,7 @@ document.addEventListener("movly:effective-policy-changed", () => {
 });
 document.addEventListener("movly:personal-data-mirror-changed", (event) => {
   const detail = event.detail, owner = apiContextOwner();
-  if (detail?.catalogContextChanged !== true || detail.apiContext !== apiContextKey() ||
+  if (!detail || detail.apiContext !== apiContextKey() ||
       detail.accountId !== owner?.accountId || detail.profileId !== owner?.profileId) return;
   refreshCatalogContext();
 });
@@ -168,42 +171,45 @@ function orderedGroups(data) {
       return true;
     });
 }
-function railsFor(data, actions) {
+function railsFor(data, actions, type, admit) {
   return orderedGroups(data)
     .filter((g) => array(g.items).length)
-    .map((g) => feedRail(g, actions))
+    .map((g) => feedRail(g, actions, "main", type, admit))
     .filter(Boolean);
 }
 function renderRails(page, data, actions) {
-  const rails = page.querySelector(".catalog-rails");
+  const rails = page.querySelector(".catalog-rails"), context = apiContextKey(), generation = (page.movlyRailsGeneration || 0) + 1;
+  page.movlyRailsGeneration = generation;
+  const admit = () => page.isConnected && !page.movlyCatalogSignal?.aborted && page.movlyCatalogContext === context && context === apiContextKey() && page.movlyRailsGeneration === generation;
   rails.replaceChildren(
-    ...[warning(data), ...railsFor(data, actions)].filter(Boolean),
+    ...[warning(data), ...railsFor(data, actions, page.dataset.catalogType, admit)].filter(Boolean),
   );
 }
 async function revalidateCatalog(type, page, actions, signal, required = false) {
-  const key = catalogKey(type), epoch = catalogEpoch;
+  const key = catalogKey(type), epoch = catalogEpoch, generation = (page.movlyCatalogGeneration || 0) + 1;
+  page.movlyCatalogGeneration = generation;
   if (required) page.querySelector(".catalog-rails").replaceChildren(loading());
   try {
-    const policy = await effectiveContentPolicy({ signal, refresh: true });
+    const policy = await effectiveContentPolicy({ refresh: true });
     const fresh = await api(`main?type=${type}&limit=30`, { signal });
-    await assertEffectivePolicyUnchanged(policy, { signal });
-    if (epoch !== catalogEpoch || key !== catalogKey(type) || signal?.aborted) return;
+    await assertEffectivePolicyUnchanged(policy);
+    if (epoch !== catalogEpoch || key !== catalogKey(type) || signal?.aborted || page.movlyCatalogGeneration !== generation || !page.isConnected) return;
     const cached = catalogCache.get(key);
     catalogCache.set(key, { data: fresh, at: Date.now() });
     if (
       page.isConnected &&
-      JSON.stringify(cached?.data?.lists) !== JSON.stringify(fresh.lists)
+      (required || JSON.stringify(cached?.data?.lists) !== JSON.stringify(fresh.lists))
     )
       renderRails(page, fresh, actions);
   } catch (error) {
-    if (required && page.isConnected && epoch === catalogEpoch && key === catalogKey(type) && !signal?.aborted)
+    if (required && page.movlyCatalogGeneration === generation && page.isConnected && epoch === catalogEpoch && key === catalogKey(type) && !signal?.aborted)
       page.querySelector(".catalog-rails").replaceChildren(errorBox(error,
         () => revalidateCatalog(type, page, actions, signal, true)));
     // Běžná SWR ponechá stará data; povinná obnova nabízí chybu a retry.
   }
 }
-// Po vlastní změně zhlédnuto / pozice vymění jen osobní řady právě zobrazené
-// stránky Filmů/Seriálů; kurátorované řady zůstávají, bez spinneru.
+// Personal mutations reload the complete typed feed; partial list splicing would
+// resurrect hidden rows or move personal rows around the user-defined order.
 export async function refreshPersonalRails() {
   const page = document.querySelector(".catalog-page[data-catalog-type]");
   if (!page) return;
@@ -211,27 +217,9 @@ export async function refreshPersonalRails() {
     key = catalogKey(type),
     cached = catalogCache.get(key);
   if (!cached) return;
-  const epoch = catalogEpoch;
-  const policy = await effectiveContentPolicy({ refresh: true });
-  const personal = await api(`main/personal?type=${type}&limit=30`);
-  await assertEffectivePolicyUnchanged(policy);
-  if (epoch !== catalogEpoch || key !== catalogKey(type)) return;
-  const current = catalogCache.get(key);
-  if (!current) return;
-  const curated = array(current.data.lists).filter(
-    (g) => !isPersonalSlug(g.slug),
-  );
-  const lists = orderedGroups(personal);
-  const merged = {
-    ...current.data,
-    lists: [
-      ...lists.filter((g) => g.slug !== "friends-activity"),
-      ...curated,
-      ...lists.filter((g) => g.slug === "friends-activity"),
-    ],
-  };
-  catalogCache.set(key, { data: merged, at: current.at });
-  if (page.isConnected) renderRails(page, merged, page.movlyActions);
+  // A partial personal response cannot be spliced around user-ordered/hidden rows.
+  // Reload the complete typed feed so every server branch applies preferences.
+  await revalidateCatalog(type, page, page.movlyActions, page.movlyCatalogSignal, true);
 }
 document.addEventListener("movly:personal-changed", () => {
   clearTimeout(personalRefreshTimer);
@@ -242,17 +230,17 @@ document.addEventListener("movly:personal-changed", () => {
 export async function catalog(route, params, signal, actions) {
   if (params.get("view") === "grid")
     return catalogGrid(route, params, signal, actions);
-  const policy = await effectiveContentPolicy({ signal, refresh: true });
+  const policy = await effectiveContentPolicy({ refresh: true });
+  if (signal?.aborted) throw new DOMException("Context changed", "AbortError");
   const type = route === "series" ? "tv" : "movie",
     key = catalogKey(type),
-    cached = catalogCache.get(key),
-    fresh = cached && Date.now() - cached.at < CATALOG_TTL_MS;
+    cached = catalogCache.get(key);
   let data;
   if (cached) data = cached.data;
   else {
     const epoch = catalogEpoch;
     data = await api(`main?type=${type}&limit=30`, { signal });
-    await assertEffectivePolicyUnchanged(policy, { signal });
+    await assertEffectivePolicyUnchanged(policy);
     if (epoch !== catalogEpoch || key !== catalogKey(type) || signal?.aborted) throw new DOMException("Context changed", "AbortError");
     catalogCache.set(key, { data, at: Date.now() });
   }
@@ -276,9 +264,24 @@ export async function catalog(route, params, signal, actions) {
     el("div", { class: "catalog-rails" }),
   );
   page.movlyActions = actions;
+  page.movlyCatalogSignal = signal;
   page.movlyCatalogContext = apiContextKey();
   renderRails(page, data, actions);
-  if (cached && !fresh) revalidateCatalog(type, page, actions, signal);
+  const refresh = () => {
+    if (!page.isConnected || signal?.aborted || page.movlyCatalogContext !== apiContextKey()) return;
+    catalogCache.delete(catalogKey(type));
+    void revalidateCatalog(type, page, actions, signal, true);
+  };
+  const prefChanged = event => {
+    const detail = event.detail, owner = apiContextOwner();
+    if (detail?.page === route && detail.apiContext === apiContextKey() && detail.accountId === owner?.accountId && detail.profileId === owner?.profileId) refresh();
+  };
+  window.addEventListener("movly:page-preferences-changed", prefChanged, { signal });
+  window.addEventListener("focus", refresh, { signal });
+  window.addEventListener("online", refresh, { signal });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); }, { signal });
+  watchPagePreferences({ page: route, signal, active: () => page.isConnected && page.movlyCatalogContext === apiContextKey(), changed: refresh });
+  if (cached) void revalidateCatalog(type, page, actions, signal, true);
   return page;
 }
 // Skládač filtrů — stejná sada kritérií jako Apple, Android a Windows:
@@ -1493,10 +1496,12 @@ export async function collection(params, signal, actions) {
   const page = Math.max(1, Number(params.get("page")) || 1);
   const source = params.get("source");
   const fromHome = source === "home" || source === "home_collection";
-  const policy = await effectiveContentPolicy({ signal, refresh: true });
+  const type = ["movie", "tv"].includes(params.get("type")) ? params.get("type") : null;
+  const policy = await effectiveContentPolicy({ refresh: true });
   const data = await api(fromHome ? homeQuery({ [source === "home" ? "section" : "collection"]: slug, page }) :
-    `${source === "themed" ? "themed-lists" : "main/lists"}/${slug}?page=${page}&limit=30`, { signal });
-  await assertEffectivePolicyUnchanged(policy, { signal });
+    `${source === "themed" ? "themed-lists" : "main/lists"}/${slug}?page=${page}&limit=30${source !== "themed" && type ? `&type=${type}` : ""}`, { signal });
+  await assertEffectivePolicyUnchanged(policy);
+  if (signal?.aborted) throw new DOMException("Context changed", "AbortError");
   const rows = fromHome ? homeSections(data) : null;
   if (fromHome && (rows.length !== 1 || rows[0].slug !== slug || rows[0].pagination?.page !== page)) throw new Error(translateUI("Neplatná řada Domů."));
   const list = fromHome ? rows[0] : data.list || data;

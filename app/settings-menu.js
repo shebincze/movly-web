@@ -21,7 +21,7 @@ export function openSettingsMenu({ openProviders }) {
   showDialog(el("div", { class: "dialog-body settings-dialog" },
     el("h2", { id: "dialog-title" }, translateUI("Nastavení")),
     el("nav", { class: "settings-menu", "aria-label": translateUI("Nastavení") },
-      entry(translateUI("Řady na Domů"), translateUI("Pořadí a zobrazení řad pro tento profil"), openHomePreferences),
+      entry(window.MovlyHomePreferences.text("pages", document.documentElement.lang), translateUI("Pořadí a zobrazení řad pro tento profil"), openHomePreferences),
       entry(translateUI("Přeskakování intra"), translateUI("Nabídka nebo automatické přeskočení"), () => void openIntroSettings()),
       entry(notificationLabel("NotificationsEntry"), translateUI("Kam posílat upozornění a přehled novinek"), () => void openNotifications()),
       entry(translateUI("Úložiště a přehrávání"), translateUI("Webshare, FastShare, doplňky a Trakt / Simkl"), () => void openProviders()),

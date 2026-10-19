@@ -3,6 +3,7 @@ const { createWorkTiming } = require("./playback-work-timing");
 const validPlaybackAttempt = require("./playback-attempt-policy");
 const tvDiagnosticPolicy = require("./app/tv/diagnostics.js");
 const homePreferences = require("./app/tv/home-preferences-state.js");
+const { readCanonicalJSONObject } = require("./http-request");
 
 const crypto = require("node:crypto");
 const providers = require("./providers-server");
@@ -26,6 +27,7 @@ function createAppHandler({
   api,
   json,
   readBody,
+  readCanonicalBody = readCanonicalJSONObject,
   HttpError,
   secret,
   production,
@@ -526,6 +528,8 @@ function createAppHandler({
     ["GET", /^party\/v2\/[a-f0-9]{32}$/, []],
     ["POST", /^party\/v2\/[a-f0-9]{32}\/(?:preparation|leave)$/, []],
     ["PUT", /^party\/v2\/[a-f0-9]{32}\/state$/, []],
+    ["GET", /^pages\/(?:home|movies|series)\/preferences$/, ["lang"]],
+    ["PUT", /^pages\/(?:home|movies|series)\/preferences$/, ["lang"]],
     ["GET", /^home\/preferences$/, ["lang"]],
     ["PUT", /^home\/preferences$/, ["lang"]],
     ["GET", /^home$/, ["section", "collection", "page", "include_highlights", "layout_only"]],
@@ -566,7 +570,7 @@ function createAppHandler({
     ],
     ["GET", /^main$/, ["type", "limit", "cw_page", "wl_page"], "main/"],
     ["GET", /^main\/personal$/, ["type", "limit", "cw_page", "wl_page"]],
-    ["GET", /^main\/lists\/[a-z0-9_-]+$/, ["page", "limit"]],
+    ["GET", /^main\/lists\/[a-z0-9_-]+$/, ["page", "limit", "type"]],
     [
       "GET",
       /^titles\/filter$/,
@@ -629,7 +633,7 @@ function createAppHandler({
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     const target = url.pathname.slice("/api/app/".length);
-    if (target === "home/preferences") res.setHeader("Cache-Control", "private, no-store");
+    if ((target === "home/preferences" || /^pages\/(?:home|movies|series)\/preferences$/.test(target))) res.setHeader("Cache-Control", "private, no-store");
     if (!["GET", "HEAD"].includes(req.method)) sameOrigin(req);
     // Response close means the consumer left only when the response did not
     // finish normally. IncomingMessage.close also fires on ordinary GETs.
@@ -1493,10 +1497,10 @@ function createAppHandler({
           404,
           "Tato funkce není ve webové aplikaci dostupná.",
         );
-      if (target === "home/preferences" && url.searchParams.has("lang") && !["cs", "sk", "en"].includes(url.searchParams.get("lang"))) throw new HttpError(400, "Neplatný jazyk.");
+      if ((target === "home/preferences" || /^pages\/(?:home|movies|series)\/preferences$/.test(target)) && url.searchParams.has("lang") && !["cs", "sk", "en"].includes(url.searchParams.get("lang"))) throw new HttpError(400, "Neplatný jazyk.");
       let query = target === "titles/batch" ? "" : /^sync\/v2\/profile-data\/(?:snapshot|changes)$/.test(target)
         ? cleanPersonalDataQuery(url, rule[2])
-        : cleanQuery(url, rule[2], target === "home/preferences" ? url.searchParams.get("lang") || language : language);
+        : cleanQuery(url, rule[2], (target === "home/preferences" || /^pages\/(?:home|movies|series)\/preferences$/.test(target)) ? url.searchParams.get("lang") || language : language);
       if (target === "profiles/effective-content-policy") {
         try {
           json(res, 200, await call(s, target + query));
@@ -1541,6 +1545,7 @@ function createAppHandler({
         json(res, 200, { ...result, viewer_scope: scope });
         return true;
       }
+      if (target.startsWith("main/lists/") && url.searchParams.has("type") && !["movie", "tv"].includes(url.searchParams.get("type"))) throw new HttpError(400, "Neplatný typ katalogu.");
       if (/^tmdb\/[1-9]\d*$/.test(target) && !["movie", "tv"].includes(url.searchParams.get("type")))
         throw new HttpError(400, "Neplatný typ titulu.");
       if (/^titles\/[1-9]\d*$/.test(target))
@@ -1557,11 +1562,14 @@ function createAppHandler({
         query += "&expand=watch_history,streams,ratings";
       let body = null;
       if (["POST", "PUT"].includes(req.method)) {
-        body = objectBody(await readBody(req, target === "home/preferences" ? 65536 : 8192));
-        if (target === "home/preferences") {
+        body = objectBody(await (target.startsWith("pages/")
+          ? readCanonicalBody(req, ["revision", "catalog_revision", "order", "hidden"], 65536, "Nastavení řad stránky")
+          : readBody(req, target === "home/preferences" ? 65536 : 8192)));
+        if ((target === "home/preferences" || /^pages\/(?:home|movies|series)\/preferences$/.test(target))) {
           const keys = Object.keys(body), fields = ["revision", "catalog_revision", "order", "hidden"];
           const slugs = value => Array.isArray(value) && value.length <= 256 && new Set(value).size === value.length && value.every(slug => typeof slug === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(slug));
           if (keys.length !== fields.length || keys.some(key => !fields.includes(key)) || !Number.isSafeInteger(body.revision) || body.revision < 0 || typeof body.catalog_revision !== "string" || !/^[a-f0-9]{64}$/.test(body.catalog_revision) || !slugs(body.order) || !slugs(body.hidden)) throw new HttpError(400, "Neplatné nastavení řad Domů.");
+          if (target.startsWith("pages/") && (body.catalog_revision.length !== 64 || /[^a-f0-9]/.test(body.catalog_revision) || [...body.order, ...body.hidden].some(slug => /[^a-z0-9-]/.test(slug)))) throw new HttpError(400, "Neplatné nastavení řad stránky.");
           body = { revision: body.revision, catalog_revision: body.catalog_revision, order: body.order, hidden: body.hidden };
         } else if (target === "auth/premium/purchase") {
           if (!account.premiumPurchaseEnabled || account.isFromLight)
@@ -1855,9 +1863,9 @@ function createAppHandler({
           : target === "titles/filter/facets" ? { "X-Movly-Facets-Policy": "scoped-v1" }
           : /^streaming2?\//.test(target) ? { "X-Cache-Refresh": "true" } : {},
       );
-      if (target === "home/preferences") {
+      if ((target === "home/preferences" || /^pages\/(?:home|movies|series)\/preferences$/.test(target))) {
         let verified;
-        try { verified = req.method === "PUT" ? homePreferences.receipt(result, s.profile.id, body.revision) : homePreferences.document(result, s.profile.id); }
+        try { verified = req.method === "PUT" ? homePreferences.receipt(result, s.profile.id, body.revision, target.startsWith("pages/") ? target.split("/")[1] : undefined) : homePreferences.document(result, s.profile.id, target.startsWith("pages/") ? target.split("/")[1] : undefined); }
         catch { throw new HttpError(502, "Server vrátil neplatné nastavení řad Domů."); }
         json(res, 200, verified);
         return true;
