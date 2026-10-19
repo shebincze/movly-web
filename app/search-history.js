@@ -1,11 +1,13 @@
 // Local history has the same selected-profile boundary as the native clients.
 // Values are plain search terms; rendering always uses DOM text nodes.
 let owner = null;
-const prefix = "movly.searchHistory.";
-export function setSearchOwner(account, profile) {
+const prefix = "movly.searchHistory.v2.";
+export function setSearchOwner(account, profile, environment) {
   owner =
-    account && profile
-      ? prefix + encodeURIComponent(account.username) + ":" + profile.id
+    Number.isSafeInteger(account?.id) && account.id > 0 &&
+    Number.isSafeInteger(profile?.id) && profile.id > 0 &&
+    typeof environment === "string" && /^[a-f0-9]{32}$/.test(environment)
+      ? `${prefix}${environment}:${account.id}:${profile.id}`
       : null;
 }
 export function searchHistory() {

@@ -17,11 +17,13 @@ function harness({
   providerClient,
   nativeResolver,
   partyStream,
+  offlineEnvironment,
 } = {}) {
   const calls = [];
   const fixture = createFixture();
   const handler = createAppHandler({
     production,
+    offlineEnvironment,
     providerClient: { ...require("./providers-server"), resolveHellspy: async () => "https://cdn.example.net/hellspy.mp4?signed=fixture", ...providerClient },
     nativeResolver,
     partyStream,
@@ -106,6 +108,37 @@ test("catalog filtering forwards the title query together with structured criter
   assert.equal(call[5]["X-Profile-ID"], "1");
   const unknown = await h.request("titles/filter?q=1917&ignored=drop", {cookie: selected.cookie});
   assert.equal(unknown.status, 400);
+});
+test("session, login and selected profile expose only a stable upstream environment identity", async () => {
+  const h = harness({offlineEnvironment: "http://first-private-api.invalid/v1"});
+  const login = await h.login();
+  const selected = await h.selected();
+  const session = await h.request("session", {cookie: selected.cookie});
+  assert.match(login.body.environment, /^[a-f0-9]{32}$/);
+  assert.equal(session.body.environment, login.body.environment);
+  assert.equal(selected.body.environment, login.body.environment);
+  assert.doesNotMatch(JSON.stringify(session.body), /first-private-api|http:\/\//);
+  const other = await harness({offlineEnvironment: "http://second-private-api.invalid/v1"}).login();
+  assert.notEqual(other.body.environment, login.body.environment);
+});
+test("discovery and facets BFF reads preserve the selected profile and remain closed", async () => {
+  const h = harness({override: (path) => {
+    if (path.startsWith("v1/popular-titles-search")) return {payload: {popular_titles: []}};
+    if (path.startsWith("v1/titles/filter/facets")) return {payload: {audio_languages: [], countries: []}};
+  }});
+  const selected = await h.selected();
+  for (const path of ["popular-titles-search?limit=8&type=movie", "titles/filter/facets"]) {
+    const response = await h.request(path, {cookie: selected.cookie});
+    assert.equal(response.status, 200);
+    const expected = new URL(path, "http://fixture/");
+    const call = h.calls.find(([value]) => {
+      const url = new URL(value, "http://fixture/");
+      return url.pathname.replace(/\/$/, "") === "/v1" + expected.pathname;
+    });
+    assert.ok(call);
+    assert.equal(call[5]["X-Profile-ID"], "1");
+  }
+  assert.equal((await h.request("titles/filter/facets?user_id=999", {cookie: selected.cookie})).status, 400);
 });
 test("anonymous catalog never calls API-key-readable upstream", async () => {
   const h = harness(),
