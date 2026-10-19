@@ -1,87 +1,89 @@
 # Per-page rows — web #206 / Movly #1265
 
-Primary Settings offers one Home/Movies/Series selector. Visibility switches enter
-an in-memory draft immediately; Edit exposes handle-only Pointer Events dragging
-and ArrowUp/Down keyboard alternatives. Done sends one complete CAS document when
-dirty, and exits only on an admitted advancing receipt. A clean Done only exits.
-Cancellation restores the prior order. Regular list scrolling remains available.
-Reset captures the page/generation around confirmation; stale controls are detached
-and fenced before mutation. No authoritative preferences are stored locally.
+Settings offers Home, Movies and Series using the frozen page-preferences API.
+Primary web has compact visibility switches, a sticky top Edit/Done toolbar,
+handle-only pointer dragging and ArrowUp/Down keyboard reorder. A first switch
+change enters an in-memory draft. Done sends one complete CAS write when dirty;
+clean Done exits without a write. Touch cancellation restores the previous order.
+TV has three editor entries, D-pad Up/Down/Show/Hide/Save and new Movies/Series
+screens. Existing typed /main and /main/lists/{slug} routes supply content and
+pagination. Full typed reload replaces personal-list splicing. Server order and
+visibility are authoritative; even an all-hidden page keeps Settings reachable.
 
-TV has three editor entries and new Movies/Series screens using existing typed
-/main. Explicit Up/Down/Show/Hide/Save remain appropriate to D-pad input. More/paging
-uses existing /main/lists/{slug} with the captured movie/tv type. Home legacy remains.
-Full typed reload replaces primary personal-list splicing. Server ordering and
-visibility are authoritative; all-hidden pages retain reachable Settings.
+The BFF validates closed page paths, exact four-field bodies, literal ASCII slugs,
+64-character catalogue hashes, dense display positions, signed default positions,
+profile identity and advancing PUT receipts. New page writes reject duplicate raw
+JSON keys before normalization. Legacy Home wire parsing and response shape remain
+unchanged. No authoritative preference is stored locally. Owner/session/page/policy
+and render-generation guards reject stale responses and held old DOM actions.
+Conflicts preserve the visible draft and block save until explicit Reload.
 
-/pages/{home|movies|series}/preferences is a strict owner/PIN-fenced BFF projection.
-The page is path-only; legacy /home/preferences shape remains unchanged. Documents
-require exact page/profile, signed default order, dense display order and advancing
-PUT revision. Failed saves preserve the draft. A CAS conflict remains blocked until
-explicit Reload; background/focus reconciliation cannot silently rebase it.
+Visible pages/editors reconcile metadata every 30 seconds without overlapping
+reads, and on foreground/online/scoped changes. Hidden/unmounted consumers cancel
+reads. An initial admitted baseline forces one reconciliation, covering content
+captured before a newer first metadata response; it does not cause a reload loop.
+Dirty drafts are preserved and blocked when their base changes. Shared policy
+probes use context lifetime; content requests and their consumers keep their own
+abort and context admission. No new content or SSE route was introduced.
 
-All feeds/editors use bounded 30s metadata polling while visible, plus foreground,
-local preference and existing scoped mirror invalidations. Reads are sequential,
-cancel on hidden/unmount and compare page/profile/document/catalogue/policy. Shared
-modern policy probes use context lifetime while their consumers enforce captured
-owner/page/generation admission. Content and metadata requests remain cancellable.
-New TV content uses before/after effective-policy checks. No new SSE/content route.
+## Local checks and controlled browser coverage
 
-Author evidence (outside Git):
+Final 634/634 tests and npm check passed, including all six ES5 guard scripts.
+Production DOM tests in modern Chromium at 390×844 cover switch taps, keyboard
+reorder, pointer and emulated-touch handle drag, touch cancellation, zero writes
+while moving, one Done write, and a sticky top clean Done with no PUT. TV browser
+coverage at 1920×1080 includes remote Enter and Save. This is browser runtime and
+ES5 compatibility checking, not a claim about physical legacy TV hardware.
+
+Controlled fixtures cover a 503 preserving draft/retry, real HTTP duplicate-key
+rejection before upstream forwarding, sticky 409 across foreground, held stale
+Done/Reset/handle events across page ABA, the old-feed/first-metadata barrier,
+30-second polling and blur cancellation, cached entry refresh, unchanged refresh
+recovery, and full typed reload after personal changes. These controlled responses
+are distinguished from the actual Go/SQL checks below. The preview reports an
+unsupported personal-data mirror warning; completed flows had no page errors.
+
+## Actual isolated Go/PostgreSQL acceptance
+
+Evidence is outside Git at
 `/Users/shebin/Movly-verification-20261019/web-page-preferences/`.
-Controlled production-DOM tests passed at390x844: visibility tap, keyboard reorder,
-mouse pointer and emulated touch handle drag, zero movement writes, one Done write,
-controlled503 retry/draft preservation, page-switch detached handle rejection and
-TV Movies remote Enter/Save. Preference responses here are browser-controlled;
-this is not durable API/SQL proof. Screenshots reviewed for compactness, long labels
-and usable handles. The preview's unsupported personal-data mirror warning is a
-fixture limitation; no production page errors were observed in completed flows.
+Normal independent primary and TV BFF sessions first read common profile 1. After
+Android's real writer committed Movies revision 2 and Series revision 1, both web
+editors reconciled the shared-first/primary-hidden document and typed feeds through
+metadata polling. Our common-profile cohort sent no preference PUT.
 
-Actual coordinated Go/SQL persistence, peer sync and final owner/PIN/CAS cohorts
-are pending the backend runtime. No deployment, release or version increment.
+All our preference mutations then used dedicated profile 126541. Actual primary
+Movies keyboard reorder/hide and Series emulated-touch reorder/hide each persisted
+revision 1. Independent TV reads matched. Both clients paginated the existing
+shared rail with the captured movie/tv type: page 1 had 30 items and page 2 had 5.
+A TV peer save won while a primary write was held at its browser transport; releasing
+the stale write produced actual Go 409. Its draft remained visible and blocked
+until explicit Reload. Hiding all 12 Series rows produced an empty typed feed in
+both clients while Settings and all hidden editor rows remained reachable.
 
-The personal-change → full Movie reload → immediate Series route transition exposed
-an old page aborting a shared policy postvalidation probe. Controlled preview showed
-`Context changed` on Series before correction. Home/typed catalogue/collection policy
-probes now use context lifetime; their content requests and render admission still
-check the captured abort signal/context/generation. The same transition renders the
-Series feed after correction. No shared policy module or content route was changed.
+Resets restored Movies revision 4 and Series revision 3. A Home hide/reorder then
+reset finished at Home revision 2. Actual legacy /home/preferences equalled the new
+Home document minus page, including the same revision/hash. Independent fresh SQL
+confirmed all three final order/hidden arrays empty and all rows visible, with sync
+revision 10 matching the final transaction. Durable receipts from the coordinator:
 
-Exact final local suite627/627 and npm check/six ES5 scripts passed. Additional
-controlled DOM regressions: touchCancel restores draft before a successful touch
-reorder; same-page Series→Home→Series rejects held old Done/Reset with zero writes;
-409 remains blocked with draft visible across foreground GET until explicit Reload.
-Actual 30s timer detected a changed Series document and reloaded full typed /main;
-blur cancelled metadata reads for a complete interval, focus reconciled again.
-Personal mutations requested full typed /main and no /main/personal; typed collection
-links retained movie/tv. Receipts: lifecycle-conflict.json, emulated-touch.json,
-feed-poll.json. These remain controlled preview evidence, not actual Go persistence.
+- `/Users/shebin/Movly-verification-20261019/page-preferences/web-own-movies1-series1-sql.json`
+- `/Users/shebin/Movly-verification-20261019/page-preferences/web-own-checkpoint2-movies3-series2-allhidden.json`
+- `/Users/shebin/Movly-verification-20261019/page-preferences/web-own-final-defaults-home2-movies4-series3.json`
 
-Typed cache review correction: every cached page entry performs a required full
-reload before exposing rails, covering preferences changed while another page was
-visible. A required refresh always paints its admitted response even when list JSON
-is unchanged, so its loading state cannot persist indefinitely. Three executable
-feed regressions cover unchanged refresh, newer response winning and aborted route
-admission. Final630/630 tests and check/ES5 passed. The completed browser polling
-receipt additionally confirms cached Movies/Series entries request a new full feed
-and unchanged personal refresh returns usable rails.
+Actual profile switches and PIN selection were exercised in both clients. Controlled
+held detached DOM events sent no preference mutation after owner change or ABA;
+this is callback replay, not a physical click on a removed node. An actual BFF write
+with the former owner header returned 409. Wrong PIN returned 403 and kept the old
+profile; correct PIN admitted fresh reads. Kids and PIN documents stayed revision 0.
+The final toolbar read-only replay used actual Go metadata, scrolled the 12-row
+editor and verified top Done stayed reachable and clean Done sent zero PUT.
+Receipts include actual-common-peer.json, actual-own-save.json, actual-paging.json,
+actual-cas-allhidden.json, actual-reset-home.json, actual-owner-pin.json and
+actual-toolbar-readonly.json, alongside reviewed PNGs and browser scripts.
 
-Independent review corrections: only the new page DTO/write paths enforce literal
-ASCII string slugs and exact64hex hashes, rejecting coercion and terminal newlines.
-Legacy Home admission remains unchanged. The first admitted metadata read now forces
-one reconciliation after installing its baseline. Restarting the same watcher keeps
-that baseline, avoiding a reload loop. Controlled barriers held an old content feed
-until the first metadata was already newer: exactly one second full feed rendered
-the current state. An initial editor document0 followed by held metadata1 released
-after a user toggle preserved the dirty draft, blocked Done and required Reload,
-without a PUT. Receipt: initial-handshake.json. Final633/633, check/ES5 and renewed
-touch/lifecycle browser regressions passed after these corrections.
-
-Raw JSON boundary: the generic parser collapsed duplicate keys before validation.
-A separate real loopback BFF/upstream accepted duplicate revision keys before the
-fix (HTTP200/upstream1). New page writes alone now use the existing canonical JSON
-reader; duplicate raw keys return400 before forwarding (upstream0), while canonical
-four-field JSON still returns200/upstream1. Legacy Home/generic parsing is unchanged.
-A real-stream regression covers this boundary. Final634/634 and check/ES5 passed.
-Receipts: raw-parser-before.json and raw-parser-after.json; both are controlled
-transport fixtures, not production or shared common-profile writes.
+The existing web login creates an unmanaged session; optional /sync/device returns
+409 as expected. It is not evidence of managed-device mirror operation. Cross-peer
+updates above were observed through the bounded metadata watcher. The coordinator's
+`typed-feeds-and-web-auth-readonly-diagnosis.json` records that existing limitation.
+No production writes, deployment, release or version increment occurred.

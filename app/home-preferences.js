@@ -10,11 +10,11 @@ export function openHomePreferences(initialPage = "home") {
   let page = ["home", "movies", "series"].includes(initialPage) ? initialPage : "home";
   const owner = apiContextOwner(), context = apiContextKey(), language = uiLanguage();
   const t = key => state.text(key, language), status = el("p", { role: "status", class: "home-preferences-status" });
-  const rows = el("ol", { class: "home-preferences-rows" }), controls = el("div", { class: "home-preferences-actions" });
+  const rows = el("ol", { class: "home-preferences-rows" }), controls = el("div", { class: "home-preferences-actions" }), toolbar = el("div", { class: "home-preferences-toolbar" });
   const heading = el("h2", { id: "dialog-title" }), selector = el("select", { "aria-label": t("pages") });
   for (const value of ["home", "movies", "series"]) selector.append(el("option", { value }, t(value)));
   selector.value = page;
-  const root = el("div", { class: "dialog-body home-preferences" }, heading, selector, el("p", {}, t("description")), status, rows, controls);
+  const root = el("div", { class: "dialog-body home-preferences" }, heading, selector, el("p", {}, t("description")), toolbar, status, rows, controls);
   const dialog = showDialog(root), lifetime = new AbortController();
   let request = null, generation = 0, document = null, draft = null, busy = false, ready = false, conflict = false, verifiedPolicy = null, policyProbe = false, dirty = false, editing = false, drag = null, watcher = null, watchLifetime = null;
   const present = () => !lifetime.signal.aborted && context === apiContextKey() && owner && root.isConnected && dialog.open;
@@ -34,7 +34,7 @@ export function openHomePreferences(initialPage = "home") {
   function paint(focusKey) {
     cancelDrag(); heading.textContent = `${t("pages")} — ${t(page)}`;
     selector.value = page; selector.disabled = busy;
-    rows.replaceChildren(); controls.replaceChildren();
+    rows.replaceChildren(); controls.replaceChildren(); toolbar.replaceChildren();
     if (draft && document) for (const slug of draft.order) {
       const row = document.sections.find(item => item.slug === slug), hidden = draft.hidden.includes(slug);
       const item = el("li", { "data-home-slug": slug }, el("span", { class: "home-preferences-name" }, row.name || slug));
@@ -90,7 +90,7 @@ export function openHomePreferences(initialPage = "home") {
       rows.append(item);
     }
     if (document && !document.sections.length) rows.append(el("li", {}, t("empty")));
-    controls.append(action(t(editing ? "done" : "edit"), () => {
+    toolbar.append(action(t(editing ? "done" : "edit"), () => {
       if (!editing) { editing = true; paint(); }
       else if (!dirty) { editing = false; paint(); }
       else void save(false);

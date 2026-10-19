@@ -2102,3 +2102,5 @@ footer a:hover {
 .home-preferences-toggle input:checked::before { transform: translateX(1rem); }
 .home-preferences-toggle input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .home-preferences-toggle input:disabled { opacity: .5; }
+
+.home-preferences-toolbar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: flex-end; padding: .4rem 2.5rem .4rem .25rem; background: var(--surface); border-bottom: 1px solid var(--line); }
