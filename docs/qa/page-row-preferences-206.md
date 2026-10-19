@@ -1,0 +1,41 @@
+# Per-page rows — web #206 / Movly #1265
+
+Primary Settings offers one Home/Movies/Series selector. Visibility switches enter
+an in-memory draft immediately; Edit exposes handle-only Pointer Events dragging
+and ArrowUp/Down keyboard alternatives. Done sends one complete CAS document when
+dirty, and exits only on an admitted advancing receipt. A clean Done only exits.
+Cancellation restores the prior order. Regular list scrolling remains available.
+Reset captures the page/generation around confirmation; stale controls are detached
+and fenced before mutation. No authoritative preferences are stored locally.
+
+TV has three editor entries and new Movies/Series screens using existing typed
+/main. Explicit Up/Down/Show/Hide/Save remain appropriate to D-pad input. More/paging
+uses existing /main/lists/{slug} with the captured movie/tv type. Home legacy remains.
+Full typed reload replaces primary personal-list splicing. Server ordering and
+visibility are authoritative; all-hidden pages retain reachable Settings.
+
+/pages/{home|movies|series}/preferences is a strict owner/PIN-fenced BFF projection.
+The page is path-only; legacy /home/preferences shape remains unchanged. Documents
+require exact page/profile, signed default order, dense display order and advancing
+PUT revision. Failed saves preserve the draft. A CAS conflict remains blocked until
+explicit Reload; background/focus reconciliation cannot silently rebase it.
+
+All feeds/editors use bounded 30s metadata polling while visible, plus foreground,
+local preference and existing scoped mirror invalidations. Reads are sequential,
+cancel on hidden/unmount and compare page/profile/document/catalogue/policy. Shared
+modern policy probes use context lifetime while their consumers enforce captured
+owner/page/generation admission. Content and metadata requests remain cancellable.
+New TV content uses before/after effective-policy checks. No new SSE/content route.
+
+Author evidence (outside Git):
+`/Users/shebin/Movly-verification-20261019/web-page-preferences/`.
+Controlled production-DOM tests passed at390x844: visibility tap, keyboard reorder,
+mouse pointer and emulated touch handle drag, zero movement writes, one Done write,
+controlled503 retry/draft preservation, page-switch detached handle rejection and
+TV Movies remote Enter/Save. Preference responses here are browser-controlled;
+this is not durable API/SQL proof. Screenshots reviewed for compactness, long labels
+and usable handles. The preview's unsupported personal-data mirror warning is a
+fixture limitation; no production page errors were observed in completed flows.
+
+Actual coordinated Go/SQL persistence, peer sync and final owner/PIN/CAS cohorts
+are pending the backend runtime. No deployment, release or version increment.

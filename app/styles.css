@@ -2085,3 +2085,20 @@ footer a:hover {
 .home-preferences-name { flex: 1 1 12rem; font-weight: 650; }
 .home-preferences-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .home-preferences-status { min-height: 1.5em; }
+
+/* Compact page-row editor: only the handle captures touch dragging. */
+.home-preferences-rows li { flex-wrap: nowrap; min-height: 3.4rem; gap: .8rem; }
+.home-preferences-name { min-width: 0; overflow-wrap: anywhere; flex: 1; }
+.home-preferences-toggle { display: flex; align-items: center; padding: .45rem; }
+.home-preferences-toggle input { width: 2.5rem; height: 1.5rem; accent-color: var(--accent); cursor: pointer; }
+.home-preferences-handle { touch-action: none; cursor: grab; min-width: 2.75rem; min-height: 2.75rem; font-size: 1.5rem; }
+.home-preferences-rows .dragging { opacity: .7; outline: 2px solid var(--accent); }
+.home-preferences select { width: 100%; max-width: 24rem; }
+@media (max-width: 500px) { .home-preferences-rows li { padding: .5rem; } .home-preferences { padding-inline: max(.75rem, env(safe-area-inset-left)); } }
+
+.home-preferences-toggle input { appearance: none; position: relative; border: 1px solid var(--line); border-radius: 1rem; background: #555; flex-shrink: 0; }
+.home-preferences-toggle input::before { content: ""; position: absolute; width: 1.05rem; height: 1.05rem; border-radius: 50%; background: #fff; left: .14rem; top: .14rem; transition: transform .15s; }
+.home-preferences-toggle input:checked { background: var(--accent); }
+.home-preferences-toggle input:checked::before { transform: translateX(1rem); }
+.home-preferences-toggle input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.home-preferences-toggle input:disabled { opacity: .5; }

@@ -1,3 +1,4 @@
+import { watchPagePreferences } from "./page-preferences-watch.js";
 import { createHomeLoader } from "./home-loader.js";
 import { api, apiContextKey, title, imageURL } from "./api.js";
 import { effectiveContentPolicy } from "./effective-policy.js";
@@ -151,14 +152,16 @@ export function serverHome(signal, actions, carousel, initialPolicy) {
   const changed = () => { clearTimeout(timer); timer = setTimeout(() => refresh(), 250); };
   const preferencesChanged = event => {
     const detail = event.detail;
-    if (!signal.aborted && detail?.apiContext === apiContextKey() && detail.accountId === policy?.user_id && detail.profileId === policy?.profile_id) void loader.refresh();
+    if (!signal.aborted && (!detail?.page || detail.page === "home") && detail?.apiContext === apiContextKey() && detail.accountId === policy?.user_id && detail.profileId === policy?.profile_id) void loader.refresh();
   };
   window.addEventListener("movly:home-preferences-changed", preferencesChanged);
+  window.addEventListener("movly:page-preferences-changed", preferencesChanged);
   const mirrorChanged = event => {
     const detail = event.detail;
     if (detail?.apiContext === apiContextKey() && detail.accountId === policy?.user_id && detail.profileId === policy?.profile_id) changed();
   };
   document.addEventListener("movly:personal-data-mirror-changed", mirrorChanged);
+  watchPagePreferences({ page: "home", signal, active: () => content.isConnected, changed });
   window.addEventListener("focus", changed);
   document.addEventListener("movly:personal-changed", changed);
   window.addEventListener("movly:personal-changed", changed);
@@ -168,6 +171,7 @@ export function serverHome(signal, actions, carousel, initialPolicy) {
   document.addEventListener("movly:effective-policy-changed", effectivePolicyChanged);
   signal.addEventListener("abort", () => {
     window.removeEventListener("movly:home-preferences-changed", preferencesChanged);
+    window.removeEventListener("movly:page-preferences-changed", preferencesChanged);
     document.removeEventListener("movly:personal-data-mirror-changed", mirrorChanged); window.removeEventListener("focus", changed);
     clearTimeout(timer); document.removeEventListener("movly:personal-changed", changed);
     window.removeEventListener("movly:personal-changed", changed); window.removeEventListener("online", changed);
