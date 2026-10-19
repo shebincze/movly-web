@@ -280,11 +280,11 @@ const QUALITY_OPTIONS = [
   ["2160", translateUI("4K")],
 ];
 const SORT_OPTIONS = [
-  ["popularity", translateUI("Nejpopulárnější")],
-  ["rating", translateUI("Nejlépe hodnocené")],
-  ["year", translateUI("Nejnovější")],
+  ["popularity", translateUI("Popularita")],
+  ["rating", translateUI("Hodnocení")],
+  ["year", translateUI("Rok vydání")],
   ["title", translateUI("Podle názvu")],
-  ["runtime", translateUI("Nejdelší")],
+  ["runtime", translateUI("Délka")],
   ["vote_count", translateUI("Počet hodnocení")],
 ];
 // URL parametry mřížky (#movies?view=grid&…) ↔ dokument uloženého filtru.
@@ -447,21 +447,14 @@ function definitionChips(d, genreNames) {
     if (to != null) return translateUI("do {0}{1}", to, unit);
     return null;
   };
-  const pct = (v) => (v == null ? null : Math.round(v * 10));
+  const pct = (v) => (v == null ? null : Number((v * 10).toPrecision(15)));
   for (const chip of [
     range(d.year_from, d.year_to, ""),
     range(pct(d.rating_from), pct(d.rating_to), " %"),
     range(d.runtime_from, d.runtime_to, " min"),
   ])
     if (chip) chips.push(chip);
-  if (d.video_height_min)
-    chips.push(
-      d.video_height_min >= 2160
-        ? translateUI("4K")
-        : d.video_height_min >= 1080
-          ? "Full HD+"
-          : "HD+",
-    );
+  if (d.video_height_min) chips.push(`${d.video_height_min}p+`);
   if (d.hdr) chips.push("HDR");
   if (languageCodes(d, "audio_language").length)
     chips.push(translateUI("zvuk {0}", languageCodes(d, "audio_language").join(", ").toUpperCase()));
@@ -570,7 +563,7 @@ function filterBuilder({
       min,
       max,
       step,
-      placeholder,
+      placeholder: translateUI(placeholder),
       value: value == null ? "" : String(value),
     });
   const pct = (v) => (v == null ? null : v * 10);
@@ -656,6 +649,8 @@ function filterBuilder({
   const hasStreams = el("input", { type: "checkbox", name: "streams", value: "1" });
   hasStreams.checked = !!definition.has_streams;
   const sort = select("sort", SORT_OPTIONS, definition.sort_by);
+  const order = select("order", [["desc", translateUI("Sestupně")], ["asc", translateUI("Vzestupně")]], definition.sort_order);
+  order.setAttribute("aria-label", translateUI("Směr řazení"));
   const range = (label, from, to) =>
     el(
       "label",
@@ -684,7 +679,6 @@ function filterBuilder({
       },
     },
     typeSelect,
-    params.has("order") ? el("input", { type: "hidden", name: "order", value: definition.sort_order }) : null,
     genreChoices.length
       ? el("fieldset", { class: "filter-group" }, el("legend", {}, translateUI("Žánry (více najednou)")), genre)
       : null,
@@ -704,8 +698,9 @@ function filterBuilder({
     formField(translateUI("Původní jazyk"), original),
     formField(translateUI("Země původu"), countries),
     el("div", { class: "field" }, facetStatus, retryFacets),
-    el("label", { class: "field checkbox" }, hasStreams, translateUI(" Jen s dostupným zdrojem")),
+    el("label", { class: "field checkbox" }, hasStreams, " ", translateUI("Jen s dostupným zdrojem")),
     formField(translateUI("Řazení"), sort),
+    formField(translateUI("Směr řazení"), order),
     el(
       "button",
       { class: "button primary", type: "submit" },
