@@ -56,3 +56,12 @@ blur cancelled metadata reads for a complete interval, focus reconciled again.
 Personal mutations requested full typed /main and no /main/personal; typed collection
 links retained movie/tv. Receipts: lifecycle-conflict.json, emulated-touch.json,
 feed-poll.json. These remain controlled preview evidence, not actual Go persistence.
+
+Typed cache review correction: every cached page entry performs a required full
+reload before exposing rails, covering preferences changed while another page was
+visible. A required refresh always paints its admitted response even when list JSON
+is unchanged, so its loading state cannot persist indefinitely. Three executable
+feed regressions cover unchanged refresh, newer response winning and aborted route
+admission. Final630/630 tests and check/ES5 passed. The completed browser polling
+receipt additionally confirms cached Movies/Series entries request a new full feed
+and unchanged personal refresh returns usable rails.

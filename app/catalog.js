@@ -117,10 +117,8 @@ export async function home(signal, actions) {
   if (signal?.aborted) throw new DOMException("Context changed", "AbortError");
   return serverHome(signal, actions, carousel, policy);
 }
-// Stale-while-revalidate pro Filmy/Seriály: návrat na stránku vykreslí hned
-// poslední odpověď /main (do 5 min) a na pozadí ji tiše ověří. Osobní řady se
-// po vlastní změně vymění přes /main/personal (viz refreshPersonalRails).
-const CATALOG_TTL_MS = 5 * 60_000;
+// Cached typed data stays scoped to this API context. Every route entry verifies
+// the full feed before exposing rails: offscreen page preferences may have changed.
 const catalogCache = new Map();
 let catalogEpoch = 0, catalogPolicyGeneration = 0, personalRefreshTimer = 0;
 export function resetCatalogCache() {
@@ -200,7 +198,7 @@ async function revalidateCatalog(type, page, actions, signal, required = false) 
     catalogCache.set(key, { data: fresh, at: Date.now() });
     if (
       page.isConnected &&
-      JSON.stringify(cached?.data?.lists) !== JSON.stringify(fresh.lists)
+      (required || JSON.stringify(cached?.data?.lists) !== JSON.stringify(fresh.lists))
     )
       renderRails(page, fresh, actions);
   } catch (error) {
@@ -210,8 +208,8 @@ async function revalidateCatalog(type, page, actions, signal, required = false) 
     // Běžná SWR ponechá stará data; povinná obnova nabízí chybu a retry.
   }
 }
-// Po vlastní změně zhlédnuto / pozice vymění jen osobní řady právě zobrazené
-// stránky Filmů/Seriálů; kurátorované řady zůstávají, bez spinneru.
+// Personal mutations reload the complete typed feed; partial list splicing would
+// resurrect hidden rows or move personal rows around the user-defined order.
 export async function refreshPersonalRails() {
   const page = document.querySelector(".catalog-page[data-catalog-type]");
   if (!page) return;
@@ -236,8 +234,7 @@ export async function catalog(route, params, signal, actions) {
   if (signal?.aborted) throw new DOMException("Context changed", "AbortError");
   const type = route === "series" ? "tv" : "movie",
     key = catalogKey(type),
-    cached = catalogCache.get(key),
-    fresh = cached && Date.now() - cached.at < CATALOG_TTL_MS;
+    cached = catalogCache.get(key);
   let data;
   if (cached) data = cached.data;
   else {
@@ -284,7 +281,7 @@ export async function catalog(route, params, signal, actions) {
   window.addEventListener("online", refresh, { signal });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); }, { signal });
   watchPagePreferences({ page: route, signal, active: () => page.isConnected && page.movlyCatalogContext === apiContextKey(), changed: refresh });
-  if (cached && !fresh) revalidateCatalog(type, page, actions, signal);
+  if (cached) void revalidateCatalog(type, page, actions, signal, true);
   return page;
 }
 // Skládač filtrů — stejná sada kritérií jako Apple, Android a Windows:
