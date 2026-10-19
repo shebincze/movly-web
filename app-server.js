@@ -3,6 +3,7 @@ const { createWorkTiming } = require("./playback-work-timing");
 const validPlaybackAttempt = require("./playback-attempt-policy");
 const tvDiagnosticPolicy = require("./app/tv/diagnostics.js");
 const homePreferences = require("./app/tv/home-preferences-state.js");
+const { readCanonicalJSONObject } = require("./http-request");
 
 const crypto = require("node:crypto");
 const providers = require("./providers-server");
@@ -26,6 +27,7 @@ function createAppHandler({
   api,
   json,
   readBody,
+  readCanonicalBody = readCanonicalJSONObject,
   HttpError,
   secret,
   production,
@@ -1560,7 +1562,9 @@ function createAppHandler({
         query += "&expand=watch_history,streams,ratings";
       let body = null;
       if (["POST", "PUT"].includes(req.method)) {
-        body = objectBody(await readBody(req, (target === "home/preferences" || /^pages\/(?:home|movies|series)\/preferences$/.test(target)) ? 65536 : 8192));
+        body = objectBody(await (target.startsWith("pages/")
+          ? readCanonicalBody(req, ["revision", "catalog_revision", "order", "hidden"], 65536, "Nastavení řad stránky")
+          : readBody(req, target === "home/preferences" ? 65536 : 8192)));
         if ((target === "home/preferences" || /^pages\/(?:home|movies|series)\/preferences$/.test(target))) {
           const keys = Object.keys(body), fields = ["revision", "catalog_revision", "order", "hidden"];
           const slugs = value => Array.isArray(value) && value.length <= 256 && new Set(value).size === value.length && value.every(slug => typeof slug === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(slug));

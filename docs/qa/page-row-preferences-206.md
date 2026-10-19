@@ -76,3 +76,12 @@ the current state. An initial editor document0 followed by held metadata1 releas
 after a user toggle preserved the dirty draft, blocked Done and required Reload,
 without a PUT. Receipt: initial-handshake.json. Final633/633, check/ES5 and renewed
 touch/lifecycle browser regressions passed after these corrections.
+
+Raw JSON boundary: the generic parser collapsed duplicate keys before validation.
+A separate real loopback BFF/upstream accepted duplicate revision keys before the
+fix (HTTP200/upstream1). New page writes alone now use the existing canonical JSON
+reader; duplicate raw keys return400 before forwarding (upstream0), while canonical
+four-field JSON still returns200/upstream1. Legacy Home/generic parsing is unchanged.
+A real-stream regression covers this boundary. Final634/634 and check/ES5 passed.
+Receipts: raw-parser-before.json and raw-parser-after.json; both are controlled
+transport fixtures, not production or shared common-profile writes.
