@@ -38,6 +38,8 @@ function createAppHandler({
   const sourceSearches = new Map();
   const nativeSelections = new Map();
   const offline = offlineSigner(secret, offlineEnvironment);
+  // Opaque, stable upstream identity for local profile data; never expose its URL.
+  const environment = crypto.createHash("sha256").update(`movly-api-environment-v1:${offlineEnvironment}`).digest("hex").slice(0, 32);
   const cookieName = production ? "__Host-movly-app" : "movly-app";
   const key = crypto.hkdfSync(
     "sha256",
@@ -592,6 +594,8 @@ function createAppHandler({
     ["GET", /^search\/filters$/, ["q", "type", "page", "limit"]],
     ["GET", /^autocomplete$/, ["q", "limit"]],
     ["GET", /^trending-searches$/, ["limit"]],
+    ["GET", /^popular-titles-search$/, ["limit", "type"]],
+    ["GET", /^titles\/filter\/facets$/, []],
     ["GET", /^titles\/genres$/, []],
     // Uložené filtry katalogu profilu (skládač filtrů, stejné na všech zařízeních).
     ["GET", /^saved-filters$/, []],
@@ -725,7 +729,7 @@ function createAppHandler({
         )
           s.managedDeviceId = login.device_id.toLowerCase();
         writeSession(res, s);
-        json(res, 200, { account, profile: null });
+        json(res, 200, { account, profile: null, environment });
         return true;
       }
       // Technická diagnostika TV lite (klávesy, schopnosti přehrávače, chyby) do logu
@@ -827,7 +831,7 @@ function createAppHandler({
               }
             : null;
         }
-        json(res, 200, { account, profile: s.profile || null });
+        json(res, 200, { account, profile: s.profile || null, environment });
         return true;
       }
       if (/^(?:admin\/)?feedback\//.test(target)) {
@@ -967,7 +971,7 @@ function createAppHandler({
         next.grant = selected.grant_token || null;
         next.grantExpiresAt = selected.grant_token ? selected.grant_expires_at : null;
         writeSession(res, next, s);
-        json(res, 200, { profile: next.profile });
+        json(res, 200, { profile: next.profile, environment });
         return true;
       }
       if (/^notifications\//.test(target)) {

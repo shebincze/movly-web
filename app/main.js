@@ -111,7 +111,7 @@ dialog.addEventListener("close", () => {
 function chrome() {
   setFeedbackAccount(session?.account);
   document.querySelector("#app-settings").textContent=translateUI("Nastavení");
-  setSearchOwner(session?.account, session?.profile);
+  setSearchOwner(session?.account, session?.profile, session?.environment);
   setPlaybackOwner(session?.account, session?.profile);
   const ready = Boolean(session?.profile);
   document.querySelector("#navigation").hidden = !ready;
@@ -391,6 +391,7 @@ function chooseProfile(profile) {
             },
           });
           session.profile = result.profile;
+          session.environment = result.environment;
           resetProfileContext();
           profileShortcuts = null;
           inboxItems = null;
