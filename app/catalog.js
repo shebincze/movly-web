@@ -117,7 +117,7 @@ export async function home(signal, actions) {
 // po vlastní změně vymění přes /main/personal (viz refreshPersonalRails).
 const CATALOG_TTL_MS = 5 * 60_000;
 const catalogCache = new Map();
-let catalogEpoch = 0, personalRefreshTimer = 0;
+let catalogEpoch = 0, catalogPolicyGeneration = 0, personalRefreshTimer = 0;
 export function resetCatalogCache() {
   catalogEpoch++;
   clearTimeout(personalRefreshTimer);
@@ -135,7 +135,10 @@ function refreshCatalogContext() {
     void revalidateCatalog(page.dataset.catalogType, page, page.movlyActions, undefined, true);
   });
 }
-document.addEventListener("movly:effective-policy-changed", refreshCatalogContext);
+document.addEventListener("movly:effective-policy-changed", () => {
+  catalogPolicyGeneration++;
+  refreshCatalogContext();
+});
 document.addEventListener("movly:personal-data-mirror-changed", (event) => {
   const detail = event.detail, owner = apiContextOwner();
   if (detail?.catalogContextChanged !== true || detail.apiContext !== apiContextKey() ||
@@ -508,6 +511,11 @@ export function interpretationChips(p) {
 }
 // Skládač filtrů (formulář + štítky + Moje filtry). Stejný pro mřížku
 // Filmy/Seriály (typ daný stránkou) i pro Hledání (typ volitelný).
+// Response cancellation does not cancel a previously queued DOM action.
+function catalogActionGuard(signal, connected) {
+  const context = apiContextKey(), policyGeneration = catalogPolicyGeneration, hash = location.hash;
+  return () => !signal?.aborted && context === apiContextKey() && policyGeneration === catalogPolicyGeneration && hash === location.hash && connected();
+}
 function filterBuilder({
   route,
   params,
@@ -515,9 +523,11 @@ function filterBuilder({
   genres,
   savedFilters,
   actions,
+  signal,
   allowType = false,
   queryText = () => params.get("q")?.trim() || "",
 }) {
+  const actionCurrent = catalogActionGuard(signal, () => filters.isConnected);
   const grid = !allowType;
   const genreNames = new Map(genres.map((g) => [g.id, g.name_cs || g.name]));
   const selectedGenres = new Set(definition.genre_ids || []);
@@ -606,22 +616,22 @@ function filterBuilder({
     original = multi("orig", languageCodes(definition, "original_language")),
     countries = multi("co", filterCodes(definition.countries, true));
   const facetStatus = el("span", { role: "status", class: "muted" }, translateUI("Načítání filtrů…"));
-  const retryFacets = button(translateUI("Zkusit znovu"), () => loadFacets());
+  const retryFacets = button(translateUI("Zkusit znovu"), () => { if (actionCurrent()) void loadFacets(); });
   retryFacets.type = "button";
   retryFacets.hidden = true;
   const facetContext = apiContextKey(), facetHash = location.hash;
   let facetGeneration = 0;
   async function loadFacets() {
     const generation = ++facetGeneration;
-    const current = () => generation === facetGeneration && facetContext === apiContextKey() && facetHash === location.hash;
+    const current = () => !signal?.aborted && generation === facetGeneration && facetContext === apiContextKey() && facetHash === location.hash;
     retryFacets.hidden = true;
     facetStatus.textContent = translateUI("Načítání filtrů…");
     try {
-      const policy = await effectiveContentPolicy({ refresh: true });
-      const data = await api("titles/filter/facets");
+      const policy = await effectiveContentPolicy({ signal, refresh: true });
+      const data = await api("titles/filter/facets", { signal });
       if (policy.is_kids && data.policy_scoped !== true)
         throw new Error(translateUI("Nabídka filtrů pro tento profil zatím není dostupná."));
-      await assertEffectivePolicyUnchanged(policy);
+      await assertEffectivePolicyUnchanged(policy, { signal });
       if (!current()) return;
       for (const [node, key, country] of [[audio, "audio_languages"], [subtitles, "subtitle_languages"], [original, "original_languages"], [countries, "countries", true]]) {
         const selected = [...node.selectedOptions].map((option) => option.value);
@@ -664,6 +674,7 @@ function filterBuilder({
       class: "filters filters-builder",
       onSubmit: (e) => {
         e.preventDefault();
+        if (!actionCurrent()) return;
         const q = new URLSearchParams(grid ? { view: "grid" } : {});
         if (!grid && queryText()) q.set("q", queryText());
         const genreIds = [...genre.querySelectorAll("input:checked")].map((o) => o.value);
@@ -714,6 +725,7 @@ function filterBuilder({
             href: `#${route}${grid ? "?view=grid" : params.get("q")?.trim() ? `?${new URLSearchParams({q: params.get("q").trim()})}` : ""}`,
             onClick: grid ? undefined : (event) => {
               event.preventDefault();
+              if (!actionCurrent()) return;
               location.hash = `${route}?${new URLSearchParams(queryText() ? {q: queryText()} : {})}`;
             },
           },
@@ -753,6 +765,7 @@ function filterBuilder({
     );
     const chips = savedFilters.map((saved) => {
       const apply = button(saved.name, () => {
+        if (!actionCurrent()) return;
         const type = saved.filter?.type;
         const target = grid
           ? type === "tv"
@@ -768,13 +781,16 @@ function filterBuilder({
       apply.className = "chip" + (applied?.id === saved.id ? " active" : "");
       apply.type = "button";
       const remove = button("×", async () => {
+        if (!actionCurrent()) return;
         if (!confirm(translateUI("Smazat filtr „{0}“?", saved.name))) return;
+        if (!actionCurrent()) return;
         try {
-          await api(`saved-filters/${saved.id}`, { method: "DELETE" });
+          await api(`saved-filters/${saved.id}`, { method: "DELETE", signal });
+          if (!actionCurrent()) return;
           toast(translateUI("Filtr smazán."));
           actions.refresh();
         } catch (e) {
-          toast(e.message);
+          if (actionCurrent() && e.name !== "AbortError") toast(e.message);
         }
       });
       remove.className = "chip-remove";
@@ -787,20 +803,22 @@ function filterBuilder({
       return el("span", { class: "saved-chip" }, apply, remove);
     });
     const save = button(translateUI("Uložit filtr"), async () => {
+      if (!actionCurrent()) return;
       const name = prompt(
         translateUI("Název filtru (např. Akční komedie 2020+):"),
         "",
       );
-      if (!name || !name.trim()) return;
+      if (!name || !name.trim() || !actionCurrent()) return;
       try {
         await api("saved-filters", {
-          method: "POST",
+          method: "POST", signal,
           body: { name: name.trim(), filter: definition },
         });
+        if (!actionCurrent()) return;
         toast(translateUI("Filtr uložen."));
         actions.refresh();
       } catch (e) {
-        toast(e.message);
+        if (actionCurrent() && e.name !== "AbortError") toast(e.message);
       }
     });
     save.className = "button secondary small";
@@ -850,6 +868,7 @@ async function catalogGrid(route, params, signal, actions) {
     genres,
     savedFilters,
     actions,
+    signal,
   });
   const results = el(
     "section",
@@ -892,9 +911,10 @@ async function catalogGrid(route, params, signal, actions) {
   if (pager) results.append(pager);
   return node;
 }
-export function pagination(route, params, page, total) {
+export function pagination(route, params, page, total, admit = () => true) {
   if (total <= 1) return null;
   function go(next) {
+    if (!admit()) return;
     const q = new URLSearchParams(params);
     q.set("page", next);
     location.hash = `${route}?${q}`;
@@ -947,6 +967,8 @@ export async function search(params, signal, actions) {
     page = Math.max(1, Number(params.get("page")) || 1),
     searchContext = apiContextKey();
   const policy = await effectiveContentPolicy({ signal, refresh: true });
+  const actionCurrent = catalogActionGuard(signal, () => node.isConnected);
+  const activeDetail = (...args) => { if (actionCurrent()) actions.detail(...args); };
   const discoveryAllowed = !policy.is_kids && !policy.age_controls_active && !policy.exclude_adult;
   const input = el("input", {
     id: "search-q",
@@ -992,7 +1014,8 @@ export async function search(params, signal, actions) {
     cancelPendingSuggestions();
     closeSuggestions();
   };
-  const chooseSuggestion = (value) => {
+  const chooseSuggestion = (value, control, generation = null) => {
+    if (!actionCurrent() || (control && !node.contains(control)) || (generation !== null && generation !== suggestionGeneration)) return;
     input.value = value;
     clear.hidden = false;
     closeSuggestions();
@@ -1005,6 +1028,7 @@ export async function search(params, signal, actions) {
       class: "search-clear",
       "aria-label": translateUI("Vymazat"),
       onClick: () => {
+        if (!actionCurrent()) return;
         input.value = "";
         input.dispatchEvent(new Event("input", { bubbles: true }));
         location.hash = `search?${searchParams(params, "")}`;
@@ -1015,6 +1039,7 @@ export async function search(params, signal, actions) {
   );
   clear.hidden = !q;
   input.addEventListener("input", () => {
+    if (!actionCurrent()) return;
     clear.hidden = !input.value;
     cancelPendingSuggestions();
     closeSuggestions();
@@ -1051,7 +1076,7 @@ export async function search(params, signal, actions) {
           role: "option",
           "aria-selected": "false",
           onMouseDown: (event) => event.preventDefault(),
-          onClick: () => chooseSuggestion(term),
+          onClick: (event) => chooseSuggestion(term, event.currentTarget, generation),
         }, term)));
         suggestionList.hidden = !terms.length;
         input.setAttribute("aria-expanded", String(terms.length > 0));
@@ -1064,6 +1089,7 @@ export async function search(params, signal, actions) {
     }, 180);
   });
   input.addEventListener("keydown", (event) => {
+    if (!actionCurrent()) return;
     const options = [...suggestionList.querySelectorAll('[role="option"]')];
     if (event.key === "Escape") {
       if (!suggestionList.hidden || suggestionTimer || suggestionController) {
@@ -1085,7 +1111,7 @@ export async function search(params, signal, actions) {
       input.setAttribute("aria-activedescendant", options[activeSuggestion].id);
     } else if (event.key === "Enter" && activeSuggestion >= 0) {
       event.preventDefault();
-      chooseSuggestion(options[activeSuggestion].textContent);
+      chooseSuggestion(options[activeSuggestion].textContent, options[activeSuggestion]);
     }
   });
   const form = el(
@@ -1095,6 +1121,7 @@ export async function search(params, signal, actions) {
       role: "search",
       onSubmit: (e) => {
         e.preventDefault();
+        if (!actionCurrent()) return;
         location.hash = `search?${searchParams(params, input.value)}`;
       },
     },
@@ -1132,6 +1159,7 @@ export async function search(params, signal, actions) {
           button(
             translateUI("Vymazat historii hledání"),
             () => {
+              if (!actionCurrent()) return;
               clearSearchHistory();
               refresh();
             },
@@ -1149,6 +1177,7 @@ export async function search(params, signal, actions) {
                 class: "chip-remove",
                 "aria-label": translateUI("Odstranit „{0}“ z historie", term),
                 onClick: () => {
+                  if (!actionCurrent()) return;
                   removeSearch(term);
                   refresh();
                 },
@@ -1164,6 +1193,7 @@ export async function search(params, signal, actions) {
                   type: "button",
                   class: "history-term",
                   onClick: () => {
+                    if (!actionCurrent()) return;
                     location.hash = `search?${searchParams(params, term)}`;
                   },
                 },
@@ -1204,6 +1234,7 @@ export async function search(params, signal, actions) {
     genres,
     savedFilters,
     actions,
+    signal,
     allowType: true,
     queryText: () => input.value.trim(),
   });
@@ -1234,7 +1265,7 @@ export async function search(params, signal, actions) {
         const discovery = el("section", { class: "popular-searches", "aria-label": translateUI("Objevuj tituly") });
         node.append(discovery);
         const loadDiscovery = async () => {
-          const current = () => !signal?.aborted && apiContextKey() === searchContext && !input.value.trim();
+          const current = () => actionCurrent() && apiContextKey() === searchContext && !input.value.trim();
           discovery.replaceChildren(loading());
           try {
             const [trends, popular] = await Promise.all([
@@ -1267,14 +1298,14 @@ export async function search(params, signal, actions) {
             if (terms.length) discovery.append(
               el("h2", { class: "results-heading" }, translateUI("Populární hledání")),
               el("ul", { class: "popular-search-list" }, terms.map((term) => el("li", {}, el("button", {
-                type: "button", class: "history-term", onClick: () => chooseSuggestion(term),
+                type: "button", class: "history-term", onClick: (event) => chooseSuggestion(term, event.currentTarget),
               }, term)))),
             );
             const items = hydrated.filter(Boolean);
             if (candidates.length && !items.length) throw new Error("Popular title details are unavailable");
             if (items.length) discovery.append(
               el("h2", { class: "results-heading" }, translateUI("Nejčastěji vybírané tituly")),
-              el("div", { class: "catalog-grid" }, items.map((item) => poster(item, actions.detail))),
+              el("div", { class: "catalog-grid" }, items.map((item) => poster(item, activeDetail))),
             );
           } catch (error) {
             if (error?.name === "AbortError" || !current()) return;
@@ -1311,7 +1342,7 @@ export async function search(params, signal, actions) {
           ? el(
               "div",
               { class: "catalog-grid" },
-              items.map((t) => poster(t, actions.detail)),
+              items.map((t) => poster(t, activeDetail)),
             )
           : empty(
               translateUI("Nic neodpovídá"),
@@ -1320,7 +1351,7 @@ export async function search(params, signal, actions) {
       ].filter(Boolean),
     );
     if (Number.isInteger(data.total_pages)) {
-      const pager = pagination("search", params, page, data.total_pages);
+      const pager = pagination("search", params, page, data.total_pages, actionCurrent);
       if (pager) results.append(pager);
     }
     return node;
@@ -1329,8 +1360,9 @@ export async function search(params, signal, actions) {
   const expectedOwner = session?.account?.id && session?.profile?.id
     ? { accountId: session.account.id, profileId: session.profile.id } : null;
   const openSearchResult = (result, ranked, offset = 0) => {
+    if (!actionCurrent()) return;
     if (expectedOwner) {
-      void api("track-search", { method: "POST", expectedOwner, body: {
+      void api("track-search", { method: "POST", signal, expectedOwner, body: {
         query: q.trim(), title_id: result.id, interaction_type: "click",
         position_in_results: offset + Math.max(1, ranked.findIndex((t) => t.id === result.id) + 1),
       } }).catch(() => console.warn("Search click could not be recorded"));
@@ -1426,7 +1458,7 @@ export async function search(params, signal, actions) {
             ),
     ].filter(Boolean),
   );
-  const pager = pagination("search", params, page, Math.ceil(data.total / 24));
+  const pager = pagination("search", params, page, Math.ceil(data.total / 24), actionCurrent);
   if (pager) results.append(pager);
   return node;
 }
