@@ -96,3 +96,14 @@ test('an ascending default sort remains active Search criteria',async()=>{
  const c=await catalog();const d=c.paramsToDefinition(c.definitionToParams({sort_by:'popularity',sort_order:'asc'},{grid:false}),null,{grid:false});
  assert.equal(c.hasCriteria(d),true);assert.equal(c.definitionQuery(d).get('sort_order'),'asc');assert.ok(c.definitionChips(d,new Map()).some(v=>v.includes('vzestupně')));
 });
+
+test('valid backend vote_count sort and fractional rating thresholds stay lossless',async()=>{
+ const c=await catalog();
+ for(const grid of [true,false]){
+  const saved={sort_by:'vote_count',sort_order:'asc',rating_from:7.55,rating_to:8.25,video_height_min:1440};
+  const back=c.paramsToDefinition(c.definitionToParams(saved,{grid}),null,{grid});
+  for(const key of Object.keys(saved))assert.equal(back[key],saved[key],key);
+  assert.equal(c.definitionQuery(back).get('sort_by'),'vote_count');
+  assert.equal(c.definitionQuery(back).get('rating_from'),'7.55');
+ }
+});
