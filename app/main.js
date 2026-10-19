@@ -124,16 +124,8 @@ function chrome() {
   for (const id of ["#avatar", "#menu-avatar"])
     document.querySelector(id).replaceChildren(...avatar(who).childNodes);
   document.querySelector("#account-button").setAttribute("aria-label", translateUI("Účet a profily, {0}", who.name || ""));
-  const premiumUntil = session?.account?.premiumUntil ? new Date(session.account.premiumUntil) : null,
-    premiumActive = premiumUntil && premiumUntil > new Date();
-  document.querySelector("#account-name").textContent = [session?.account?.displayName, premiumActive ? "Premium" : null].filter(Boolean).join(" · ");
-  document.querySelector("#premium-meta").textContent = premiumActive ? translateUI("do {0}", premiumUntil.toLocaleDateString(uiLanguage() === "en" ? "en-GB" : uiLanguage() === "sk" ? "sk-SK" : "cs-CZ", { day: "numeric", month: "numeric" })) : "";
-  const coins = session?.account?.coins, pill = document.querySelector("#coin-pill");
-  pill.hidden = !ready || !Number.isSafeInteger(coins);
-  if (!pill.hidden) {
-    document.querySelector("#coin-count").textContent = coins.toLocaleString("cs-CZ");
-    pill.setAttribute("aria-label", translateUI("{0} coinů, Premium", coins));
-  }
+  document.querySelector("#account-name").textContent = session?.account?.displayName || "";
+  document.querySelector("#coin-pill").hidden = true;
   (session ? document.querySelector("#account-language") : document.querySelector(".header")).append(languagePicker);
   if (!ready) { profileShortcuts = null; inboxItems = null; inboxRequested = false; }
   else if (!inboxRequested) { inboxRequested = true; loadInbox(); }
@@ -496,7 +488,7 @@ async function render() {
     if (link.dataset.page === navPage) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
-  document.title = `Movly — ${translateUI({ home: translateUI("Home"), movies: translateUI("Filmy"), series: translateUI("Seriály"), lists: translateUI("Moje seznamy"), search: translateUI("Hledání"), collection: translateUI("Katalog"), history: translateUI("Historie"), friends: translateUI("Přátelé"), stats: translateUI("Statistiky"), admin: params.get("view") === "client-quality" ? "Události klientů" : translateUI("Nahlášené streamy") }[route] || { premium: "Premium", hidden: "Skryté tituly", feedback: "Vylepšujeme Movly" }[route])}`;
+  document.title = `Movly — ${translateUI({ home: translateUI("Home"), movies: translateUI("Filmy"), series: translateUI("Seriály"), lists: translateUI("Moje seznamy"), search: translateUI("Hledání"), collection: translateUI("Katalog"), history: translateUI("Historie"), friends: translateUI("Přátelé"), stats: translateUI("Statistiky"), admin: params.get("view") === "client-quality" ? "Události klientů" : translateUI("Nahlášené streamy") }[route] || { premium: "Movly je zdarma", hidden: "Skryté tituly", feedback: "Vylepšujeme Movly" }[route])}`;
   content.replaceChildren(loading());
   try {
     const result = await (route === "feedback" ? feedback(params, signal, session.account) : route === "premium"
@@ -777,7 +769,7 @@ window.addEventListener("focus", async () => {
   } catch {
     if (!current()) return;
     setFeedbackAccount(null);
-    content.replaceChildren(errorBox(new Error("Pomozte zlepšovat Movly je dostupné s Premium.")));
+    content.replaceChildren(errorBox(new Error("Přihlas se aktivním ověřeným Movly účtem.")));
   }
 });
 
@@ -785,5 +777,5 @@ window.addEventListener("movly-feedback-revoked", () => {
   if (!location.hash.startsWith("#feedback")) return;
   controller?.abort();
   if (dialog.open) dialog.close();
-  content.replaceChildren(errorBox(new Error("Pomozte zlepšovat Movly je dostupné s Premium.")));
+  content.replaceChildren(errorBox(new Error("Přihlas se aktivním ověřeným Movly účtem.")));
 });
