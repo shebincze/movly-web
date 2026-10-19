@@ -542,3 +542,4 @@ button[disabled].tv-f {
 .tv-screen-search-filters h3 { margin-top: 2rem; }
 .tv-screen-search .tv-button { margin-right: 0.8rem; margin-bottom: 0.8rem; }
 .tv-filter-facets .tv-button[aria-pressed="true"] { background: #673baa; }
+.tv-filter-facets .tv-button[aria-pressed="true"]:focus { background: #ff4f6d; color: #0a0a12; }

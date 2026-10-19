@@ -46,11 +46,13 @@ Chromium and keyboard D-pad simulation.
   languages/subtitles/countries, the unknown saved code `zz`, year1990 and ownership.
   Attempts to PUT or DELETE that row from another profile returned404; fresh SQL
   confirmed it was unchanged.
-- Remaining before final acceptance: actual TV DELETE and final dynamic-facet UI
-  selection after the shared QA login rate window expires. One initial facet test
-  incorrectly assumed the controlled dataset contained an English audio option;
-  the corrected test selects an actually returned facet. HTTP facet response itself
-  was200 with `policy_scoped:true`. Do not claim the remaining UI/delete checks yet.
+- Final dynamic-facet HTTP200 included `policy_scoped:true`; selecting an actually
+  returned facet correctly toggled `aria-pressed` while preserving unknown codes.
+  Actual TV DELETE of both owned rows returned200 and refreshed the list. A fresh
+  independent SQL connection confirmed both IDs absent. The final login ran only
+  after the shared limiter's assigned window; no limiter reset or Go restart was
+  used to obtain it. Further QA reuses that BFF session.
+
 
 The initial actual saved-filter run found BFF #192: the generic list-body projection
 silently discarded `filter`. Central BFF fixes are included only as dependencies;
@@ -60,5 +62,5 @@ showed only defaults; after it, actual POST/PUT and fresh SQL matched all fields
 Sanitized receipts, scripts and screenshots remain outside Git at
 `/Users/shebin/Movly-verification-20261019/web-tv189/`; independent SQL receipts are
 owned by the fixture agent in the sibling `search1210/` evidence directory. Own TV
-loopback server/worktree remain active until the final acceptance and merge, then
-must be removed. Shared Go/PG fixture cleanup belongs to its owner.
+loopback server/worktree remain active until the primary BFF integration and final
+merge, then must be removed. Shared Go/PG fixture cleanup belongs to its owner.
