@@ -12,7 +12,7 @@ export async function clientTelemetry(params, signal) {
   const navigate = (application, date) => { location.hash = `#admin?${new URLSearchParams({view:"client-quality",client_app:application,day:date})}`; };
   page.append(el("label", {}, "Aplikace", el("select", {"aria-label":"Aplikace",onChange:e=>navigate(e.target.value,day)}, apps.map(([id,label])=>el("option",{value:id,selected:id===app},label)))),
     el("label", {}, "Den (UTC)", el("input",{type:"date",value:day,min:minimum,max:today,"aria-label":"Den (UTC)",onChange:e=>{if(e.target.value) navigate(app,e.target.value);}})),
-    el("p", {}, "Uložené součty událostí za jeden den UTC, uchované nejvýše 90 dnů. Nejde o počet unikátních uživatelů ani míru pádů nebo úspěšnost pokusů. Opakované odeslání může zvýšit počet; sběr a vzorkování se mezi klienty liší. Android a Android TV sdílejí jeden údaj. Verze ani surové chybové zprávy se v těchto datech neukládají."));
+    el("p", {}, "Uložené součty událostí za jeden den UTC, uchované nejvýše 90 dnů. Nejde o počet unikátních uživatelů ani míru pádů nebo úspěšnost pokusů. Opakované odeslání může zvýšit počet; sběr a vzorkování se mezi klienty liší. Android a Android TV sdílejí jeden údaj. Surové chybové zprávy, cesty ani osobní údaje se neukládají. Omezené diagnostické záznamy Windows mohou obsahovat typ chyby a číselnou verzi aplikace."));
   if (app === "movly-windows") page.append(el("p", {}, "Nečisté ukončení předchozího procesu znamená, že se předchozí běh řádně neukončil. Tato událost nerozlišuje pád aplikace, vynucené ukončení procesu ani restart systému."));
   let data;
   try { data = await api(`admin/telemetry/client?${new URLSearchParams({client_app:app,day})}`,{signal}); }
@@ -30,5 +30,16 @@ export async function clientTelemetry(params, signal) {
     el("caption",{},`${apps.find(([id])=>id===app)[1]} · ${day} UTC`),
     el("thead",{},el("tr",{},["Událost","Výsledek","Provider","Počet","Měřených trvání","Průměr trvání"].map(text=>el("th",{scope:"col"},text)))),
     el("tbody",{},data.rows.map(row=>el("tr",{},[`${events[row.event] || row.event} (${row.event})`,outcomes[row.outcome] || row.outcome,row.provider,row.count,row.duration_count,row.duration_count>0?`${Math.round(row.duration_ms_total/row.duration_count)} ms`:"—"].map(value=>el("td",{},String(value)))))))));
+  if (app === "movly-windows" && data.diagnostics !== undefined) {
+    const kinds = {memory:"Paměť",access_violation:"Přístup do paměti",null_reference:"Prázdný odkaz",io:"Vstup a výstup",permission:"Oprávnění",other:"Jiná nebo neurčená"};
+    const fatal = ["fatal_startup","fatal_ui","fatal_managed","unexpected_termination"];
+    const timestamp = value => typeof value === "string" && value.length <= 35 && /^\d{4}-\d\d-\d\dT/.test(value) && Number.isFinite(Date.parse(value));
+    if (!Array.isArray(data.diagnostics) || data.diagnostics.length > 100 || data.diagnostics.some(row => !row || !/^[0-9a-f]{32}$/.test(row.event_id) || !fatal.includes(row.event) || !Object.prototype.hasOwnProperty.call(kinds,row.kind) || !/^[0-9]{1,5}(\.[0-9]{1,5}){3}$/.test(row.client_version) || !timestamp(row.occurred_at) || !timestamp(row.received_at) || (row.event === "unexpected_termination" && row.kind !== "other"))) throw new Error("Server vrátil neplatnou diagnostiku.");
+    if (data.diagnostics.length) page.append(el("h2",{},"Diagnostické záznamy Windows"),
+      el("p",{},"Nejvýše 100 nejnovějších záznamů přijatých ve vybraném dni UTC, uchovaných 90 dnů. Opakované doručení stejné události se započítá jednou. Čas události se může lišit od času přijetí kvůli pozdějšímu odeslání."),
+      el("div",{class:"playback-quality-table"},el("table",{class:"data-table"},el("caption",{},"Typ chyby a verze aplikace"),
+        el("thead",{},el("tr",{},["Čas události (UTC)","Přijato (UTC)","Událost","Typ chyby","Verze aplikace"].map(text=>el("th",{scope:"col"},text)))),
+        el("tbody",{},data.diagnostics.map(row=>el("tr",{},[row.occurred_at,row.received_at,events[row.event],kinds[row.kind],row.client_version].map(value=>el("td",{},String(value)))))))));
+  }
   return page;
 }
