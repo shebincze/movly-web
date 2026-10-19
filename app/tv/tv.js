@@ -1107,11 +1107,12 @@
       progressTimer = setInterval(function () { saveHistory(); }, 20000);
       played = false;
       // Některé televizory nepodporovaný kontejner ani nenahlásí jako chybu.
+      // Rezerva pro přípravu a plánování UI před celkovým limitem 25 s.
       clearTimeout(openTimer);
       openTimer = setTimeout(function () {
         if (stopped || mine !== generation || loaded || video.error) return;
         fail("Televizor tento zdroj neotevřel. Zkus jiný zdroj, nebo ho otevři v aplikaci Movly.");
-      }, 25000);
+      }, 24000);
       if (session.kind === "file" || (!skipNative && canNativeHls(video))) {
         el.setAttribute("data-engine", session.kind === "file" ? "file" : "native");
         diag("engine", { e: el.getAttribute("data-engine") });
