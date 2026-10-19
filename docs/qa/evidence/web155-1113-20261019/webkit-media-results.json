@@ -1,0 +1,63 @@
+[
+  {
+    "mode": "webkit",
+    "id": 1,
+    "version": "26.5",
+    "duration": 12,
+    "position": 4.821414551987312,
+    "readyState": 4,
+    "width": 320,
+    "frames": 94,
+    "appOffer": null,
+    "pageErrors": []
+  },
+  {
+    "mode": "webkit",
+    "id": 2,
+    "version": "26.5",
+    "duration": null,
+    "position": 0,
+    "readyState": 0,
+    "width": 0,
+    "frames": 0,
+    "mediaError": 4,
+    "appOffer": "Prohlížeč neumí formát tohoto zdroje přehrát.\n\nOtevřít v aplikaciStáhnout aplikaci",
+    "pageErrors": []
+  },
+  {
+    "mode": "webkit",
+    "id": 3,
+    "version": "26.5",
+    "duration": 12,
+    "position": 4.818948109371844,
+    "readyState": 4,
+    "width": 320,
+    "frames": 96,
+    "appOffer": null,
+    "pageErrors": []
+  },
+  {
+    "mode": "webkit",
+    "id": 4,
+    "version": "26.5",
+    "duration": 12,
+    "position": 4.811163170304737,
+    "readyState": 4,
+    "width": 320,
+    "frames": 95,
+    "appOffer": null,
+    "pageErrors": []
+  },
+  {
+    "mode": "webkit",
+    "id": 6,
+    "version": "26.5",
+    "duration": 6954.214,
+    "position": 4.818880581652553,
+    "readyState": 4,
+    "width": 1280,
+    "frames": 96,
+    "appOffer": null,
+    "pageErrors": []
+  }
+]
