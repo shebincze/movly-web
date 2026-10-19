@@ -10,6 +10,7 @@ The four fields use native keyboard-accessible multiple selects populated by the
 - Actual Chromium 151 + local BFF + production Go router/PostgreSQL (#1210 synthetic Premium fixture): selected audio `[cs,en,zul]`, subtitles `[cs,sk]`, originals `[fr,ja]`, countries `[CZ,US,ZZ]`, 2160p, rating lower bound 0, rating ascending.
 - Actual UI save, fresh BFF GET and fresh SQL row agreed on every field; applying the saved filter restored URL and selected controls. Deleting this own QA row was verified by a fresh GET. BFF document preservation depends on #192; no other fixture rows were changed.
 - Controlled facets 503 then Retry recovered through the real endpoint and retained the unknown selected code. A delayed adult response released after an actual UI switch to Kids QA was ignored. No page errors.
+- Actual child UI with #1216 received only policy-permitted facet counts. A controlled older response without the negotiated capability was rejected before rendering global options.
 - Desktop and mobile screenshots retained externally under `Movly-verification-20261019/search191/`, alongside redacted `browser.json`, `faults.json`, `saved.json` and reproducible harness scripts.
 
 These are local synthetic-catalogue runtime checks. No production account/catalogue writes, deployment or client publication occurred. Backend scoped-count and opt-in capability acceptance is tracked by #1216.
