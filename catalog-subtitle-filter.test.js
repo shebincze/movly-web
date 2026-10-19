@@ -59,3 +59,29 @@ test('changing or clearing Search text keeps criteria and resets pagination',asy
  assert.equal(empty.has('q'),false);
  assert.equal(empty.get('quality'),'2160');
 });
+
+test('saved multi-language arrays survive apply URL API and save, including unknown codes',async()=>{
+ const c=await catalog();
+ const saved={type:'movie',audio_languages:['en','cs','zul'],subtitle_languages:['sk','cs'],original_languages:['ja','fr'],countries:['US','CZ'],video_height_min:2160,sort_by:'rating'};
+ for(const grid of [true,false]){
+  const params=c.definitionToParams(saved,{grid});
+  const back=c.paramsToDefinition(params,'movie',{grid});
+  assert.deepEqual(back.audio_languages,['cs','en','zul']);
+  assert.deepEqual(back.subtitle_languages,['cs','sk']);
+  assert.deepEqual(back.original_languages,['fr','ja']);
+  assert.deepEqual(back.countries,['CZ','US']);
+  const query=c.definitionQuery(back);
+  assert.equal(query.get('audio_language'),'cs,en,zul');
+  assert.equal(query.get('subtitle_language'),'cs,sk');
+  assert.equal(query.get('original_language'),'fr,ja');
+  assert.equal(query.get('countries'),'CZ,US');
+  assert.equal(query.get('video_height_min'),'2160');
+  assert.equal(query.get('sort_by'),'rating');
+  assert.deepEqual(c.paramsToDefinition(c.definitionToParams(back,{grid}),'movie',{grid}),back);
+ }
+});
+test('legacy singular language fields merge with arrays without loss',async()=>{
+ const c=await catalog();
+ const params=c.definitionToParams({audio_language:'cs',audio_languages:['en'],subtitle_language:'sk',subtitle_languages:['cs'],original_language:'fr',original_languages:['ja']});
+ assert.equal(params.get('audio'),'cs,en');assert.equal(params.get('sub'),'cs,sk');assert.equal(params.get('orig'),'fr,ja');
+});
