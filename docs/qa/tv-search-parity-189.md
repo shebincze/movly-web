@@ -36,7 +36,7 @@ No production requests, accounts, writes, deployment or release were involved.
 ES5 syntax/API guards target Chrome34 compatibility; the runtime proof uses modern
 Chromium and keyboard D-pad simulation.
 
-- Full web suite: 595 passed; `npm run check`, ES5 guard and diff check passed.
+- Integrated full web suite: 597 passed; `npm run check`, ES5 guard and diff check passed.
 - Actual suggestions with ArrowDown/Escape/Enter, scoped history remove/clear,
   natural-query interpretation, combined `q=Matrix`/year1990/1080p HTTP200 passed.
 - A deliberately delayed real autocomplete response did not replace a newer query.
@@ -66,12 +66,15 @@ Chromium and keyboard D-pad simulation.
 
 
 The initial actual saved-filter run found BFF #192: the generic list-body projection
-silently discarded `filter`. Central BFF fixes are included only as dependencies;
-the final TV PR must rebase after the primary BFF PR merges. Before that fix, SQL
+silently discarded `filter`. Central BFF fixes merged in primary PR #193 (`a79301a`); the TV branch
+was rebased onto that main with only its three TV commits. The production TV JS,
+CSS and tests remain byte-identical to reviewed source `9972107`. A final actual
+Go/BFF UI replay reused the existing cookie without another login and passed
+autocomplete/D-pad, exact-title display and policy-scoped facets. Before that fix, SQL
 showed only defaults; after it, actual POST/PUT and fresh SQL matched all fields.
 
 Sanitized receipts, scripts and screenshots remain outside Git at
 `/Users/shebin/Movly-verification-20261019/web-tv189/`; independent SQL receipts are
-owned by the fixture agent in the sibling `search1210/` evidence directory. Own TV
-loopback server/worktree remain active until the primary BFF integration and final
-merge, then must be removed. Shared Go/PG fixture cleanup belongs to its owner.
+owned by the fixture agent in the sibling `search1210/` evidence directory. Final merge/cleanup receipts are retained in that external evidence directory.
+Own TV loopback server, ephemeral cookie and worktree are removed after merge;
+shared Go/PG fixture cleanup belongs to its owner.
