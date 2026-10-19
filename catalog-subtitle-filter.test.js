@@ -85,3 +85,9 @@ test('legacy singular language fields merge with arrays without loss',async()=>{
  const params=c.definitionToParams({audio_language:'cs',audio_languages:['en'],subtitle_language:'sk',subtitle_languages:['cs'],original_language:'fr',original_languages:['ja']});
  assert.equal(params.get('audio'),'cs,en');assert.equal(params.get('sub'),'cs,sk');assert.equal(params.get('orig'),'fr,ja');
 });
+
+test('saved explicit sort order and zero rating bounds survive roundtrip',async()=>{
+ const c=await catalog();const params=c.definitionToParams({sort_by:'year',sort_order:'asc',rating_from:0,rating_to:0},{grid:false});
+ const d=c.paramsToDefinition(params,null,{grid:false});assert.equal(d.sort_order,'asc');assert.equal(d.rating_from,0);assert.equal(d.rating_to,0);
+ assert.equal(c.definitionQuery(d).get('sort_order'),'asc');assert.equal(c.definitionQuery(d).get('rating_to'),'0');
+});
