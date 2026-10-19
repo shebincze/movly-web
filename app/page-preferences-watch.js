@@ -7,7 +7,7 @@ import { uiLanguage } from "./i18n.js";
 export function watchPagePreferences({ page, signal, active, changed }) {
   const context = apiContextKey(), owner = apiContextOwner(), state = window.MovlyHomePreferences;
   const current = () => !signal?.aborted && !document.hidden && context === apiContextKey() && !!owner && active();
-  const watcher = state.watch({ active: current, changed,
+  const watcher = state.watch({ active: current, changed, initial: true,
     read(done) {
       const request = new AbortController();
       void (async () => {

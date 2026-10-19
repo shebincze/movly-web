@@ -37,3 +37,7 @@ test('Typed catalogue list paging forwards the existing closed movie/tv type and
  const f=fixture(),cookie=await login(f);for(const type of ['movie','tv']){const r=await f.request('GET',`main/lists/continue-watching?page=2&limit=30&type=${type}`,null,cookie);assert.equal(r.status,200);assert.ok(f.calls.at(-1).path.includes(`type=${type}`));assert.ok(f.calls.at(-1).path.includes('page=2'));}
  const before=f.calls.filter(c=>c.path.startsWith('v1/main/lists/')).length;assert.equal((await f.request('GET','main/lists/popular?type=both',null,cookie)).status,400);assert.equal(f.calls.filter(c=>c.path.startsWith('v1/main/lists/')).length,before);
 });
+
+test('New page writes reject newline identities before upstream mutation',async()=>{
+ const f=fixture(),cookie=await login(f);for(const input of [{...body(),catalog_revision:'a'.repeat(64)+'\n'},{...body(),order:['hero\n']},{...body(),hidden:['hero\n']}])assert.equal((await f.request('PUT','pages/home/preferences',input,cookie)).status,400);assert.equal(f.calls.filter(v=>v.path.startsWith('v1/pages/')).length,0);
+});

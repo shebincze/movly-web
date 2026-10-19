@@ -47,3 +47,13 @@ test('Visible page watcher bounds requests, compares document/catalogue/policy a
  let visible=true,changed=0,abort=0,done,queued=[],reads=0;const watch=state.watch({active:()=>visible,changed:()=>changed++,setTimer:fn=>{queued.push(fn);return fn},clearTimer:fn=>{queued=queued.filter(v=>v!==fn)},read:cb=>{reads++;done=cb;return{abort:()=>abort++}}});
  const doc={page:'movies',profile_id:2,revision:1,catalog_revision:'a',policy_revision:'p'};watch.start();watch.start();assert.equal(reads,1);done(null,doc);assert.equal(queued.length,1);queued.shift()();done(null,doc);assert.equal(changed,0);queued.shift()();done(null,{...doc,catalog_revision:'b'});assert.equal(changed,1);queued.shift()();const old=done;watch.stop();assert.equal(abort,1);old(null,{...doc,revision:9});assert.equal(changed,1);assert.equal(queued.length,0);visible=false;watch.start();assert.equal(reads,4);visible=true;watch.start();assert.equal(reads,5);done(null,{...doc,revision:2});assert.equal(changed,2);watch.stop();
 });
+
+test('New page DTO identities are exact ASCII strings without coercion or terminal newline',()=>{
+ for(const slug of [123,true,'hero\n','hero\r','hero\u2028']){const v={...document(),page:'home'};v.sections[0].slug=slug;assert.throws(()=>state.document(v,2,'home'));}
+ for(const hash of ['a'.repeat(64)+'\n','a'.repeat(63)+'\n'])assert.throws(()=>state.document({...document(),page:'movies',catalog_revision:hash},2,'movies'));
+ const legacy=document();legacy.sections[0].slug=123;assert.equal(state.document(legacy,2).sections[0].slug,123,'legacy Home wire admission is preserved');
+});
+test('First metadata handshake reconciles once after baseline admission and does not loop on restart',()=>{
+ let done,changed=0,queue=[];const watcher=state.watch({initial:true,active:()=>true,setTimer:fn=>{queue.push(fn);return fn},clearTimer:fn=>{queue=queue.filter(v=>v!==fn)},read:cb=>{done=cb;return{abort(){}}},changed:()=>changed++}),fresh={page:'movies',profile_id:2,revision:7,catalog_revision:'a',policy_revision:'p'};
+ watcher.start();done(null,fresh);assert.equal(changed,1);watcher.stop();watcher.start();done(null,fresh);assert.equal(changed,1);queue.shift()();done(null,{...fresh,catalog_revision:'b'});assert.equal(changed,2);watcher.stop();
+});

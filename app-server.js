@@ -1565,6 +1565,7 @@ function createAppHandler({
           const keys = Object.keys(body), fields = ["revision", "catalog_revision", "order", "hidden"];
           const slugs = value => Array.isArray(value) && value.length <= 256 && new Set(value).size === value.length && value.every(slug => typeof slug === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(slug));
           if (keys.length !== fields.length || keys.some(key => !fields.includes(key)) || !Number.isSafeInteger(body.revision) || body.revision < 0 || typeof body.catalog_revision !== "string" || !/^[a-f0-9]{64}$/.test(body.catalog_revision) || !slugs(body.order) || !slugs(body.hidden)) throw new HttpError(400, "Neplatné nastavení řad Domů.");
+          if (target.startsWith("pages/") && (body.catalog_revision.length !== 64 || /[^a-f0-9]/.test(body.catalog_revision) || [...body.order, ...body.hidden].some(slug => /[^a-z0-9-]/.test(slug)))) throw new HttpError(400, "Neplatné nastavení řad stránky.");
           body = { revision: body.revision, catalog_revision: body.catalog_revision, order: body.order, hidden: body.hidden };
         } else if (target === "auth/premium/purchase") {
           if (!account.premiumPurchaseEnabled || account.isFromLight)

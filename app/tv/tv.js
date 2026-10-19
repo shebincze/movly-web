@@ -624,7 +624,7 @@
   }
   function watchPageMetadata(page, active, changed) {
     var model = window.MovlyHomePreferences, scope = searchScope(), ownerId = account.id, profileId = profile.id;
-    return model.watch({ active: function () { return !document.hidden && scope === searchScope() && active(); }, changed: changed,
+    return model.watch({ initial: true, active: function () { return !document.hidden && scope === searchScope() && active(); }, changed: changed,
       read: function (done) {
         var cancelled = false, request = null;
         request = api("profiles/effective-content-policy", {}, function (err, policy) {

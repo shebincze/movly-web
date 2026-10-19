@@ -65,3 +65,14 @@ feed regressions cover unchanged refresh, newer response winning and aborted rou
 admission. Final630/630 tests and check/ES5 passed. The completed browser polling
 receipt additionally confirms cached Movies/Series entries request a new full feed
 and unchanged personal refresh returns usable rails.
+
+Independent review corrections: only the new page DTO/write paths enforce literal
+ASCII string slugs and exact64hex hashes, rejecting coercion and terminal newlines.
+Legacy Home admission remains unchanged. The first admitted metadata read now forces
+one reconciliation after installing its baseline. Restarting the same watcher keeps
+that baseline, avoiding a reload loop. Controlled barriers held an old content feed
+until the first metadata was already newer: exactly one second full feed rendered
+the current state. An initial editor document0 followed by held metadata1 released
+after a user toggle preserved the dirty draft, blocked Done and required Reload,
+without a PUT. Receipt: initial-handshake.json. Final633/633, check/ES5 and renewed
+touch/lifecycle browser regressions passed after these corrections.

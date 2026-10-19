@@ -7,11 +7,12 @@
   function list(value) { return Object.prototype.toString.call(value) === "[object Array]"; }
   function fail() { throw new Error("Invalid home preferences"); }
   function document(value, profileId, page) {
-    if (page !== undefined && (["home", "movies", "series"].indexOf(page) < 0 || !value || value.page !== page)) fail();
+    if (page !== undefined && (["home", "movies", "series"].indexOf(page) < 0 || !value || value.page !== page || typeof value.catalog_revision !== "string" || value.catalog_revision.length !== 64 || /[^a-f0-9]/.test(value.catalog_revision))) fail();
     if (!integer(profileId) || profileId < 1 || !value || value.profile_id !== profileId || !integer(value.revision) || typeof value.catalog_revision !== "string" || !/^[a-f0-9]{64}$/.test(value.catalog_revision) || !list(value.sections) || value.sections.length > 256) fail();
     var seen = {}, positions = {}, sections = [];
     for (var i = 0; i < value.sections.length; i++) {
       var row = value.sections[i];
+      if (page !== undefined && (!row || typeof row.slug !== "string" || row.slug.length < 1 || row.slug.length > 80 || !/^[a-z0-9]/.test(row.slug) || /[^a-z0-9-]/.test(row.slug))) fail();
       if (!row || !slugPattern.test(row.slug || "") || seen["$" + row.slug] || typeof row.kind !== "string" || !row.kind || typeof row.name !== "string" || typeof row.visible !== "boolean" || !integer(row.display_order) || row.display_order >= value.sections.length || positions["$" + row.display_order] || !signedInteger(row.default_order)) fail();
       seen["$" + row.slug] = true; positions["$" + row.display_order] = true;
       sections.push({ slug: row.slug, kind: row.kind, name: row.name, visible: row.visible, display_order: row.display_order, default_order: row.default_order });
@@ -53,7 +54,7 @@
         request = null;
         if (!err && value) {
           var identity = key(value);
-          var changed = baseline !== null && baseline !== identity; baseline = identity;
+          var changed = baseline === null ? !!options.initial : baseline !== identity; baseline = identity;
           if (changed) options.changed();
         }
         schedule(mine);
