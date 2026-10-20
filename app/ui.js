@@ -113,7 +113,7 @@ export function warning(data) {
 }
 export function poster(raw, onClick, extra) {
   const t = applyUserState(raw);
-  const url = imageURL(t.poster_path);
+  const url = imageURL(t.poster_path, "w342");
   const frame = el(
     "span",
     { class: "poster-frame" },

@@ -24,9 +24,9 @@ export function noteArtwork(id, posterPath, backdropPath) {
   patchArtwork(key, next.poster_path);
 }
 function patchArtwork(id, posterPath) {
-  const url = imageURL(posterPath);
-  if (!url) return;
   for (const card of document.querySelectorAll(`[data-title-id="${id}"]`)) {
+    const url = imageURL(posterPath, card.closest?.(".continue-rail") ? "w500" : "w342");
+    if (!url) continue;
     const frame = card.querySelector(".poster-frame");
     const missing = frame?.querySelector(".missing-art");
     if (!frame || !missing) continue;
