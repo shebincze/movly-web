@@ -50,3 +50,9 @@ Pravidlo úklidu zadané uživatelem 11. 10. 2026.
 - Aplikace oznamuj s platformou a verzí/buildem. API a backend oznamuj jako **Movly server** s datem a identifikací nasazení; připiš kompatibilitu a nutnou aktualizaci aplikace, jen když je doložená. Při vydání více aplikací jejich verze a dostupnost rozliš.
 
 Pravidla rozšířená uživatelem 19. 10. 2026. Povinnost ověření platí pro každou změnu; rozhodnutí o vydání zůstává výhradně na uživateli.
+
+## Aktuální hlavní lokální složka
+
+Po mergi aktualizuj hlavní checkout `/Users/shebin/Projekty/Movly/web` pomocí čerstvého fetch a `git merge --ff-only origin/main`. Ověř shodu revizí a zachování místních změn a netrackovaných souborů. Nepoužívej automatický reset nebo čištění cizí práce; konflikt vyřeš se zachováním změn nebo popiš konkrétní blokaci.
+
+Pravidlo zadané uživatelem 20. 10. 2026.
