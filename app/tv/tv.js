@@ -1354,7 +1354,9 @@
       ]));
       if (data.type !== "tv") {
         var resume = wp && wp.watch_status !== "completed" && wp.progress_seconds > 5 ? " (od " + clock(wp.progress_seconds) + ")" : "";
-        actions.appendChild(button("Přehrát" + resume, function () { push(sourcesScreen(data, null, true)); }, "tv-primary tv-autofocus"));
+        var playTitle = button("Přehrát" + resume, function () { push(sourcesScreen(data, null, true)); }, "tv-primary tv-autofocus");
+        window.attachPlayChoice(playTitle, function () { push(sourcesScreen(data, null, false)); }, "Vybrat jiný zdroj");
+        actions.appendChild(playTitle);
         actions.appendChild(button("Vybrat zdroj", function () { push(sourcesScreen(data, null, false)); }));
       } else {
         actions.appendChild(statusBox("Vyber řadu a epizodu níže.", "info"));
@@ -1400,6 +1402,7 @@
             h("strong", { text: "S" + pad(season.season_number) + "E" + pad(e.episode_number) + " · " + (e.name || "Epizoda " + e.episode_number) }),
             note ? h("span", { className: "tv-muted", text: note }) : null
           ]);
+          window.attachPlayChoice(btn, function () { if (ok) push(sourcesScreen(data, episode, false)); }, "Vybrat jiný zdroj");
           episodes.appendChild(btn);
         });
         if (focusFirst) { var f = firstFocusable(episodes); if (f) focusEl(f); }

@@ -1,3 +1,4 @@
+import "./play-activation.js";
 import { externalListCards, externalListDetail } from "./external-lists.js";
 import { seriesNotificationButton } from "./notifications.js";
 import { translateUI } from "./i18n.js";
@@ -124,11 +125,14 @@ export async function detail(t, actions) {
           ),
         )
       : null;
-    const play = button(translateUI("Přehrát"), () => {
-      if (!isTV) return sources(data);
-      if (firstEpisode) return sources(data, firstEpisode);
+    const playTitle = (manual = false) => {
+      const options = { skipResume: manual, autoPlay: false };
+      if (!isTV) return sources(data, undefined, options);
+      if (firstEpisode) return sources(data, firstEpisode, options);
       toast(translateUI("Žádná vydaná epizoda zatím není dostupná."));
-    }, "primary");
+    };
+    const play = button(translateUI("Přehrát"), () => playTitle(), "primary");
+    window.attachPlayChoice(play, () => playTitle(true), translateUI("Vybrat jiný zdroj"));
     play.prepend(glyph(PLAY, true));
     const trailer = (data.videos || [])
       .filter((v) => v.site?.toLowerCase() === "youtube" && /^[a-zA-Z0-9_-]{6,20}$/.test(v.key || ""))
@@ -411,6 +415,7 @@ function episodeRow(data, season, episode) {
   const state = episodeState(episode);
   const target = { ...episode, season_number: season.season_number };
   const play = button(translateUI("Přehrát"), () => sources(data, target), "small");
+  window.attachPlayChoice(play, () => sources(data, target, { skipResume: true, autoPlay: false }), translateUI("Vybrat jiný zdroj"));
   const party = button(translateUI("Sledovat společně"), () => hostParty(data, target), "small");
   const watched = button(
     state.watched ? translateUI("✓ Viděno · odznačit") : translateUI("Viděno"),

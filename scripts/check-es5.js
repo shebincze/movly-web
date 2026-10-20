@@ -136,6 +136,7 @@ function tvScripts() {
   const dir = path.join(ROOT, "app", "tv");
   return [
     path.join(ROOT, "app", "legacy.js"),
+    path.join(ROOT, "app", "play-activation.js"),
     path.join(ROOT, "app", "vendor", "hls-0.14.17.light.min.js"),
     ...fs.readdirSync(dir).filter((f) => f.endsWith(".js")).sort().map((f) => path.join(dir, f)),
   ];
