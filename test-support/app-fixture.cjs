@@ -104,12 +104,15 @@ function createFixture({ externalListCount = 0 } = {}) {
       if(!profile)fail(409,"Vyber profil.");
       if(!notificationProfiles.has(profile))notificationProfiles.set(profile,{defaults:{events:[],channels:[],use_defaults:false}});
       let notificationDefaults=notificationProfiles.get(profile).defaults;
+      const title = scope.startsWith("series/") ? [...films, ...series].find(item => item.id === Number(scope.slice(7))) : null;
+      if (scope.startsWith("series/") && !title) fail(404, "Titul nenalezen.");
+      if (method === "PUT" && title?.type === "movie" && body.events?.includes("episode_released")) fail(400, "Filmy nemají epizody.");
       const seriesScope=profile+":"+scope;
       if(scope==="inbox"||scope==="system-inbox")return {payload:{items:[]}};
       if(scope.endsWith("/read")||scope.endsWith("/delivered"))return {payload:{}};
       if(method==="PUT") {if(scope==="defaults"){notificationDefaults=structuredClone(body);notificationProfiles.get(profile).defaults=notificationDefaults;}else notificationSeries.set(seriesScope,structuredClone(body));}
       const preferences=scope==="defaults"?notificationDefaults:notificationSeries.get(seriesScope)??{events:[],channels:[],use_defaults:true};
-      return {payload:{preferences,defaults:notificationDefaults,effective:{events:preferences.use_defaults?notificationDefaults.events:preferences.events,channels:notificationDefaults.channels,use_defaults:false},subscribed:notificationSeries.has(seriesScope),capabilities:{in_app:true,desktop:true,email:true,mobile_push:false}}};
+      return {payload:{title_type:title?.type,preferences,defaults:notificationDefaults,effective:{events:(preferences.use_defaults?notificationDefaults.events:preferences.events).filter(event => title?.type !== "movie" || event !== "episode_released"),channels:notificationDefaults.channels,use_defaults:false},subscribed:notificationSeries.has(seriesScope),capabilities:{in_app:true,desktop:true,email:true,mobile_push:false}}};
     }
     if (p === "v1/auth/me") return { payload: user };
     if (p === "v1/auth/logout") {
