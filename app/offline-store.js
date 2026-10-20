@@ -389,6 +389,7 @@ export async function removeFile(id) {
   } finally {
     db.close();
   }
+  window.dispatchEvent(new Event("movly-downloads-changed"));
 }
 const unbase64 = (raw) =>
   Uint8Array.from(atob(raw.replaceAll("-", "+").replaceAll("_", "/")), (c) =>

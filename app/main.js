@@ -1,3 +1,4 @@
+import { observeOfflineNavigation } from "./offline-navigation.js";
 import { preparePlaybackAttemptSupport } from "./playback-attempt-support.js";
 import { setFeedbackAccount } from "./feedback-access.js";
 import { invalidateApiContext } from "./api.js";
@@ -15,6 +16,7 @@ import {
   registerOffline,
   synchronizeOfflineContext,
   offlineLibrary,
+  hasOfflineDownloads,
   clearLibrary,
   revokeOfflineContext,
 } from "./offline.js";
@@ -78,6 +80,10 @@ let session = null,
   profileShortcuts = null,
   inboxItems = null,
   inboxRequested = false;
+const offlineNavigation = observeOfflineNavigation(
+  document.querySelector("#offline-library-link"),
+  () => hasOfflineDownloads(session?.account?.id, session?.profile?.id),
+);
 const actions = {
   get owner() { return session?.account?.id && session?.profile?.id ? { accountId: Number(session.account.id), profileId: Number(session.profile.id) } : null; },
   detail: (t) => detail(t, actions),
@@ -109,6 +115,7 @@ dialog.addEventListener("close", () => {
   }
 });
 function chrome() {
+  void offlineNavigation.refresh();
   setFeedbackAccount(session?.account);
   document.querySelector("#app-settings").textContent=translateUI("Nastavení");
   setSearchOwner(session?.account, session?.profile, session?.environment);

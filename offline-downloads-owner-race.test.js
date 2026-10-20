@@ -13,6 +13,7 @@ function installIndexedDB() {
         transaction(names, mode) {
           const tx = {};
           tx.objectStore = name => ({
+            getAll() { const r = {}; setTimeout(() => { r.result = [...stores.get(name).values()]; r.onsuccess?.(); }, 0); return r; },
             get(key) { const r = {}; setTimeout(() => { r.result = stores.get(name).get(key); r.onsuccess?.(); tx.oncomplete?.(); }, 0); return r; },
             put(value, key) { stores.get(name).set(key === undefined ? value.id : key, value); setTimeout(() => tx.oncomplete?.(), 0); return {}; },
             delete(key) { stores.get(name).delete(key); setTimeout(() => tx.oncomplete?.(), 0); return {}; },
@@ -37,7 +38,7 @@ test('web offline saving is app-only: no grant request, the active receipt stays
   const stores = installIndexedDB();
   const { invalidateApiContext } = await import('./app/api.js');
   const { put, get, verifiedGrant } = await import('./app/offline-store.js');
-  await import('./app/offline.js'); // Installs the real movly-offline-revoked listener that clears active.
+  const { hasOfflineDownloads } = await import('./app/offline.js'); // Installs the real movly-offline-revoked listener that clears active.
   const { queueOffline } = await import('./app/offline-downloads.js');
   const now = Date.now(), signer = offlineSigner('offline-download-owner-race-test');
   const user = { id: 1, username: 'test', role: 'user', is_active: true, is_verified: true,
@@ -49,6 +50,16 @@ test('web offline saving is app-only: no grant request, the active receipt stays
   const requests = [];
   globalThis.fetch = async url => { requests.push(url); throw new Error(`Unexpected request ${url}`); };
   try {
+    assert.equal(await hasOfflineDownloads(1, 2), false);
+    stores.get('downloads').set('job', { id: 'job', receipt: oldReceipt, state: 'queued' });
+    assert.equal(await hasOfflineDownloads(1, 2), true);
+    assert.equal(await hasOfflineDownloads(1, 3), false);
+    assert.equal(await hasOfflineDownloads(9, 2), false);
+    stores.get('downloads').clear();
+    stores.get('files').set('file', { id: 'file', receipt: oldReceipt, complete: true });
+    assert.equal(await hasOfflineDownloads(1, 2), true);
+    stores.get('files').clear();
+    assert.equal(await hasOfflineDownloads(1, 2), false);
     // Offline kopie by vznikala na serveru; video ale přes server nesmí jít (#153).
     await assert.rejects(queueOffline({ id: 8, type: 'movie', title: 'Fixture' }, null, {}), /aplikaci Movly/);
     assert.deepEqual(requests, []);

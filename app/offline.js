@@ -105,7 +105,24 @@ export async function synchronizeOfflineContext() {
         await hasSupersededPolicyMarker(activeBefore).catch(() => false);
       if (!retainedKnownMismatch) await denyOfflineGrant(activeBefore).catch(() => false);
     }
+  } finally {
+    window.dispatchEvent(new Event("movly-offline-context-changed"));
   }
+}
+// The same signed ownership check as the library; completed files outlive jobs.
+export async function hasOfflineDownloads(accountId, profileId) {
+  if (!accountId || !profileId) return false;
+  const active = await get("settings", "active");
+  const grant = active && await verifiedGrant(active);
+  if (!grant || grant.accountId !== Number(accountId) || grant.profileId !== Number(profileId)) return false;
+  const candidates = [
+    ...await allEntries("downloads"),
+    ...(await allFiles()).filter(file => file.complete),
+  ];
+  for (const item of candidates) {
+    if (await sameOfflineOwner(item.receipt, active)) return true;
+  }
+  return false;
 }
 export async function saveOffline(title, episode, selection) {
   if (!(await registerOffline()) || !navigator.locks)
