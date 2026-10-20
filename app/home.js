@@ -51,7 +51,7 @@ export function decorateHomeCards(node, items, tracking) {
 function continueCards(node, items) {
   node.classList.add("continue-rail");
   node.querySelectorAll(".poster-card").forEach((card, i) => {
-    const frame = card.querySelector(".poster-frame"), wide = imageURL(items[i]?.backdrop_path, "w780");
+    const frame = card.querySelector(".poster-frame"), wide = imageURL(items[i]?.backdrop_path, "w780") || imageURL(items[i]?.poster_path, "w500");
     const img = frame?.querySelector("img");
     if (wide && img) img.src = wide;
     frame?.append(el("span", { class: "continue-play", "aria-hidden": "true" }, icon("play")));

@@ -134,6 +134,14 @@ export function imageURL(value, size = "w500") {
     return `https://image.tmdb.org/t/p/${size}${value}`;
   try {
     const u = new URL(value);
+    // Only canonical, unsigned TMDB raster paths may select a smaller variant.
+    // Keep custom images, signed URLs and already smaller sources unchanged.
+    const match = u.pathname.match(/^\/t\/p\/(original|w(\d+))\/([a-zA-Z0-9_-]+\.(?:jpg|png|webp))$/);
+    const requested = /^w\d+$/.test(size) ? Number(size.slice(1)) : 0;
+    if (u.origin === "https://image.tmdb.org" && !u.search && !u.hash && match && requested > 0 &&
+        (match[1] === "original" || Number(match[2]) > requested)) {
+      u.pathname = `/t/p/${size}/${match[3]}`;
+    }
     return u.origin === "https://image.tmdb.org" ||
       (u.origin === "https://res.cloudinary.com" &&
         u.pathname.startsWith("/dsnzqq6kh/"))

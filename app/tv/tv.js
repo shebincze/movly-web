@@ -76,7 +76,14 @@
   function imageURL(value, size) {
     if (typeof value !== "string" || !value) return null;
     if (/^\/[a-zA-Z0-9_-]+\.(jpg|png|webp)$/.test(value)) return "https://image.tmdb.org/t/p/" + (size || "w342") + value;
-    if (/^https:\/\/image\.tmdb\.org\/[^\s"'<>]+$/.test(value)) return value;
+    if (/^https:\/\/image\.tmdb\.org\/[^\s"'<>]+$/.test(value)) {
+      var match = value.match(/^https:\/\/image\.tmdb\.org\/t\/p\/(original|w(\d+))\/([a-zA-Z0-9_-]+\.(?:jpg|png|webp))$/);
+      var requested = /^w\d+$/.test(size || "") ? Number(size.slice(1)) : 0;
+      if (match && requested > 0 && (match[1] === "original" || Number(match[2]) > requested)) {
+        return "https://image.tmdb.org/t/p/" + size + "/" + match[3];
+      }
+      return value;
+    }
     if (/^https:\/\/res\.cloudinary\.com\/dsnzqq6kh\/[^\s"'<>]+$/.test(value)) return value;
     return null;
   }
