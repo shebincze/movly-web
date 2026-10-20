@@ -1,9 +1,37 @@
 /* Shared by the browser and the ES5 TV client. Hold consumes the matching click. */
 (function (root) {
   "use strict";
+  var heldKey = null, releaseHeldKey = null;
+  function activationKey(event) {
+    var key = event.key || event.keyCode;
+    return key === "Enter" || key === 13 ? "Enter" : key === " " || key === 32 ? "Space" : null;
+  }
+  function clearHeldKey() {
+    heldKey = null;
+    var release = releaseHeldKey; releaseHeldKey = null;
+    if (release) release();
+  }
+  // The picker can move focus while OK is still held. Consume repeats/release
+  // before they reach the newly focused source or the TV document key handler.
+  document.addEventListener("keydown", function (event) {
+    if (heldKey && activationKey(event) === heldKey) {
+      event.preventDefault(); event.stopImmediatePropagation();
+    }
+  }, true);
+  document.addEventListener("keyup", function (event) {
+    if (heldKey && activationKey(event) === heldKey) {
+      clearHeldKey(); event.preventDefault(); event.stopImmediatePropagation();
+    }
+  }, true);
+  root.addEventListener("blur", clearHeldKey);
   function attachPlayChoice(button, choose, label) {
     var timer = null, held = false, keyActive = false, pointerActive = false;
-    var origin = null, menu = null;
+    var origin = null, menu = null, activeKey = null;
+    function chooseFromKeyboard() {
+      heldKey = activeKey;
+      releaseHeldKey = function () { keyActive = false; held = false; cancel(); };
+      choose();
+    }
     function cancel() { if (timer !== null) clearTimeout(timer); timer = null; pointerActive = false; }
     function begin() {
       cancel(); held = false;
@@ -11,7 +39,7 @@
         timer = null;
         if (!document.documentElement.contains(button) || button.disabled) return;
         held = true;
-        choose();
+        if (keyActive) chooseFromKeyboard(); else choose();
       }, 650);
     }
     function closeMenu(restore) {
@@ -83,8 +111,8 @@
       if (key !== "Enter" && key !== " " && key !== 13 && key !== 32) return;
       event.preventDefault(); event.stopPropagation();
       if (keyActive) return;
-      keyActive = true;
-      if (event.shiftKey) { cancel(); held = true; choose(); }
+      keyActive = true; activeKey = activationKey(event);
+      if (event.shiftKey) { cancel(); held = true; chooseFromKeyboard(); }
       else begin();
     }, true);
     button.addEventListener("keyup", function (event) {
