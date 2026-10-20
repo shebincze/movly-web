@@ -151,7 +151,7 @@ export async function detail(t, actions) {
           )
         : null,
       button(translateUI("Do seznamu"), () => actions.save(data), "secondary", "plus"),
-      isTV ? seriesNotificationButton(data.id, () => void detail(data, actions)) : null,
+      seriesNotificationButton(data.id, () => void detail(data, actions), isTV ? "tv" : "movie"),
       button(translateUI("Hodnotit"), () => titleActivity(data, "rating"), "secondary"),
       !isTV || firstEpisode
         ? button(translateUI("Sledovat společně"), () => hostParty(data, firstEpisode), "secondary")

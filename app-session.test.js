@@ -1494,3 +1494,27 @@ test("intro preferences and segment lookup remain bound to the selected profile"
   assert.equal((await h.request("playback/preferences",{cookie:second.cookie})).body.intro_skip_mode,"manual");
   assert.equal((await h.request(query)).status,401);
 });
+
+test("movie notification subscriptions preserve delivery and selected profile ownership", async () => {
+  const h = harness(), login = await h.selected();
+  const defaults = {events:["episode_released", "stream_available", "czsk_available"],channels:["in_app","email"],use_defaults:false};
+  await h.request("notifications/defaults", {cookie:login.cookie,method:"PUT",body:defaults});
+  const path = "notifications/series/1";
+  const inherited = await h.request(path,{cookie:login.cookie});
+  assert.equal(inherited.body.title_type,"movie");
+  assert.deepEqual(inherited.body.effective.events,["stream_available","czsk_available"]);
+  const selection = {events:["czsk_available"],channels:[],use_defaults:false};
+  assert.equal((await h.request(path,{cookie:login.cookie,method:"PUT",body:selection})).status,200);
+  const saved = await h.request(path,{cookie:login.cookie});
+  assert.equal(saved.body.subscribed,true);
+  assert.deepEqual(saved.body.effective.events,["czsk_available"]);
+  assert.deepEqual(saved.body.effective.channels,defaults.channels);
+  assert.equal(h.calls.at(-1)[5]["X-Profile-ID"],"1");
+  assert.equal((await h.request(path,{cookie:login.cookie,headers:{"x-movly-expected-account":"1","x-movly-expected-profile":"2"}})).status,409);
+  assert.equal((await h.request(path,{cookie:login.cookie,method:"PUT",body:{...selection,events:["episode_released"]}})).status,400);
+  const second = await h.request("profile",{cookie:login.cookie,method:"POST",body:{id:2,pin:"1234"}});
+  assert.equal((await h.request(path,{cookie:second.cookie})).body.subscribed,false);
+  const original = await h.request("profile",{cookie:second.cookie,method:"POST",body:{id:1}});
+  await h.request(path,{cookie:original.cookie,method:"PUT",body:{...selection,events:[]}});
+  assert.deepEqual((await h.request(path,{cookie:original.cookie})).body.effective.events,[]);
+});
