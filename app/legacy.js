@@ -67,7 +67,11 @@
     var preferences = document.createElement("script");
     preferences.src = "/app/tv/home-preferences-state.js";
     preferences.onerror = show;
-    preferences.onload = function () { head.appendChild(script); };
+    var playChoice = document.createElement("script");
+    playChoice.src = "/app/play-activation.js";
+    playChoice.onerror = show;
+    playChoice.onload = function () { head.appendChild(script); };
+    preferences.onload = function () { head.appendChild(playChoice); };
     scoring.onload = function () { head.appendChild(preferences); };
     policy.onload = function () { head.appendChild(scoring); };
     head.appendChild(policy);
