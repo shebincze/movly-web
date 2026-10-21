@@ -27,8 +27,9 @@ function json(res, status, payload) {
   res.body = payload;
 }
 
-function makeHandler(role, calls, premiumUntil = null, capabilityResult = null) {
+function makeHandler(role, calls, premiumUntil = null, capabilityResult = null, inventoryResult = null) {
   const user = {
+    ...(inventoryResult ? {id:12} : {}),
     username: "mod",
     display_name: "Mod",
     is_active: true,
@@ -75,6 +76,10 @@ function makeHandler(role, calls, premiumUntil = null, capabilityResult = null) 
     calls.push({ path, method, body });
     if (path === "v1/auth/login") return { payload: { token: "tok-1", user } };
     if (path === "v1/auth/me") return { payload: user };
+    if (path === "v1/watchlists?lang=cs") return {payload:[]};
+    if (path === "v1/profiles") return {payload:[{id:1,name:"Test"}]};
+    if (path === "v1/profiles/1/select") return {payload:{profile_id:1,name:"Test"}};
+    if (path === "v1/streaming/titles/42/inventory") return inventoryResult;
     if (path === "v1/capabilities/negotiate" && method === "POST") {
       if (capabilityResult instanceof Error) throw capabilityResult;
       return { payload: capabilityResult || { schema_version: 1, revision: `cap1.${"a".repeat(64)}`, cache_ttl_seconds: 300,
@@ -140,6 +145,7 @@ function makeHandler(role, calls, premiumUntil = null, capabilityResult = null) 
     HttpError,
     secret: "test-secret-test-secret",
     production: false,
+    ...(inventoryResult ? {providerClient:{login:async () => ({token:"synthetic-provider",username:"fixture",vip:true})}} : {}),
   });
 }
 
@@ -422,4 +428,45 @@ test("feedback proxy denies free, expired and malformed subscriptions before for
     }
     assert.equal(calls.filter(c => c.path.startsWith("v1/feedback/")).length, 0);
   }
+});
+
+
+test("database inventory excludes disconnected providers without changing legacy streams", async () => {
+  const calls=[];
+  const raw={title_id:42,providers:[{provider_id:1,streams_count:19,video_height:2160,audio_languages:["eng"]},{provider_id:2,streams_count:2,video_height:1080,audio_languages:["cze"]}],episodes:{101:[{provider_id:1,streams_count:1}]}};
+  const handle=makeHandler("vip",calls,null,null,{payload:raw}); const cookie=await inventoryLogin(handle); const res=fakeResponse();
+  await handle(requestFor(cookie,"GET","streaming/titles/42/inventory"),res,new URL("http://localhost/api/app/streaming/titles/42/inventory"));
+  assert.equal(res.statusCode,200); assert.equal(res.headers["cache-control"],"private, no-store");
+  assert.deepEqual(res.body.providers,[raw.providers[1]]); assert.deepEqual(res.body.episodes,{101:[]}); assert.equal(res.body.access,true);
+});
+test("database inventory rejects malformed degraded and wrong-title responses", async () => {
+  for (const result of [{payload:{title_id:43,providers:[],episodes:{}}},{payload:{title_id:42,providers:[]}},{payload:{title_id:42,providers:[],episodes:{},degraded:true}},{payload:{title_id:42,providers:[],episodes:{}},headers:{"X-Movly-Degraded":"1"}}]) {
+    const handle=makeHandler("vip",[],null,null,result), cookie=await inventoryLogin(handle),res=fakeResponse();
+    await handle(requestFor(cookie,"GET","streaming/titles/42/inventory"),res,new URL("http://localhost/api/app/streaming/titles/42/inventory"));
+    assert.equal(res.statusCode,502);
+  }
+});
+test("database inventory access gate does not request upstream for a free account", async () => {
+  const calls=[],handle=makeHandler("user",calls),cookie=await inventoryLogin(handle),res=fakeResponse();
+  await handle(requestFor(cookie,"GET","streaming/titles/42/inventory"),res,new URL("http://localhost/api/app/streaming/titles/42/inventory"));
+  assert.equal(res.statusCode,200); assert.deepEqual(res.body,{title_id:42,access:false});
+  assert.equal(calls.filter(c=>c.path.includes("/inventory")).length,0);
+});
+
+async function inventoryLogin(handle) {
+ const cookie=await login(handle),res=fakeResponse();
+ await handle(requestFor(cookie,"POST","profile",{id:1}),res,new URL("http://localhost/api/app/profile"));
+ assert.equal(res.statusCode,200); return res.headers["set-cookie"].split(";")[0];
+}
+
+test("inventory follows current provider connection cookie and never returns credentials", async () => {
+ const raw={title_id:42,providers:[{provider_id:1,streams_count:19,video_height:2160,audio_languages:["eng"]},{provider_id:2,streams_count:2,video_height:1080,audio_languages:["cze"]}],episodes:{}};
+ const handle=makeHandler("vip",[],null,null,{payload:raw}); let cookie=await inventoryLogin(handle);
+ const invoke=async(method,target,body)=>{const res=fakeResponse();await handle(requestFor(cookie,method,target,body),res,new URL("http://localhost/api/app/"+target));assert.equal(res.statusCode,200); if(res.headers["set-cookie"])cookie=res.headers["set-cookie"].split(";")[0]; return res.body;};
+ assert.equal((await invoke("GET","streaming/titles/42/inventory")).providers.length,1);
+ await invoke("POST","providers/webshare",{username:"fixture",password:"synthetic"});
+ const rejected=fakeResponse(),wrong=requestFor(cookie,"GET","streaming/titles/42/inventory");wrong.headers["x-movly-expected-account"]="999";wrong.headers["x-movly-expected-profile"]="1";
+ await handle(wrong,rejected,new URL("http://localhost/api/app/streaming/titles/42/inventory"));assert.equal(rejected.statusCode,409);
+ const connected=await invoke("GET","streaming/titles/42/inventory");assert.equal(connected.providers.length,2);assert.doesNotMatch(JSON.stringify(connected),/synthetic-provider|password|token/);
+ await invoke("DELETE","providers/webshare");assert.equal((await invoke("GET","streaming/titles/42/inventory")).providers.length,1);
 });

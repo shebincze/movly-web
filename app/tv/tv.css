@@ -547,3 +547,8 @@ button[disabled].tv-f {
 .tv-home-preference-row { border: 2px solid #343449; padding: 20px; margin: 20px 0; }
 .tv-home-preference-row h2 { margin: 0 0 12px; }
 .tv-home-preference-row .tv-button { margin: 4px; }
+
+.tv-detail .database-inventory-badge { font-size:20px; line-height:1.4; margin:6px 0; align-self:flex-start; }
+/* TV episode text uses block spans; keep inventory fields in one compact capsule. */
+.tv-detail .database-inventory-badge { display:inline-flex; flex-direction:row; }
+.tv-detail .database-inventory-badge > span { display:inline; }

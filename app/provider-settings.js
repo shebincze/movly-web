@@ -73,7 +73,8 @@ export async function openProviderSettings() {
             async () => {
               try {
                 await api(`providers/${name}`, { method: "DELETE" });
-                await openProviderSettings();
+                document.dispatchEvent(new CustomEvent("movly:providers-changed"));
+          await openProviderSettings();
               } catch (e) {
                 status.textContent = e.message;
               }
@@ -98,7 +99,8 @@ export async function openProviderSettings() {
                   body: name === "stremio" ? { url: user.value } : { username: user.value, password: password.value },
                 });
                 password.value = "";
-                await openProviderSettings();
+                document.dispatchEvent(new CustomEvent("movly:providers-changed"));
+          await openProviderSettings();
               } catch (error) {
                 status.textContent = error.message;
                 submit.disabled = false;

@@ -1,9 +1,11 @@
 import "./play-activation.js";
+import { feedbackAllowed as hasStreamAccess } from "./feedback-access.js";
+import "./tv/database-availability.js";
 import { externalListCards, externalListDetail } from "./external-lists.js";
 import { seriesNotificationButton } from "./notifications.js";
 import { translateUI } from "./i18n.js";
 import { hostParty } from "./party.js";
-import { api, array, listTitle, imageURL, title } from "./api.js";
+import { apiContextKey, api, array, listTitle, imageURL, title } from "./api.js";
 import {
   el,
   button,
@@ -28,9 +30,11 @@ import {
 } from "./personal.js";
 import { noteArtwork, applyUserState, isWatched, progressPercent } from "./user-state.js";
 import { episodeState, toggleEpisodeWatched } from "./episode-state.js";
+let detailInventoryDispose = null;
 let detailRevision = 0;
 export function invalidateDetail() {
   detailRevision++;
+  detailInventoryDispose?.(); detailInventoryDispose = null;
 }
 function glyph(d, filled) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -60,6 +64,7 @@ function sectionNav(sections) {
   );
 }
 export async function detail(t, actions) {
+  detailInventoryDispose?.(); detailInventoryDispose = null;
   const revision = ++detailRevision;
   const dialog = showDialog(sheet(el("h2", { id: "dialog-title", class: "detail-loading-title" }, t.title), loading()));
   try {
@@ -71,6 +76,12 @@ export async function detail(t, actions) {
     noteArtwork(data.id, data.poster_path, data.backdrop_path);
     const art = imageURL(data.backdrop_path, "w1280");
     const posterArt = imageURL(data.poster_path);
+    const inventoryNodes = [];
+    let currentInventory = null, inventoryAccess=hasStreamAccess();
+    const inventoryBadge = (episodeID = null) => {
+      const node = el("span", {class:"database-inventory-badge", "data-inventory-episode":episodeID ?? "title"});
+      window.MovlyDatabaseAvailability.paint(node, currentInventory ? window.MovlyDatabaseAvailability.summary(episodeID === null ? currentInventory.providers : currentInventory.episodes[episodeID] || []) : null, inventoryAccess); inventoryNodes.push([node, episodeID]); return node;
+    };
     const isTV = data.type === "tv";
     const firstEpisode = (data.seasons || []).filter(s => s.season_number > 0)
       .sort((a, b) => a.season_number - b.season_number)
@@ -103,6 +114,7 @@ export async function detail(t, actions) {
     if (streams?.audio_languages?.length)
       metadata.append(el("span", { class: "rating-badge" }, streams.audio_languages.join(" · ")));
     if (metadata.childNodes.length) facts.append(metadata);
+    if (!isTV) facts.append(inventoryBadge());
     const wp = data.watch_progress;
     const pct = wp?.progress_percentage ?? wp?.progress_percent;
     const left = Number.isFinite(wp?.duration_seconds) && Number.isFinite(wp?.progress_seconds)
@@ -240,7 +252,7 @@ export async function detail(t, actions) {
         : await api(`titles/${data.id}/seasons`);
       if (revision !== detailRevision || !dialog.open) return;
       const list = array(seasons.seasons);
-      if (list.length) main.append(seasonsSection(data, list, section));
+      if (list.length) main.append(seasonsSection(data, list, section, inventoryBadge));
     }
     const cast = (data.credits || []).filter((c) => c.credit_type === "cast" || c.character).slice(0, 30);
     if (cast.length)
@@ -291,6 +303,29 @@ export async function detail(t, actions) {
     }
     main.prepend(...[sectionNav(sections)].filter(Boolean));
     showDialog(sheet(heroNode, el("div", { class: "detail-layout" }, main, aside)));
+    let inventoryController, inventoryGeneration=0;
+    const context=apiContextKey();
+    const paintInventory = (value, access=inventoryAccess) => {
+      currentInventory=value; inventoryAccess=access;
+      for(const [node,id] of inventoryNodes) window.MovlyDatabaseAvailability.paint(node,
+        value ? window.MovlyDatabaseAvailability.summary(id === null ? value.providers : value.episodes[id] || []) : null, access);
+    };
+    async function loadInventory() {
+      inventoryController?.abort(); inventoryController=new AbortController(); const mine=++inventoryGeneration;
+      paintInventory(null,hasStreamAccess());
+      try {
+        const result=await api(`streaming/titles/${data.id}/inventory`, {signal:inventoryController.signal});
+        if(mine!==inventoryGeneration || revision!==detailRevision || !dialog.open || context!==apiContextKey()) return;
+        if(result?.access===false && result.title_id===data.id) { paintInventory(null,false); return; }
+        if(!window.MovlyDatabaseAvailability.valid(result,data.id)) return;
+        paintInventory(result,true);
+      } catch (_) { /* Unknown stays unknown; no false zero. */ }
+    }
+    const dispose=()=> { ++inventoryGeneration; inventoryController?.abort(); document.removeEventListener("movly:providers-changed",loadInventory); paintInventory(null); };
+    detailInventoryDispose=dispose;
+    dialog.addEventListener("close",dispose,{once:true});
+    document.addEventListener("movly:providers-changed",loadInventory);
+    void loadInventory();
     void titleFacts(data, revision, dialog, { metadata, facts, info, infoRow, aside });
   } catch (e) {
     if (revision === detailRevision && dialog.open)
@@ -381,7 +416,7 @@ function seasonToggle(data, season, refresh) {
   return control;
 }
 // Řady jako přepínač (jedna viditelná řada), epizody jako řádky s náhledem.
-function seasonsSection(data, seasons, section) {
+function seasonsSection(data, seasons, section, inventoryBadge) {
   const list = el("ol", { class: "episode-list" });
   const wp = data.watch_progress;
   const current =
@@ -400,7 +435,7 @@ function seasonsSection(data, seasons, section) {
   const tools = el("div", { class: "season-tools" });
   function select(season, pill) {
     for (const p of pills) p.setAttribute("aria-pressed", String(p === pill));
-    list.replaceChildren(...array(season.episodes).map((episode) => episodeRow(data, season, episode)));
+    list.replaceChildren(...array(season.episodes).map((episode) => episodeRow(data, season, episode, inventoryBadge)));
     tools.replaceChildren(...[seasonToggle(data, season, () => select(season, pill))].filter(Boolean));
   }
   select(current, pills[seasons.indexOf(current)]);
@@ -411,7 +446,7 @@ function seasonsSection(data, seasons, section) {
     list,
   );
 }
-function episodeRow(data, season, episode) {
+function episodeRow(data, season, episode, inventoryBadge) {
   const state = episodeState(episode);
   const target = { ...episode, season_number: season.season_number };
   const play = button(translateUI("Přehrát"), () => sources(data, target), "small");
@@ -473,6 +508,7 @@ function episodeRow(data, season, episode) {
       "div",
       { class: "episode-copy" },
       el("strong", {}, name),
+      inventoryBadge(episode.id),
       epMeta.length ? el("span", { class: "episode-meta" }, epMeta.join(" · ")) : null,
       episode.overview ? el("p", {}, episode.overview) : null,
       state.upcoming

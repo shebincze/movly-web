@@ -373,6 +373,10 @@ function createFixture({ externalListCount = 0 } = {}) {
       );
       return { payload: { results, total: results.length, took: 1 } };
     }
+    if (/^v1\/streaming\/titles\/\d+\/inventory$/.test(p)) {
+      const id=Number(p.split("/")[3]);
+      return {payload:{title_id:id, providers:[{provider_id:1,provider_name:"Webshare",streams_count:19,video_height:2160,audio_languages:["eng"]},{provider_id:2,provider_name:"Hellspy",streams_count:2,video_height:1080,audio_languages:["cze"]}], episodes:id>=20 ? {2001:[{provider_id:2,provider_name:"Hellspy",streams_count:8,video_height:1080,audio_languages:["cze","eng"]}]} : {}}};
+    }
     if (/^v1\/titles\/\d+$/.test(p)) {
       const t = [...films, ...series].find(
         (t) => t.id === Number(p.split("/")[2]),
