@@ -2109,3 +2109,6 @@ footer a:hover {
 .database-inventory-badge { display:inline-flex; flex-wrap:wrap; align-items:center; gap:3px; width:fit-content; max-width:100%; box-sizing:border-box; padding:3px 7px; border-radius:20px; background:rgba(0,0,0,.48); color:#fff; font-size:11px; line-height:1.35; font-weight:700; vertical-align:middle; }
 .database-inventory-badge .inventory-divider { color:rgba(255,255,255,.35); }
 .database-inventory-badge .inventory-audio { color:#ffb74d; overflow-wrap:anywhere; }
+
+.title-identifiers { font-family: ui-monospace, monospace; font-size: .875rem; color: var(--muted, #b7b0c8); overflow-wrap: anywhere; user-select: text; }
+.title-identifiers[hidden] { display: none; }

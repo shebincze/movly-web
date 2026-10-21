@@ -100,9 +100,11 @@ test("unsupported capabilities and explicit TV page load ES5 app", () => {
     run.head.children[4].onload();
     assert.equal(run.head.children[5].src, "/app/tv/database-availability.js");
     run.head.children[5].onload();
-    assert.equal(run.head.children[6].src, "/app/tv/tv.js");
+    assert.equal(run.head.children[6].src, "/app/title-identifiers.js");
+    run.head.children[6].onload();
+    assert.equal(run.head.children[7].src, "/app/tv/tv.js");
     assert.equal(run.text(), "");
-    run.head.children[6].onerror();
+    run.head.children[7].onerror();
     assert.match(run.text(), /Tento prohlížeč Movly nepodporuje/);
   }
 });

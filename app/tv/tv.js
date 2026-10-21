@@ -655,6 +655,18 @@
       });
       entries.push(entry);
     });
+    var identifiers = window.MovlyTitleIdentifiers;
+    entries.push(h("h2", { text: identifiers.text("advanced", lang) }));
+    var toggle = button("", function () {
+      if (current() !== screen || scope !== searchScope()) return;
+      if (!identifiers.setEnabled(!identifiers.enabled())) { toggle.textContent = identifiers.text("error", lang); return; }
+      paint();
+    });
+    function paint() {
+      toggle.textContent = identifiers.text("title", lang) + ": " + identifiers.text(identifiers.enabled() ? "on" : "off", lang);
+      toggle.setAttribute("aria-pressed", identifiers.enabled() ? "true" : "false");
+    }
+    toggle.setAttribute("data-title-identifiers-toggle", ""); paint(); entries.push(toggle);
     screen = makeScreen("settings", [header(words.text("settings", lang))].concat(entries));
     return screen;
   }
@@ -1344,6 +1356,10 @@
         each(nodes,function(node) { var id=node.getAttribute("data-inventory-episode"); window.MovlyDatabaseAvailability.paint(node,inventory ? window.MovlyDatabaseAvailability.summary(id==="title" ? inventory.providers : inventory.episodes[id] || []) : null,inventoryAccess); });
       });
     }
+    function identifierNode(data) {
+      var node = h("p", {className: "title-identifiers", "data-title-identifiers": ""});
+      window.MovlyTitleIdentifiers.paint(node, data); return node;
+    }
     function render(data) {
       detailData = data;
       clear(body);
@@ -1362,6 +1378,7 @@
         h("h1", { className: "tv-detail-title", text: data.title }),
         data.original_title && data.original_title !== data.title ? h("p", { className: "tv-muted", text: data.original_title }) : null,
         meta ? h("p", { className: "tv-meta", text: meta }) : null,
+        identifierNode(data),
         ratings ? h("p", { className: "tv-meta", text: ratings }) : null,
         data.type !== "tv" ? inventoryBadge(null) : null,
         data.overview ? h("p", { className: "tv-overview", text: data.overview }) : null,
@@ -1438,7 +1455,13 @@
     }
     s = makeScreen("detail", [header(t.title), status, body], {
       onShow: function () {
-        if (body.firstChild) { if (detailData) loadInventory(detailData); return; }
+        if (body.firstChild) {
+          if (detailData) {
+            loadInventory(detailData);
+            each(body.querySelectorAll("[data-title-identifiers]"), function (node) { window.MovlyTitleIdentifiers.paint(node, detailData); });
+          }
+          return;
+        }
         api("titles/" + t.id, {}, function (err, data) {
           if (err) { setStatus(status, err.message, "error"); body.appendChild(button("Zkusit znovu", function () { clear(body); s.onShow(); }, "tv-autofocus")); focusEl(firstFocusable(s.el), true); return; }
           if (!data || !isId(data.id)) { setStatus(status, "API vrátilo neplatný titul.", "error"); return; }

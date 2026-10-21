@@ -552,3 +552,6 @@ button[disabled].tv-f {
 /* TV episode text uses block spans; keep inventory fields in one compact capsule. */
 .tv-detail .database-inventory-badge { display:inline-flex; flex-direction:row; }
 .tv-detail .database-inventory-badge > span { display:inline; }
+
+.title-identifiers { font-family: monospace; color: #b7b0c8; word-wrap: break-word; }
+.title-identifiers[hidden] { display: none; }

@@ -38,6 +38,7 @@ const films = [
   title,
   year,
   release_date: `${year}-01-01`,
+  tmdb_id: 1000 + id,
   poster_path,
   backdrop_path,
   type: "movie",
@@ -55,6 +56,7 @@ const series = [
   ["Perníkový táta", "/3xnWaLQjelJDDF7LT1WBo6f4BRe.jpg"],
 ].map(([title, poster_path], i) => ({
   id: 20 + i,
+  tmdb_id: 2000 + i,
   title,
   poster_path,
   type: "tv",

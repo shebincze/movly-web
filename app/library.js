@@ -1,3 +1,4 @@
+import "./title-identifiers.js";
 import "./play-activation.js";
 import { feedbackAllowed as hasStreamAccess } from "./feedback-access.js";
 import "./tv/database-availability.js";
@@ -115,6 +116,8 @@ export async function detail(t, actions) {
       metadata.append(el("span", { class: "rating-badge" }, streams.audio_languages.join(" · ")));
     if (metadata.childNodes.length) facts.append(metadata);
     if (!isTV) facts.append(inventoryBadge());
+    const identifiers = el("div", { class: "title-identifiers", "data-title-identifiers": "" });
+    window.MovlyTitleIdentifiers.paint(identifiers, data);
     const wp = data.watch_progress;
     const pct = wp?.progress_percentage ?? wp?.progress_percent;
     const left = Number.isFinite(wp?.duration_seconds) && Number.isFinite(wp?.progress_seconds)
@@ -210,6 +213,7 @@ export async function detail(t, actions) {
           ),
           el("h2", { id: "dialog-title" }, data.title),
           facts,
+          identifiers,
           data.tagline ? el("p", { class: "tagline" }, data.tagline) : null,
           el("p", { class: "synopsis" }, data.overview || translateUI("Popis tohoto titulu zatím není dostupný.")),
           progress,
@@ -321,7 +325,8 @@ export async function detail(t, actions) {
         paintInventory(result,true);
       } catch (_) { /* Unknown stays unknown; no false zero. */ }
     }
-    const dispose=()=> { ++inventoryGeneration; inventoryController?.abort(); document.removeEventListener("movly:providers-changed",loadInventory); paintInventory(null); };
+    const disposeIdentifiers = window.MovlyTitleIdentifiers.watch(identifiers, data);
+    const dispose=()=> { disposeIdentifiers(); ++inventoryGeneration; inventoryController?.abort(); document.removeEventListener("movly:providers-changed",loadInventory); paintInventory(null); };
     detailInventoryDispose=dispose;
     dialog.addEventListener("close",dispose,{once:true});
     document.addEventListener("movly:providers-changed",loadInventory);
