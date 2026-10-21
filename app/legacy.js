@@ -73,7 +73,11 @@
     var inventory = document.createElement("script");
     inventory.src = "/app/tv/database-availability.js";
     inventory.onerror = show;
-    inventory.onload = function () { head.appendChild(script); };
+    var identifiers = document.createElement("script");
+    identifiers.src = "/app/title-identifiers.js";
+    identifiers.onerror = show;
+    identifiers.onload = function () { head.appendChild(script); };
+    inventory.onload = function () { head.appendChild(identifiers); };
     playChoice.onload = function () { head.appendChild(inventory); };
     preferences.onload = function () { head.appendChild(playChoice); };
     scoring.onload = function () { head.appendChild(preferences); };

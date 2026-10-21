@@ -105,3 +105,7 @@ Dočasná kompatibilita je explicitní: historický přesně rozpoznaný `legacy
 bez Authenticode metadat je povolen pouze pro ruční Premium stažení. Odpověď odkazu jej
 označí jako `legacy-v1-manual-only` a web zobrazí upozornění. Auto-update endpoint jej
 vždy odmítne; chybějící `security` se nikdy tiše nevykládá jako `false`.
+
+### ID titulů pro diagnostiku
+
+V uživatelském menu otevři **Nastavení → Pokročilé → Zobrazovat ID titulů**. Místní volba je standardně vypnutá a po zapnutí se zachová i při obnovení stránky. Detail filmu i seriálu pak pod metadaty uvádí `DB ID` a `TMDB ID`; chybějící ID je `—`. DB ID nevzniká z TMDB identifikátoru. Stejná volba je v Nastavení → Pokročilé staršího TV webu a lze ji ovládat tlačítkem/Enter. Volba se nesynchronizuje mezi zařízeními.
