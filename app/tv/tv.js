@@ -1328,8 +1328,26 @@
     var body = h("div", { className: "tv-detail" });
     var status = statusBox("Načítám detail…");
     var s;
+    var inventory = null, inventoryAccess = !!account && (["premium","vip","moderator","admin"].indexOf(account.role)>=0 || Date.parse(account.premiumUntil || "")>Date.now()), inventoryGeneration = 0, detailData = null;
+    function inventoryBadge(episodeId) {
+      var node = h("span", {className:"database-inventory-badge", "data-inventory-episode":episodeId || "title"});
+      window.MovlyDatabaseAvailability.paint(node, inventory ? window.MovlyDatabaseAvailability.summary(episodeId ? inventory.episodes[episodeId] || [] : inventory.providers) : null, inventoryAccess);
+      return node;
+    }
+    function loadInventory(data) {
+      var mine=++inventoryGeneration; inventory=null;
+      api("streaming/titles/" + data.id + "/inventory", {quiet:true}, function (error,result) {
+        if(mine!==inventoryGeneration || !s || !s.el.parentNode) return;
+        if(!error && result && result.access===false && result.title_id===data.id) inventoryAccess=false;
+        else if(!error && window.MovlyDatabaseAvailability.valid(result,data.id)) { inventory=result; inventoryAccess=true; }
+        var nodes=body.querySelectorAll("[data-inventory-episode]");
+        each(nodes,function(node) { var id=node.getAttribute("data-inventory-episode"); window.MovlyDatabaseAvailability.paint(node,inventory ? window.MovlyDatabaseAvailability.summary(id==="title" ? inventory.providers : inventory.episodes[id] || []) : null,inventoryAccess); });
+      });
+    }
     function render(data) {
+      detailData = data;
       clear(body);
+      loadInventory(data);
       var meta = filter([
         data.year || (typeof data.release_date === "string" ? data.release_date.slice(0, 4) : null),
         data.runtime ? data.runtime + " min" : null,
@@ -1345,6 +1363,7 @@
         data.original_title && data.original_title !== data.title ? h("p", { className: "tv-muted", text: data.original_title }) : null,
         meta ? h("p", { className: "tv-meta", text: meta }) : null,
         ratings ? h("p", { className: "tv-meta", text: ratings }) : null,
+        data.type !== "tv" ? inventoryBadge(null) : null,
         data.overview ? h("p", { className: "tv-overview", text: data.overview }) : null,
         actions
       ]);
@@ -1400,6 +1419,7 @@
             : progress && progress.progress_seconds > 5 ? "Rozkoukáno " + clock(progress.progress_seconds) : "";
           var btn = h("button", { type: "button", className: "tv-f tv-episode", disabled: !ok, onclick: function () { push(sourcesScreen(data, episode, true)); } }, [
             h("strong", { text: "S" + pad(season.season_number) + "E" + pad(e.episode_number) + " · " + (e.name || "Epizoda " + e.episode_number) }),
+            inventoryBadge(e.id),
             note ? h("span", { className: "tv-muted", text: note }) : null
           ]);
           window.attachPlayChoice(btn, function () { if (ok) push(sourcesScreen(data, episode, false)); }, "Vybrat jiný zdroj");
@@ -1418,7 +1438,7 @@
     }
     s = makeScreen("detail", [header(t.title), status, body], {
       onShow: function () {
-        if (body.firstChild) return;
+        if (body.firstChild) { if (detailData) loadInventory(detailData); return; }
         api("titles/" + t.id, {}, function (err, data) {
           if (err) { setStatus(status, err.message, "error"); body.appendChild(button("Zkusit znovu", function () { clear(body); s.onShow(); }, "tv-autofocus")); focusEl(firstFocusable(s.el), true); return; }
           if (!data || !isId(data.id)) { setStatus(status, "API vrátilo neplatný titul.", "error"); return; }

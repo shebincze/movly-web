@@ -6,6 +6,7 @@ const homePreferences = require("./app/tv/home-preferences-state.js");
 const { readCanonicalJSONObject } = require("./http-request");
 
 const crypto = require("node:crypto");
+const databaseInventory = require("./app/tv/database-availability.js");
 const providers = require("./providers-server");
 const liveSources = require("./sources-server");
 const { directSource, appRequired } = require("./direct-media");
@@ -154,6 +155,8 @@ function createAppHandler({
         ...extra,
       }, requestOptions); } catch(error) { workTiming?.merge(error.headers); throw error; }
     workTiming?.merge(response.headers);
+    if (/^streaming\/titles\/[1-9]\d*\/inventory$/.test(target) && (response.headers?.get?.("X-Movly-Degraded") != null || Object.keys(response.headers || {}).some(key => key.toLowerCase() === "x-movly-degraded")))
+      throw new HttpError(502, "Dostupnost neověřena.");
     return response.payload;
   }
   const call = upstreamCall;
@@ -1065,6 +1068,19 @@ function createAppHandler({
         const profiles = await call(s, "profiles");
         const profile = profiles.find((p) => p.id === s.profile.id);
         json(res, 200, offline.issue(accountUser, profile, s));
+        return true;
+      }
+      if (/^streaming\/titles\/[1-9]\d*\/inventory$/.test(target)) {
+        if (req.method !== "GET") throw new HttpError(405, "Nepodporovaná metoda.");
+        if ([...url.searchParams].length) throw new HttpError(400, "Neplatný dotaz.");
+        const titleId = Number(target.split("/")[2]);
+        const access = ["premium", "vip", "moderator", "admin"].includes(accountUser.role) || feedbackPremiumActive(accountUser.premium_until);
+        res.setHeader("Cache-Control", "private, no-store");
+        if (!access) { json(res, 200, {title_id:titleId, access:false}); return true; }
+        const raw = await call(s, target, "GET", null, {"Cache-Control":"no-store"});
+        if (!databaseInventory.valid(raw, titleId)) throw new HttpError(502, "Dostupnost neověřena.");
+        const result = databaseInventory.filtered(raw, {webshare:Boolean(s.webshare), fastshare:Boolean(s.fastshare), sosac:Boolean(s.sosac), stremio:Boolean(s.addons?.length)});
+        json(res, 200, {...result, access:true});
         return true;
       }
       if (target === "providers/webshare") {

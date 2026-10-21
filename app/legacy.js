@@ -70,7 +70,11 @@
     var playChoice = document.createElement("script");
     playChoice.src = "/app/play-activation.js";
     playChoice.onerror = show;
-    playChoice.onload = function () { head.appendChild(script); };
+    var inventory = document.createElement("script");
+    inventory.src = "/app/tv/database-availability.js";
+    inventory.onerror = show;
+    inventory.onload = function () { head.appendChild(script); };
+    playChoice.onload = function () { head.appendChild(inventory); };
     preferences.onload = function () { head.appendChild(playChoice); };
     scoring.onload = function () { head.appendChild(preferences); };
     policy.onload = function () { head.appendChild(scoring); };
