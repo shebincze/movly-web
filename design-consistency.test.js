@@ -117,6 +117,12 @@ test("tokeny webu odpovídají DESIGN §2 a §10 a starší natvrdo zadané barv
   const breakpoints = new Set([...css.matchAll(/@media \(max-width: (\d+)px\)/g)].map((m) => Number(m[1])));
   assert.deepEqual([...breakpoints].sort((a, b) => a - b), [600, 900, 1240]);
   assert.doesNotMatch(read("app/play-activation.js"), /cssText/);
+  // Vylepšit Movly zapisuje u neaktivních záložek aria-current="false"; holý [aria-current] by zvýraznil všechny.
+  const selected = styles.slice(styles.indexOf(".chip[aria-pressed=\"true\"],"), styles.indexOf("background: var(--gradient-control)", styles.indexOf(".chip[aria-pressed=\"true\"],")));
+  assert.doesNotMatch(selected, /\[aria-current\](?!:not\(\[aria-current="false"\]\))/, "vybraný stav nesmí reagovat na aria-current=\"false\"");
+  // Hover v později načtených stylech nesmí pod kurzorem přebít vybraný stav.
+  for (const component of ["fb-pill", "admin-pill", "pk-chip", "choice-chip", "season-pill"])
+    assert.doesNotMatch(css, new RegExp(`^\\.${component}:hover`, "m"), `${component}:hover musí vynechat vybraný stav`);
 });
 
 test("TV lite má ES5 slovník textů cs/sk/en a žádný český literál mimo něj", () => {

@@ -75,7 +75,7 @@
 }
 .pk-chip:has(.pk-provider) { padding-left: 8px; }
 .pk-chip .pk-provider { border-radius: 50%; }
-.pk-chip:hover { border-color: var(--line-bold); }
+.pk-chip:not([aria-pressed="true"]):hover { border-color: var(--line-bold); }
 .pk-chip-count { color: var(--muted); font-weight: 600; }
 .pk-chip[aria-pressed="true"] .pk-chip-count { color: inherit; }
 .source-statuses.pk-statuses { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0; grid-template-columns: none; }

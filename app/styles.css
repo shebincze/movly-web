@@ -968,7 +968,7 @@ select {
 .choice-list button[aria-pressed="true"],
 .segmented > button[aria-pressed="true"],
 .segmented > button[aria-checked="true"],
-.segmented > a[aria-current],
+.segmented > a[aria-current]:not([aria-current="false"]),
 .segmented > label:has(input:checked) {
   background: var(--gradient-control);
   border-color: transparent;

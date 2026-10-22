@@ -411,7 +411,7 @@
   margin: 0;
   cursor: pointer;
 }
-.choice-chip:hover {
+.choice-chip:not(:has(input:checked)):hover {
   border-color: var(--line-bold);
 }
 .choice-chip:has(input:focus-visible) {
@@ -775,7 +775,7 @@
   color: var(--text);
   font-size: 15px;
 }
-.season-pill:hover {
+.season-pill:not([aria-pressed="true"]):hover {
   border-color: var(--line-bold);
 }
 .episode-list {

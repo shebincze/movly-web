@@ -305,7 +305,7 @@
   font-size: 14px;
   white-space: nowrap;
 }
-.fb-pill:hover { background: var(--surface-2); }
+.fb-pill:not([aria-current="true"]):hover { background: var(--surface-2); }
 .fb-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .fb-search {
   flex: 1 1 240px;
@@ -469,7 +469,7 @@
   font-size: 14px;
   white-space: nowrap;
 }
-.admin-pill:hover { background: var(--surface-2); }
+.admin-pill:not([aria-current="page"]):hover { background: var(--surface-2); }
 .admin-pill-link { margin-left: auto; color: var(--accent-light); border-color: transparent; }
 .admin-page .report-list { display: flex; flex-direction: column; gap: 10px; }
 .admin-page .report-card {
