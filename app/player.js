@@ -26,6 +26,7 @@ import {
   button,
   showDialog,
   errorBox,
+  empty,
   formField,
   toast,
 } from "./ui.js";
@@ -152,7 +153,7 @@ export async function sources(
   const progress = el(
     "div",
     { class: "pk-progress is-pending", role: "status" },
-    el("span", { class: "pk-spinner", "aria-hidden": "true" }),
+    el("span", { class: "spinner", "aria-hidden": "true" }),
     summary,
     el("span", { class: "pk-progress-track", "aria-hidden": "true" }, progressBar),
   );
@@ -184,7 +185,7 @@ export async function sources(
     ["resolutions", translateUI("Rozlišení"), resolutionLabel],
     ["dynamicRanges", translateUI("Dynamický rozsah"), (range) => (range === "DV" ? "Dolby Vision" : range)],
   ].map(([key, label, display]) => {
-    const group = el("div", { class: "pk-segmented pk-facet-options", role: "group", "aria-label": label });
+    const group = el("div", { class: "segmented pk-facet-options", role: "group", "aria-label": label });
     return { key, display, group, values: "", field: el("div", { class: "pk-inline-field pk-facet", hidden: true }, el("span", {}, label), group) };
   });
   function renderFacets(options) {
@@ -572,14 +573,14 @@ export async function sources(
     );
     if (!filtered.length && !pending)
       list.append(
-        el(
-          "p",
-          { class: "pk-empty" },
+        empty(
           all.length
             ? translateUI("Žádné zdroje neodpovídají filtrům.")
             : translateUI(
                 "Žádné výsledky. Zkontroluj stav poskytovatelů výše.",
               ),
+          null,
+          { glyph: "search" },
         ),
       );
   }
@@ -698,7 +699,7 @@ async function play(
       el(
         "div",
         { class: "pk-state-card", role: "status" },
-        el("span", { class: "pk-spinner pk-spinner-lg", "aria-hidden": "true" }),
+        el("span", { class: "spinner spinner-lg", "aria-hidden": "true" }),
         el("strong", {}, translateUI("Připravuji video…")),
         selection.diagnostic_provider
           ? el("span", {}, translateUI("Ověřuji zdroj {0}…", selection.diagnostic_provider))
@@ -1096,7 +1097,7 @@ async function play(
     );
     const speed = el(
       "div",
-      { class: "pk-segmented pk-speed", role: "group", "aria-label": translateUI("Rychlost přehrávání") },
+      { class: "segmented pk-speed", role: "group", "aria-label": translateUI("Rychlost přehrávání") },
       ...speedButtons,
     );
     const subtitleDelay = el("input", {

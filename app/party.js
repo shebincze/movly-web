@@ -20,7 +20,7 @@ if (!deviceId) {
   sessionStorage.setItem(key, deviceId);
 }
 function contextKey() { return JSON.stringify([location.origin, apiContextKey()]); }
-function protocolError() { return new Error(translateUI("Server vrátil neplatný protokol přípravných kol party.")); }
+function protocolError() { return new Error(translateUI("Server vrátil neplatný protokol přípravy společného sledování.")); }
 function discardParty() {
   generation++;
   events?.close(); events = null;
@@ -369,7 +369,7 @@ export async function hostParty(title, episode) {
                 toast(e.message);
               }
             },
-            "primary",
+            "accent",
           ),
         ),
       ),

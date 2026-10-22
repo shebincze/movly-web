@@ -1,10 +1,12 @@
+/* Spec tokeny (DESIGN §2/§10) jsou ve sdíleném /assets/tokens.css; zde jen starší aliasy. */
+@import url("/assets/tokens.css");
 :root {
   color-scheme: dark;
-  --bg: #0a0a12;
-  --surface: #14141f;
-  --surface-raised: #1b1826;
+  --bg: var(--bg-base);
+  --surface: var(--bg-surface);
+  --surface-raised: var(--bg-raised);
   --text: #ffffff;
-  --muted: #a0a0b2;
+  --muted: var(--text-secondary);
   --border: rgba(255, 255, 255, 0.1);
   --purple: #8b5cf6;
   --pink: #ec4899;
@@ -136,10 +138,11 @@ input {
   border-radius: 12px;
   outline: none;
   color: var(--text);
-  background: #0f0f18;
+  background: var(--bg-base);
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
+input::placeholder { color: var(--text-tertiary); }
 input:focus { border-color: #a78bfa; box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.16); }
 
 #userCode {
@@ -150,7 +153,7 @@ input:focus { border-color: #a78bfa; box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.
 }
 
 .code-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; }
-.field-hint { margin: 9px 0 0; color: #7f7f91; font-size: 12px; line-height: 1.45; }
+.field-hint { margin: 9px 0 0; color: var(--text-tertiary); font-size: 12px; line-height: 1.45; }
 
 .login-form { display: grid; gap: 10px; }
 .login-form label:not(:first-child) { margin-top: 6px; }
@@ -163,7 +166,7 @@ input:focus { border-color: #a78bfa; box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 999px;
   color: #fff;
   font-size: 14px;
   font-weight: 800;
@@ -175,7 +178,8 @@ input:focus { border-color: #a78bfa; box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.
 .button:hover:not(:disabled) { transform: translateY(-1px); }
 .button:focus-visible { outline: 3px solid rgba(167, 139, 250, 0.5); outline-offset: 2px; }
 .button:disabled { cursor: wait; opacity: 0.55; }
-.button-primary { background: linear-gradient(135deg, var(--purple), var(--pink)); box-shadow: 0 12px 28px rgba(139, 92, 246, 0.25); }
+/* Bílý text jen na control gradientu (DESIGN §10), ne na brandovém violet → pink. */
+.button-primary { background: var(--gradient-control); box-shadow: 0 12px 28px rgba(124, 58, 237, 0.25); }
 .button-secondary { border-color: rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.07); }
 .button-danger { border-color: rgba(248, 113, 113, 0.28); color: #fecaca; background: rgba(248, 113, 113, 0.1); }
 
@@ -197,14 +201,14 @@ input:focus { border-color: #a78bfa; box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.
 .result-icon.approved { color: #bbf7d0; background: rgba(52, 211, 153, 0.14); }
 .result-icon.denied { color: #fecaca; background: rgba(248, 113, 113, 0.13); }
 
-.safety-note { margin-top: 22px; padding: 0 10px; display: flex; align-items: flex-start; gap: 12px; color: #89899a; }
+.safety-note { margin-top: 22px; padding: 0 10px; display: flex; align-items: flex-start; gap: 12px; color: var(--text-tertiary); }
 .safety-note svg { flex: 0 0 auto; width: 22px; margin-top: 2px; fill: none; stroke: #a78bfa; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .safety-note p { margin: 0; font-size: 13px; line-height: 1.55; }
 .safety-note strong { color: #c9c9d5; }
 
 .hidden { display: none !important; }
 
-@media (max-width: 620px) {
+@media (max-width: 600px) {
   .site-header { width: calc(100% - 32px); min-height: 68px; }
   .secure-label { font-size: 0; gap: 0; }
   .secure-label svg { width: 20px; }

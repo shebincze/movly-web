@@ -148,7 +148,7 @@ function successDialog(summary) {
       ),
       el(
         "a",
-        { href: "#home", class: "button primary", onClick: () => document.querySelector("#dialog").close() },
+        { href: "#home", class: "button accent", onClick: () => document.querySelector("#dialog").close() },
         translateUI("Pokračovat ve sledování"),
       ),
     ),
@@ -238,7 +238,7 @@ export async function premium(signal) {
                 );
               }
             },
-            "primary",
+            "accent",
           );
           showDialog(
             el(
@@ -260,7 +260,7 @@ export async function premium(signal) {
             ),
           );
         },
-        affordable ? "primary" : "secondary",
+        affordable ? "accent" : "secondary",
       );
       if (!affordable) buy.setAttribute("aria-haspopup", "dialog");
       buttons.push(buy);

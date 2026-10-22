@@ -2,7 +2,8 @@ import { watchPagePreferences } from "./page-preferences-watch.js";
 import { createHomeLoader } from "./home-loader.js";
 import { api, apiContextKey, title, imageURL } from "./api.js";
 import { effectiveContentPolicy } from "./effective-policy.js";
-import { translateUI } from "./i18n.js";
+import { translateUI, uiLanguage } from "./i18n.js";
+import { genreName } from "./format.js";
 import { el, button, loading, empty, rail, errorBox, icon } from "./ui.js";
 import { retainHome, homeCaption, recommendationAction, HomeImpressions } from "./home-state.js";
 
@@ -60,7 +61,7 @@ function continueCards(node, items) {
 function genreSection(genres) {
   return el("section", { class: "rail-section home-genres", "aria-labelledby": "home-genres" },
     el("h2", { id: "home-genres" }, translateUI("Žánry")),
-    el("div", { class: "genre-chips" }, genres.map(g => el("a", { class: "chip", href: `#movies?${new URLSearchParams({ view: "grid", genre: String(g.id) })}` }, g.name_cs || g.name))));
+    el("div", { class: "genre-chips" }, genres.map(g => el("a", { class: "chip", href: `#movies?${new URLSearchParams({ view: "grid", genre: String(g.id) })}` }, genreName(g, uiLanguage())))));
 }
 export function serverHome(signal, actions, carousel, initialPolicy) {
   const content = el("div", { class: "native-home" }, loading());

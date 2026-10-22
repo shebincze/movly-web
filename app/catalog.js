@@ -1,7 +1,8 @@
 import { watchPagePreferences } from "./page-preferences-watch.js";
 import { serverHome, homeItems, homeTracking, decorateHomeCards, resetHomeImpressions } from "./home.js";
 import { homeQuery, homeSections } from "./home-state.js";
-import { translateUI } from "./i18n.js";
+import { translateUI, uiLanguage } from "./i18n.js";
+import { genreName } from "./format.js";
 import {
   searchHistory,
   rememberSearch,
@@ -9,6 +10,7 @@ import {
   clearSearchHistory,
 } from "./search-history.js";
 import { api, apiContextKey, apiContextOwner, array, title, imageURL } from "./api.js";
+import { listButton } from "./library.js";
 import { effectiveContentPolicy, assertEffectivePolicyUnchanged } from "./effective-policy.js";
 import {
   applyUserState,
@@ -48,7 +50,7 @@ function carousel(items, actions) {
   };
   function show(next) {
     index = (next + items.length) % items.length;
-    slide.replaceChildren(hero(items[index], actions.detail, actions.save, play));
+    slide.replaceChildren(hero(items[index], actions.detail, (t) => listButton(t, actions), play));
     const label = items[index].homeHighlight?.label || items[index].homeHeading;
     if (label) slide.querySelector(".hero-content").prepend(el("span", { class: "hero-label" }, label));
     actions.onHero?.(slide.firstElementChild, items[index]);
@@ -554,7 +556,7 @@ function filterBuilder({
 }) {
   const actionCurrent = catalogActionGuard(signal, () => filters.isConnected);
   const grid = !allowType;
-  const genreNames = new Map(genres.map((g) => [g.id, g.name_cs || g.name]));
+  const genreNames = new Map(genres.map((g) => [g.id, genreName(g, uiLanguage())]));
   const selectedGenres = new Set(definition.genre_ids || []);
   const genreChoices = [...genres, ...[...selectedGenres]
     .filter((id) => !genres.some((genre) => genre.id === id))
@@ -582,11 +584,11 @@ function filterBuilder({
     : null;
   const genre = el(
     "div",
-    { class: "genre-chips" },
+    { class: "choice-chips" },
     genreChoices.map((g) => {
       const input = el("input", { type: "checkbox", name: "genre", value: g.id });
       input.checked = selectedGenres.has(g.id);
-      return el("label", { class: "choice-chip" }, input, el("span", {}, g.name_cs || g.name));
+      return el("label", { class: "choice-chip" }, input, el("span", {}, genreName(g, uiLanguage())));
     }),
   );
   const genreMatch = el("input", { type: "checkbox", name: "gm", value: "1" });
@@ -741,7 +743,7 @@ function filterBuilder({
     formField(translateUI("Směr řazení"), order),
     el(
       "button",
-      { class: "button primary", type: "submit" },
+      { class: "button accent", type: "submit" },
       translateUI("Použít filtry"),
     ),
     hasCriteria(definition) || (allowType && definition.type)
@@ -1012,7 +1014,7 @@ export async function search(params, signal, actions) {
   });
   const suggestionList = el("div", {
     id: "search-suggestions",
-    class: "search-suggestions",
+    class: "popover search-suggestions",
     role: "listbox",
     "aria-label": translateUI("Návrhy hledání"),
     hidden: true,
@@ -1159,7 +1161,7 @@ export async function search(params, signal, actions) {
       icon("search"),
       input,
       clear,
-      el("button", { type: "submit", class: "button primary" }, translateUI("Hledat")),
+      el("button", { type: "submit", class: "button accent" }, translateUI("Hledat")),
     ),
     suggestionList,
   );

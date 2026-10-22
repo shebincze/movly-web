@@ -6,7 +6,7 @@ export function reportStream(selection) {
   const status = el("p", { role: "status" });
   const submit = el(
     "button",
-    { type: "submit", class: "button primary" },
+    { type: "submit", class: "button accent" },
     translateUI("Odeslat hlášení"),
   );
   const dialog = showDialog(
@@ -82,7 +82,7 @@ export function uploadStream(selection, onSaved) {
         submit.disabled = selections.some(s => !s.value);
       }
     },
-    "primary",
+    "accent",
   );
   const dialog = showDialog(
     el(

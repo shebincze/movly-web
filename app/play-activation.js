@@ -52,7 +52,7 @@
       closeMenu(false);
       menu = document.createElement("div");
       menu.setAttribute("role", "menu");
-      menu.style.cssText = "position:fixed;z-index:10000;padding:8px;border:1px solid #454154;border-radius:12px;background:#191724;box-shadow:0 8px 30px #0008";
+      menu.className = "popover play-choice-menu";
       var item = document.createElement("button");
       item.type = "button"; item.className = "button secondary";
       item.setAttribute("role", "menuitem"); item.textContent = label;

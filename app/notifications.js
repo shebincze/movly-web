@@ -1,5 +1,5 @@
 import { api } from "./api.js";
-import { el, button, showDialog, loading } from "./ui.js";
+import { el, button, icon, showDialog, loading, empty } from "./ui.js";
 import { notificationLabel as label } from "./notification-labels.js";
 export const notificationEvents = ["episode_released", "stream_available", "czsk_available"];
 export const notificationEventsForTitle = titleType => titleType === "movie"
@@ -47,7 +47,7 @@ export async function openNotifications(titleId = null, draft = null, afterClose
     const group = el("fieldset", {class:"notification-group"}, el("legend", {},label(account ? "NotificationsChannels" : "NotificationsEvents")));
     content.replaceChildren(heading,status,group);
     const inputs = [];
-    const save = button(label(account ? "NotificationsSave" : subscribed ? "NotificationsSave" : "NotificationsEnable"), () => persist(false), "primary");
+    const save = button(label(account ? "NotificationsSave" : subscribed ? "NotificationsSave" : "NotificationsEnable"), () => persist(false), "accent");
     const update = () => { save.disabled = busy || (!account && (!selected.length || !snapshot.defaults.channels.length)); };
     for (const key of fields) {
       const input = el("input", {type:"checkbox",role:"switch",checked:selected.includes(key)});
@@ -95,30 +95,30 @@ export async function openNotifications(titleId = null, draft = null, afterClose
         const data=await api(`titles/${item.title_id}`,{expectedOwner:owner});
         const {detail}=await import("./library.js");await detail(data,{save:()=>{}});
       })));
-      if(!inbox.items.length)list.replaceWith(el("p",{class:"notification-empty"},label("NotificationsEmpty")));
+      if(!inbox.items.length)list.replaceWith(empty(label("NotificationsEmpty"),null,{glyph:"bell"}));
     }
   }catch(error){if(current()){content.querySelector(".loading")?.remove();status.textContent=error.message;content.append(status,button(label("NotificationsRetry"),()=>void openNotifications(titleId,draft,afterClose,titleType)));}}
 }
 
 export function seriesNotificationButton(titleId, afterClose = null, titleType = "tv") {
-  const control = button(label("NotificationsEntry"),()=>void openNotifications(titleId,null,afterClose,titleType),"secondary");
+  const control = button(label("NotificationsEntry"),()=>void openNotifications(titleId,null,afterClose,titleType),"secondary","bell");
   let revision=0;
   async function refresh() {
     const request=++revision;
-    control.textContent=label("NotificationsEntry");control.removeAttribute("aria-pressed");
+    control.replaceChildren(icon("bell"),label("NotificationsEntry"));control.removeAttribute("aria-pressed");
     try {
       const session=await api("session");
       const owner={accountId:session.account?.id,profileId:session.profile?.id ?? session.selected_profile_id};
       const snapshot=await api(`notifications/series/${Number(titleId)}`,{expectedOwner:owner});
       if(request!==revision || !control.isConnected)return;
       const enabled=notificationsEnabled(snapshot);
-      control.textContent=label(enabled ? "NotificationsOn" : "NotificationsOff");
+      control.replaceChildren(icon("bell"),label(enabled ? "NotificationsOn" : "NotificationsOff"));
       control.setAttribute("aria-pressed",String(enabled));control.classList.toggle("notifications-on",enabled);
     }catch{ /* Unknown state stays neutral; never present a failed read as disabled. */ }
   }
   const changed=()=>{if(control.isConnected)void refresh();else window.removeEventListener("movly-notification-preferences-changed",changed);};
   window.addEventListener("movly-notification-preferences-changed",changed);
-  const revoked=()=>{revision++;control.textContent=label("NotificationsEntry");control.removeAttribute("aria-pressed");control.classList.remove("notifications-on");window.removeEventListener("movly-notification-preferences-changed",changed);};
+  const revoked=()=>{revision++;control.replaceChildren(icon("bell"),label("NotificationsEntry"));control.removeAttribute("aria-pressed");control.classList.remove("notifications-on");window.removeEventListener("movly-notification-preferences-changed",changed);};
   window.addEventListener("movly-offline-revoked",revoked,{once:true});
   document.querySelector("#dialog").addEventListener("close",()=>{revision++;window.removeEventListener("movly-notification-preferences-changed",changed);window.removeEventListener("movly-offline-revoked",revoked);},{once:true});
   void refresh();return control;

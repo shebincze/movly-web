@@ -85,7 +85,7 @@ export async function friends(_params, signal, actions) {
   });
   const submit = el(
     "button",
-    { type: "submit", class: "button primary" },
+    { type: "submit", class: "button accent" },
     translateUI("Odeslat žádost"),
   );
   const form = el(

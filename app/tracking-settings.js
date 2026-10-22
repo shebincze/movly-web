@@ -38,7 +38,7 @@ export async function appendTrackingSettings(container, dialog) {
       "p",
       { class: "connections-intro" },
       translateUI(
-        "Propojení platí jen pro tento profil. Import doplní dostupnou historii a zachová místní volby. Další změny Viděno se synchronizují automaticky.",
+        "Propojení platí jen pro tento profil. Import doplní dostupnou historii a zachová místní volby. Další změny stavu Zhlédnuto se synchronizují automaticky.",
       ),
     ),
   );
@@ -125,7 +125,7 @@ export async function appendTrackingSettings(container, dialog) {
             ["disconnect", translateUI("Odpojit")],
           ]
         : [["connect", translateUI("Připojit")]]) {
-        const control = button(label, () => run(item.provider, action), action === "connect" ? "primary small" : action === "disconnect" ? "secondary small service-quiet" : "secondary small");
+        const control = button(label, () => run(item.provider, action), action === "connect" ? "accent small" : action === "disconnect" ? "secondary small service-quiet" : "secondary small");
         control.disabled = busy || !item.configured || item.revocation_pending;
         actions.append(control);
       }
@@ -164,7 +164,7 @@ export async function appendTrackingSettings(container, dialog) {
             href: url.href,
             target: "_blank",
             rel: "noopener noreferrer",
-            class: "button primary small",
+            class: "button accent small",
           },
           translateUI("Potvrdit propojení ve službě"),
         );

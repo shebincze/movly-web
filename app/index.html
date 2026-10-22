@@ -7,11 +7,11 @@
     <meta name="theme-color" content="#0a0a12" />
     <title>Movly — Objevuj svůj další příběh</title>
     <link rel="icon" href="/assets/movly-icon.svg" />
-    <link rel="stylesheet" href="/app/styles.css?v=2" />
-    <link rel="stylesheet" href="/app/css/catalog.css?v=2" />
-    <link rel="stylesheet" href="/app/css/player.css?v=6" />
-    <link rel="stylesheet" href="/app/css/library.css?v=2" />
-    <link rel="stylesheet" href="/app/css/account.css?v=2" />
+    <link rel="stylesheet" href="/app/styles.css?v=3" />
+    <link rel="stylesheet" href="/app/css/catalog.css?v=3" />
+    <link rel="stylesheet" href="/app/css/player.css?v=7" />
+    <link rel="stylesheet" href="/app/css/library.css?v=3" />
+    <link rel="stylesheet" href="/app/css/account.css?v=3" />
     <script src="/app/legacy.js?v=4" defer></script>
     <script type="module" src="/app/main.js"></script>
   </head>
@@ -27,7 +27,7 @@
         <a href="#home" data-page="home">Domů</a
         ><a href="#movies" data-page="movies">Filmy</a
         ><a href="#series" data-page="series">Seriály</a
-        ><a href="#lists" data-page="lists">Moje knihovna</a
+        ><a href="#lists" data-page="lists">Moje seznamy</a
         ><a href="#friends" data-page="friends">Přátelé</a
         ><a href="#admin" data-page="admin" id="admin-link" hidden>Nahlášení</a>
       </nav>
@@ -44,7 +44,7 @@
             aria-expanded="false"
             aria-controls="inbox-menu"
           ></button>
-          <div class="header-panel inbox-menu" id="inbox-menu" hidden></div>
+          <div class="popover header-panel inbox-menu" id="inbox-menu" hidden></div>
         </div>
         <a class="coin-pill" href="#premium" id="coin-pill" hidden></a>
         <div class="header-popover">
@@ -58,7 +58,7 @@
           >
             <span class="avatar" id="avatar">M</span>
           </button>
-          <div class="header-panel account-menu" id="account-menu" hidden>
+          <div class="popover header-panel account-menu" id="account-menu" hidden>
             <div class="account-head">
               <span class="avatar" id="menu-avatar">M</span
               ><span class="account-who"
@@ -74,12 +74,12 @@
             ><a href="#premium" class="account-premium"
               >Premium a coiny<small id="premium-meta"></small></a
             ><button id="app-settings">Nastavení</button
-            ><a href="#feedback" hidden>Pomoz vylepšit Movly</a>
+            ><a href="#feedback" hidden>Vylepšit Movly</a>
             <hr />
             <a href="#history">Historie sledování</a
             ><a href="#hidden">Skryté tituly</a
             ><a id="offline-library-link" href="#offline" hidden>Offline knihovna</a
-            ><a href="/devices">Správa zařízení</a
+            ><a href="/devices">Zařízení</a
             ><a href="/">Stáhnout aplikaci</a>
             <div class="account-language" id="account-language"></div>
             <hr />
@@ -92,7 +92,7 @@
       <div class="loading" role="status" data-boot="1">Načítám Movly…</div>
     </main>
     <footer>
-      <span>© 2026 Movly</span><a href="#feedback" hidden>Pomoz vylepšit Movly</a
+      <span>© 2026 Movly</span><a href="#feedback" hidden>Vylepšit Movly</a
       ><a href="/privacy.html">Soukromí</a
       ><a href="/">Aplikace pro iOS, Android, Windows a TV</a>
     </footer>

@@ -1,42 +1,30 @@
 /* Movly Web redesign — player area. Loaded after /app/styles.css; uses its :root tokens. */
 
 /* ---------- Společné prvky ---------- */
-@keyframes pk-spin { to { transform: rotate(360deg); } }
+/* Loader je sdílený .spinner a segmenty sdílený .segmented ze styles.css. */
 @keyframes pk-pulse { 50% { opacity: .45; } }
-.pk-spinner {
-  width: 18px; height: 18px; flex: none; border-radius: 50%;
-  border: 2px solid var(--line-strong); border-top-color: var(--accent-soft);
-  animation: pk-spin 1s linear infinite;
-}
-.pk-spinner-lg { width: 36px; height: 36px; border-width: 3px; }
 .pk-eyebrow {
   font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
   color: var(--accent-light);
 }
+/* Badge poskytovatele (DESIGN §2): 20% tint barvy a zesvětlený text barvy
+   poskytovatele místo bílého textu na plné výplni (kontrast min. 4,5:1). */
 .pk-provider {
+  --provider: var(--muted);
   width: 28px; height: 28px; flex: none; border-radius: 7px;
   display: grid; place-items: center;
   font-size: 11px; font-weight: 800; line-height: 1;
-  background: var(--surface-3); color: var(--text);
+  background: color-mix(in srgb, var(--provider) 20%, transparent);
+  color: color-mix(in srgb, var(--provider) 55%, #fff);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--provider) 45%, transparent);
 }
-.pk-provider[data-provider="webshare"] { background: #3B82F6; color: #fff; }
-.pk-provider[data-provider="fastshare"] { background: #F59E0B; color: #0A0A12; }
-.pk-provider[data-provider="hellspy"] { background: #14B8A6; color: #0A0A12; }
-.pk-provider[data-provider="ulozto"] { background: #EF4444; color: #fff; }
-.pk-provider[data-provider="prehrajto"] { background: #22C55E; color: #0A0A12; }
-.pk-provider[data-provider="sosac"] { background: #EC4899; color: #fff; }
-.pk-provider[data-provider="stremio"] { background: var(--accent-strong); color: #fff; }
-.pk-segmented {
-  display: flex; gap: 4px; padding: 4px;
-  border-radius: var(--radius); background: var(--bg);
-}
-.pk-segmented button {
-  min-height: 36px; padding: 0 12px; border: 0; border-radius: var(--radius-sm);
-  background: transparent; color: var(--muted); font-size: 14px; white-space: nowrap;
-}
-.pk-segmented button:hover:not(:disabled) { color: var(--text); }
-.pk-segmented button[aria-pressed="true"] { background: var(--surface-3); color: var(--text); font-weight: 600; }
-.pk-segmented button:disabled { opacity: .5; cursor: not-allowed; }
+.pk-provider[data-provider="webshare"] { --provider: var(--provider-webshare); }
+.pk-provider[data-provider="fastshare"] { --provider: var(--provider-fastshare); }
+.pk-provider[data-provider="hellspy"] { --provider: var(--provider-hellspy); }
+.pk-provider[data-provider="ulozto"] { --provider: var(--provider-ulozto); }
+.pk-provider[data-provider="prehrajto"] { --provider: var(--provider-prehrajto); }
+.pk-provider[data-provider="sosac"] { --provider: var(--provider-sosac); }
+.pk-provider[data-provider="stremio"] { --provider: var(--provider-stremio); }
 
 /* ---------- Výběr zdroje ---------- */
 #dialog:has(.pk-picker) {
@@ -73,21 +61,21 @@
   display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
   font-size: 14px; color: var(--muted);
 }
-.pk-progress:not(.is-pending) .pk-spinner { display: none; }
+.pk-progress:not(.is-pending) .spinner { display: none; }
 .pk-progress-track {
   flex: 1; min-width: 80px; height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden;
 }
-.pk-progress-bar { display: block; height: 100%; width: 0; border-radius: 2px; background: var(--accent); transition: width .3s; }
+.pk-progress-bar { display: block; height: 100%; width: 0; border-radius: 2px; background: var(--gradient-brand); transition: width .3s; }
 .pk-progress:not(.is-pending) .pk-progress-track { display: none; }
 .pk-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .pk-chip {
-  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px;
-  border-radius: 10px; border: 1px solid var(--line-strong);
-  background: var(--surface-2); color: var(--text); font-size: 14px;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px;
+  border-radius: var(--radius-pill); border: 1px solid var(--line-strong);
+  background: var(--bg-surface); color: var(--text); font-size: 14px;
 }
-.pk-chip:has(.pk-provider) { padding-left: 6px; }
-.pk-chip:hover { border-color: var(--line-bold); }
-.pk-chip[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--bg); font-weight: 700; }
+.pk-chip:has(.pk-provider) { padding-left: 8px; }
+.pk-chip .pk-provider { border-radius: 50%; }
+.pk-chip:not([aria-pressed="true"]):hover { border-color: var(--line-bold); }
 .pk-chip-count { color: var(--muted); font-weight: 600; }
 .pk-chip[aria-pressed="true"] .pk-chip-count { color: inherit; }
 .source-statuses.pk-statuses { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0; grid-template-columns: none; }
@@ -112,7 +100,7 @@
 .pk-filters select { min-height: 42px; border-radius: 10px; padding: 0 10px; background: var(--bg); border: 1px solid var(--line-strong); }
 .pk-inline-field { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
 .pk-facet[hidden] { display: none; }
-.pk-facet .pk-segmented { flex-wrap: wrap; }
+.pk-facet .segmented { flex-wrap: wrap; }
 .pk-relaxed { margin: 8px 0 0; }
 .pk-source-list.source-list { display: flex; flex-direction: column; gap: 8px; padding: 8px 28px 0; }
 .pk-section-title {
@@ -138,7 +126,7 @@
 .pk-unavailable { font-size: 13px; color: var(--warning); }
 .pk-row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .pk-row-actions:empty { display: none; }
-.sources-content .pk-row-actions .button.small { min-height: 32px; padding: 0 10px; font-size: 13px; }
+.sources-content .pk-row-actions .button.small { padding: 0 12px; font-size: 13px; }
 .pk-play {
   width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%;
   display: grid; place-items: center; background: var(--text); color: var(--bg);
@@ -146,7 +134,7 @@
 .pk-play svg { width: 16px; height: 16px; margin-left: 2px; }
 .pk-play:hover:not(:disabled) { background: var(--accent-light); }
 .pk-play:disabled { background: var(--surface-3); color: var(--muted); cursor: not-allowed; }
-.pk-empty { margin: 16px 0 0; padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--line-bold); border-radius: var(--radius-md); }
+.pk-source-list > .empty { margin-top: 16px; }
 
 /* ---------- Přehrávač ---------- */
 #dialog:has(.pk-player), #dialog:has(.pk-player-state), #dialog:has(.pk-player-error) {
@@ -259,7 +247,7 @@
   text-align: center; padding: 20px; border-radius: var(--radius-md);
   background: var(--surface); border: 1px solid var(--line);
 }
-.pk-state-card span:not(.pk-spinner) { font-size: 14px; color: var(--muted); }
+.pk-state-card span:not(.spinner) { font-size: 14px; color: var(--muted); }
 .pk-player-error .error-state { margin: 0; text-align: left; }
 .pk-error-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
@@ -310,22 +298,21 @@
 .pk-feedback .dialog-form { display: flex; flex-direction: column; gap: 12px; }
 .pk-feedback [role="status"]:empty { display: none; }
 
-/* ---------- Úzké obrazovky ---------- */
-@media (max-width: 760px) {
+/* ---------- Úzké obrazovky (sdílené breakpointy 900/600) ---------- */
+@media (max-width: 900px) {
   .pk-settings { position: static; width: auto; max-width: none; border-radius: 0; border: 0; border-top: 1px solid var(--line); }
   .pk-stage { overflow: visible; background: transparent; }
   .pk-player .video-player { border-radius: var(--radius-md); }
 }
-@media (max-width: 650px) {
-  #dialog:has(.pk-picker), #dialog:has(.pk-player), #dialog:has(.pk-party) { width: 100%; max-width: 100%; max-height: 100dvh; border-radius: 0; }
+@media (max-width: 600px) {
   .pk-picker-head { padding: 20px 64px 16px 16px; }
   .pk-picker > :not(.pk-picker-head):not(.pk-source-list) { margin: 14px 16px 0; }
   .pk-source-list.source-list { padding: 8px 16px 0; }
   .sources-content .pk-source-row { flex-wrap: wrap; align-items: flex-start; gap: 12px; padding: 12px; }
   .sources-content .pk-source-row .pk-source-main { flex: 1 1 calc(100% - 120px); }
   .pk-source-row > .pk-provider { width: 36px; height: 36px; font-size: 12px; }
-  .pk-filters .pk-segmented { width: 100%; }
-  .pk-filters .pk-segmented button { flex: 1; padding: 0 6px; }
+  .pk-filters .segmented { width: 100%; }
+  .pk-filters .segmented button { flex: 1; padding: 0 6px; }
   .pk-filters input[type="search"] { flex-basis: 100%; }
   .pk-inline-field { flex: 1 1 auto; }
   .pk-inline-field select { flex: 1; min-width: 0; }
@@ -341,7 +328,7 @@
 .pk-intro-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .pk-intro-controls[hidden] { display:none; }
 /* Během titulků se zvýrazní stálé tlačítko další epizody místo druhého konkurenčního tlačítka. */
-.pk-control.pk-next-credits { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-soft); }
+.pk-control.pk-next-credits { background: var(--gradient-control); color: #fff; box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* ---------- Vlastní ovládání přehrávače ---------- */
 .pk-screen { display: flex; flex-direction: column; gap: 8px; }
@@ -385,7 +372,7 @@
 .pk-screen.pk-page-fullscreen .pk-settings { position: absolute; top: 16px; right: 16px; bottom: 16px; width: 340px; max-width: calc(100% - 32px); border-radius: 20px; border: 1px solid var(--line-strong); }
 .pk-screen.pk-page-fullscreen .pk-next { position: absolute; right: 16px; bottom: 16px; max-width: calc(100% - 32px); }
 html.pk-page-fullscreen-open, html.pk-page-fullscreen-open body { overflow: hidden; }
-@media (max-width: 650px) {
+@media (max-width: 600px) {
   .pk-volume { width: 72px; }
   .pk-transport .pk-spacer { flex: 1; display: block; }
   .pk-next { position: static; max-width: none; }

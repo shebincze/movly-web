@@ -26,7 +26,7 @@ export function appHandoff(title, message = translateUI("Tento zdroj nejde přeh
     el(
       "div",
       { class: "pk-app-handoff-actions" },
-      el("a", { class: "button primary small", href: appTitleLink(title) }, translateUI("Otevřít v aplikaci")),
+      el("a", { class: "button accent small", href: appTitleLink(title) }, translateUI("Otevřít v aplikaci")),
       el("a", { class: "button secondary small", href: "/" }, translateUI("Stáhnout aplikaci")),
     ),
   );
