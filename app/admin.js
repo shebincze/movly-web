@@ -45,7 +45,7 @@ function reviewDialog(row, action, refresh) {
   const status = el("p", { class: "form-status", role: "alert" });
   const submit = el(
     "button",
-    { type: "submit", class: `button ${approve ? "danger" : "primary"}` },
+    { type: "submit", class: `button ${approve ? "danger" : "accent"}` },
     approve
       ? translateUI("Schválit a skrýt stream")
       : translateUI("Zamítnout nahlášení"),
@@ -121,7 +121,7 @@ function restoreDialog(row, refresh) {
   const status = el("p", { class: "form-status", role: "alert" });
   const submit = el(
     "button",
-    { type: "submit", class: "button primary" },
+    { type: "submit", class: "button accent" },
     translateUI("Obnovit stream"),
   );
   const form = el(
@@ -337,7 +337,7 @@ async function trustedView(signal, refresh) {
   const status = el("p", { class: "form-status", role: "alert" });
   const submit = el(
     "button",
-    { type: "submit", class: "button primary" },
+    { type: "submit", class: "button accent" },
     translateUI("Přidat"),
   );
   const form = el(
@@ -525,7 +525,7 @@ export async function admin(params, signal, actions, account) {
       el(
         "div",
         {},
-        el("h1", {}, translateUI("Nahlášené streamy")),
+        el("h1", {}, translateUI("Nahlášení")),
         el(
           "p",
           {},

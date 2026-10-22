@@ -1,0 +1,22 @@
+/* Sdílené tokeny Movly pro kořenové stránky (soukromí, smazání účtu, aktivace TV,
+   zařízení). Hodnoty = app/styles.css :root a docs/DESIGN.md §2/§10 hlavního
+   repozitáře; shodu hlídá design-consistency.test.js. */
+:root {
+  --bg-base: #0a0a12;
+  --bg-surface: #14141f;
+  --bg-raised: #1c1c2a;
+  --stroke: rgba(255, 255, 255, 0.08);
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0b2;
+  --text-tertiary: #9494a8;
+  --text-2: #d4d4e0;
+  --accent: #8b5cf6;
+  --accent-strong: #7c3aed;
+  --accent-soft: #a78bfa;
+  --pink: #ec4899;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --gradient-brand: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 33%, #c026d3 66%, #ec4899 100%);
+  --gradient-control: linear-gradient(135deg, #7c3aed 0%, #a21caf 50%, #be185d 100%);
+}

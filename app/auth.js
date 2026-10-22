@@ -32,7 +32,7 @@ export function passwordResetForm(onComplete) {
     busy = false;
   const submit = el(
     "button",
-    { type: "submit", class: "button primary" },
+    { type: "submit", class: "button accent" },
     translateUI("Poslat kód"),
   );
   const fields = el(

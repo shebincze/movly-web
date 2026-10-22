@@ -1,4 +1,5 @@
-import { translateUI } from "./i18n.js";
+import { translateUI, uiLanguage } from "./i18n.js";
+import { formatRating, qualityLabel, genreName } from "./format.js";
 import { imageURL } from "./api.js";
 import {
   applyUserState,
@@ -37,6 +38,10 @@ const paths = {
   info: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18", "M12 11v5", "M12 8h.01"],
   tv: ["M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1", "M8 21h8"],
   lock: ["M7 11h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2", "M8 11V8a4 4 0 0 1 8 0v3"],
+  star: ["m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"],
+  users: ["M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8", "M22 21v-2a4 4 0 0 0-3-3.87", "M16 3.13a4 4 0 0 1 0 7.75"],
+  list: ["M8 6h13", "M8 12h13", "M8 18h13", "M3 6h.01", "M3 12h.01", "M3 18h.01"],
+  sparkle: ["M12 3v4", "M12 17v4", "M3 12h4", "M17 12h4", "m5.6 5.6 2.8 2.8", "m15.6 15.6 2.8 2.8", "m5.6 18.4 2.8-2.8", "m15.6 8.4 2.8-2.8"],
 };
 export function icon(name) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -77,12 +82,27 @@ export const loading = () =>
     el("span", { class: "spinner" }),
     translateUI("Načítám…"),
   );
-export function empty(heading, copy) {
+// Jediný prázdný stav (DESIGN §10): ikona, nadpis, volitelný popis a akce.
+// Prázdný popis se nevykresluje.
+export function empty(heading, copy, { glyph = "info", action = null } = {}) {
   return el(
     "div",
     { class: "empty" },
+    glyph ? el("span", { class: "empty-icon" }, icon(glyph)) : null,
     el("h2", {}, heading),
-    el("p", {}, copy),
+    copy ? el("p", {}, copy) : null,
+    action ? el("div", { class: "empty-actions" }, action) : null,
+  );
+}
+// Brána Premium je informační stav s cestou k Premium, ne chyba.
+export function premiumGate(feature) {
+  return empty(
+    translateUI("{0} je součástí Premium", feature),
+    translateUI("S Premium můžeš nahlašovat chyby, navrhovat funkce a hlasovat o nich."),
+    {
+      glyph: "lock",
+      action: el("a", { class: "button accent", href: "#premium" }, translateUI("Premium a coiny")),
+    },
   );
 }
 export function errorBox(error, retry) {
@@ -137,18 +157,10 @@ export function poster(raw, onClick, extra) {
       : el("span", { class: "missing-art" }, translateUI("Bez plakátu")),
   );
   const badges = el("span", { class: "poster-badges" });
-  if (Number.isFinite(t.rating))
-    badges.append(el("span", {}, `${Math.round(t.rating)}%`));
-  if (t.streams?.video_height)
-    badges.append(
-      el(
-        "span",
-        {},
-        t.streams.video_width >= 3800 || t.streams.video_height >= 2100
-          ? translateUI("4K")
-          : `${t.streams.video_height}p`,
-      ),
-    );
+  const rating = formatRating(t.rating);
+  if (rating) badges.append(el("span", { class: "badge-rating" }, rating));
+  const quality = qualityLabel(t.streams?.video_height, t.streams?.video_width);
+  if (quality) badges.append(el("span", {}, quality));
   if (
     t.streams?.audio_languages?.some((x) =>
       ["cs", "cz", "ces", "cze"].includes(x.toLowerCase()),
@@ -216,13 +228,11 @@ export function metaLine(parts, tags = []) {
   for (const tag of tags.filter(Boolean)) node.append(tag);
   return node;
 }
-export function hero(t, onTitle, onSave, onPlay) {
+// listAction(t) vrací tlačítko „Můj seznam“ / „V seznamu“ se stavem členství.
+export function hero(t, onTitle, listAction, onPlay) {
   const url = imageURL(t.backdrop_path, "w1280");
-  const quality = t.streams?.video_height
-    ? t.streams.video_width >= 3800 || t.streams.video_height >= 2100
-      ? translateUI("4K")
-      : `${t.streams.video_height}p`
-    : null;
+  const quality = qualityLabel(t.streams?.video_height, t.streams?.video_width);
+  const rating = formatRating(t.rating);
   return el(
     "section",
     { class: `hero${url ? "" : " no-art"}` },
@@ -244,12 +254,12 @@ export function hero(t, onTitle, onSave, onPlay) {
         [
           t.year,
           runtimeLabel(t.runtime),
-          (t.genres || []).slice(0, 2).map((g) => g.name_cs || g.name).join(", "),
+          (t.genres || []).slice(0, 2).map((g) => genreName(g, uiLanguage())).join(", "),
         ],
         [
           quality ? el("span", { class: "meta-tag" }, quality) : null,
-          Number.isFinite(t.rating)
-            ? el("span", { class: "meta-score", "aria-label": translateUI("Hodnocení {0} %", Math.round(t.rating)) }, `${Math.round(t.rating)} %`)
+          rating
+            ? el("span", { class: "meta-score badge-rating", "aria-label": translateUI("Hodnocení {0}", rating) }, rating)
             : null,
         ],
       ),
@@ -260,7 +270,7 @@ export function hero(t, onTitle, onSave, onPlay) {
         onPlay
           ? button(translateUI("Přehrát"), () => onPlay(t), "primary", "play")
           : null,
-        button(translateUI("Do seznamu"), () => onSave(t), "secondary", "plus"),
+        listAction(t),
         button(
           onPlay
             ? translateUI("Informace")
@@ -268,7 +278,7 @@ export function hero(t, onTitle, onSave, onPlay) {
               ? translateUI("Detail seriálu")
               : translateUI("Detail filmu"),
           () => onTitle(t),
-          onPlay ? "secondary" : "primary",
+          onPlay ? "secondary" : "accent",
           "info",
         ),
       ),

@@ -140,8 +140,14 @@ export function renderCardState(frame, watched, percent) {
   if (watched) {
     const badge = document.createElement("span");
     badge.className = "watched-badge";
-    badge.setAttribute("aria-label", translateUI("Zhlédnuto"));
-    badge.textContent = "✓";
+    // Stav je součástí přístupného názvu tlačítka karty, ne jen vizuální fajfka.
+    const mark = document.createElement("span");
+    mark.setAttribute("aria-hidden", "true");
+    mark.textContent = "✓";
+    const label = document.createElement("span");
+    label.className = "sr-only";
+    label.textContent = translateUI("Zhlédnuto");
+    badge.append(mark, label);
     frame.append(badge);
     return;
   }

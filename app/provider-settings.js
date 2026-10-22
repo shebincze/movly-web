@@ -49,7 +49,7 @@ export async function openProviderSettings() {
     card.append(status);
     const submit = el(
       "button",
-      { type: "submit", class: "button primary" },
+      { type: "submit", class: "button accent" },
       name === "stremio" ? translateUI("Přidat doplněk") : translateUI("Připojit {0}", label),
     );
     const user = el("input", {

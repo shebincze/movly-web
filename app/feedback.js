@@ -1,6 +1,6 @@
 import { requireFeedback } from "./feedback-access.js";
 import { api } from "./api.js";
-import { el, button, icon, loading, errorBox, showDialog, formField, toast } from "./ui.js";
+import { el, button, icon, loading, empty, errorBox, showDialog, formField, toast } from "./ui.js";
 import { translateUI as t } from "./i18n.js";
 
 export const feedbackStatuses = {
@@ -44,7 +44,7 @@ function progressTimeline(data) {
 async function attachmentPicker(item, admin, refresh) {
   const file = el("input", { type: "file", accept: "image/png,image/jpeg" });
   const message = el("p", { role: "alert" });
-  const submit = el("button", { type: "submit", class: "button primary" }, t("Přiložit screenshot"));
+  const submit = el("button", { type: "submit", class: "button accent" }, t("Přiložit screenshot"));
   let requestId = crypto.randomUUID();
   file.addEventListener("change", () => { requestId = crypto.randomUUID(); });
   showDialog(el("div", { class: "dialog-body fb-dialog" }, el("h2", { id: "dialog-title" }, t("Screenshot")),
@@ -65,7 +65,7 @@ function chooseFeedbackDialog(initialPlatform, diagnostics = null) {
   showDialog(el("div", { class: "dialog-body fb-dialog" }, el("h2", { id: "dialog-title" }, t("Nápad nebo chyba")),
     el("p", {}, t("Co chceš týmu Movly poslat?")),
     el("div", { class: "fb-choice" },
-      el("div", {}, button(t("Přidat nápad"), () => createDialog("idea", "ideas", initialPlatform), "primary", "plus"), el("p", {}, t("Navrhni, co by mohlo být v Movly lepší."))),
+      el("div", {}, button(t("Přidat nápad"), () => createDialog("idea", "ideas", initialPlatform), "accent", "plus"), el("p", {}, t("Navrhni, co by mohlo být v Movly lepší."))),
       el("div", {}, button(t("Nahlásit chybu"), () => createDialog("bug", "mine", initialPlatform, diagnostics), "secondary", "plus"), el("p", {}, t("Popiš, co nefunguje tak, jak má."))))));
 }
 
@@ -77,12 +77,12 @@ function feedbackForm({ kind, view, initialPlatform = "web", diagnostics = null,
   const generalPlatform = el("option", { value: "" }, t("Obecný návrh (bez platformy)"));
   const platform = el("select", {}, generalPlatform, ...Object.entries(platforms).map(([value, label]) => el("option", { value, selected: value === initialPlatform }, label)));
   const message = el("p", { role: "alert", class: "fb-form-error" });
-  const submit = el("button", { type: "submit", class: "button primary" });
+  const submit = el("button", { type: "submit", class: "button accent" });
   const descriptionField = formField("", description);
   const note = el("p", { class: "fb-form-note" });
   const similar = el("div", { class: "fb-similar", hidden: true });
   const types = [["bug", "Nahlásit chybu"], ["idea", "Navrhnout funkci"]].map(([value, label]) => el("button", { type: "button", role: "radio", class: "fb-segment", "data-kind": value, onClick: () => setKind(value) }, t(label)));
-  const typeGroup = inline ? el("div", { role: "radiogroup", class: "fb-segmented", "aria-label": t("Typ příspěvku"), onKeydown: (e) => {
+  const typeGroup = inline ? el("div", { role: "radiogroup", class: "segmented fb-segmented", "aria-label": t("Typ příspěvku"), onKeydown: (e) => {
     if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
     e.preventDefault(); setKind(kind === "bug" ? "idea" : "bug"); types.find((b) => b.dataset.kind === kind).focus();
   } }, ...types) : null;
@@ -160,7 +160,7 @@ function adminEditor(item, refresh) {
   const message = el("textarea", { maxlength: 3000, rows: 3, placeholder: t("Vysvětlení pro uživatele…") });
   const releaseFields = item.platforms.map((p) => ({ platform: p, input: el("input", { maxlength: 60, value: item.releases.find((r) => r.platform === p)?.version || "", placeholder: t("Verze, která je skutečně dostupná") }) }));
   const error = el("p", { role: "alert" });
-  const submit = el("button", { class: "button primary", type: "submit" }, t("Uložit stav"));
+  const submit = el("button", { class: "button accent", type: "submit" }, t("Uložit stav"));
   let requestId = crypto.randomUUID(), attempted = null;
   const form = el("form", { class: "dialog-form", onSubmit: async (e) => {
     e.preventDefault(); submit.disabled = true;
@@ -174,7 +174,7 @@ function adminEditor(item, refresh) {
   const merge = button(t("Sloučit duplicitu"), () => {
     const target = el("input", { type: "number", min: 1, required: true });
     const reason = el("textarea", { required: true, maxlength: 3000 });
-    const err = el("p", { role: "alert" }); const save = el("button", { type: "submit", class: "button primary" }, t("Sloučit")); let mergeId = crypto.randomUUID(), mergeAttempt = null;
+    const err = el("p", { role: "alert" }); const save = el("button", { type: "submit", class: "button accent" }, t("Sloučit")); let mergeId = crypto.randomUUID(), mergeAttempt = null;
     showDialog(el("div", { class: "dialog-body fb-dialog" }, el("h2", { id: "dialog-title" }, t("Sloučit duplicitu")), el("form", { class: "dialog-form", onSubmit: async (e) => {
       e.preventDefault(); save.disabled = true;
       const body = { target_id: Number(target.value), message: reason.value }; const encoded = JSON.stringify(body); if (mergeAttempt !== null && mergeAttempt !== encoded) mergeId = crypto.randomUUID(); mergeAttempt = encoded;
@@ -220,7 +220,7 @@ async function detailContent(id, admin, signal, refresh) {
     const attach = item.mine && data.attachments.length < 3 && !terminal.has(item.status) ? button(t("Přiložit screenshot"), () => attachmentPicker(item, admin, refresh), "secondary small fb-attach", "plus") : null;
     if (item.status !== "duplicate" && ((item.kind === "bug" && item.mine) || admin)) {
       const message = el("textarea", { required: true, maxlength: 3000, rows: 3, placeholder: t("Doplnit informace…") });
-      const send = el("button", { type: "submit", class: "button primary" }, t("Odeslat")); let requestId = crypto.randomUUID(), attempted = null;
+      const send = el("button", { type: "submit", class: "button accent" }, t("Odeslat")); let requestId = crypto.randomUUID(), attempted = null;
       node.append(el("form", { class: "dialog-form fb-reply-form", onSubmit: async (e) => {
         e.preventDefault(); send.disabled = true; if (attempted !== null && attempted !== message.value) requestId = crypto.randomUUID(); attempted = message.value;
         try { await api(path(admin, `items/${id}/messages`), { method: "POST", body: { request_id: requestId, message: message.value } }); refresh(); }
@@ -265,7 +265,7 @@ export async function feedback(params, signal, account = null) {
     el("div", {}, el("h1", {}, t("Vylepšit Movly")), el("p", {}, t("Nahlas chybu, navrhni funkci nebo podpoř nápady ostatních. Uvidíš, jak se s nimi pracuje."))),
     createCard ? button(t("Nový příspěvek"), () => { createCard.scrollIntoView({ block: "start" }); createForm.titleInput.focus({ preventScroll: true }); }, "secondary small fb-jump", "plus") : null));
 
-  const tabs = el("nav", { class: "fb-tabs", "aria-label": t("Zpětná vazba") },
+  const tabs = el("nav", { class: "segmented fb-tabs", "aria-label": t("Zpětná vazba") },
     ...[["ideas", "Nápady"], ["mine", "Moje hlášení"], ...(data.can_manage ? [["admin", "Správa"]] : [])].map(([value, label]) => el("a", { href: route(value), "aria-current": view === value ? "page" : "false" }, t(label))));
   const filterLink = (changes) => `#feedback?${new URLSearchParams({ view, ...(q ? { q } : {}), ...(params.get("status") ? { status: params.get("status") } : {}), sort: query.get("sort"), ...changes })}`;
   const sorts = el("div", { class: "fb-pills", role: "group", "aria-label": t("Řazení") },
@@ -311,7 +311,7 @@ export async function feedback(params, signal, account = null) {
     row.append(link);
     return row;
   }
-  if (!data.items.length) listHost.insertBefore(el("div", { class: "fb-empty" }, glyph("message-square"), el("p", {}, t("Zatím tu nejsou žádné požadavky."))), rows);
+  if (!data.items.length) listHost.insertBefore(empty(t("Zatím tu nejsou žádné požadavky."), null, { glyph: "sparkle" }), rows);
   for (const item of data.items) rows.append(makeRow(item));
   const pager = el("div", { class: "fb-pager" });
   if (data.offset > 0) pager.append(el("a", { class: "button secondary small", href: `#feedback?${new URLSearchParams({ ...Object.fromEntries(params), offset: String(Math.max(0, data.offset - data.limit)) })}` }, t("Předchozí")));

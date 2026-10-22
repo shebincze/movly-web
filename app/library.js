@@ -4,7 +4,8 @@ import { feedbackAllowed as hasStreamAccess } from "./feedback-access.js";
 import "./tv/database-availability.js";
 import { externalListCards, externalListDetail } from "./external-lists.js";
 import { seriesNotificationButton } from "./notifications.js";
-import { translateUI } from "./i18n.js";
+import { translateUI, uiLanguage } from "./i18n.js";
+import { formatRating, qualityLabel, hdrLabel, genreName } from "./format.js";
 import { hostParty } from "./party.js";
 import { apiContextKey, api, array, listTitle, imageURL, title } from "./api.js";
 import {
@@ -95,7 +96,7 @@ export async function detail(t, actions) {
       { class: "detail-facts" },
       [
         data.year || data.release_date?.slice(0, 4),
-        (data.genres || []).map((g) => g.name_cs || g.name).join(", "),
+        (data.genres || []).map((g) => genreName(g, uiLanguage())).join(", "),
         data.runtime ? `${data.runtime} min` : null,
       ]
         .filter(Boolean)
@@ -104,14 +105,15 @@ export async function detail(t, actions) {
     const ratings = Array.isArray(data.ratings) ? data.ratings : t.ratings || [];
     const metadata = el("span", { class: "detail-ratings" });
     for (const r of ratings)
-      if (Number.isFinite(r.rating))
-        metadata.append(el("span", { class: "rating-badge" }, el("strong", {}, `${r.rating}%`), r.source));
+      if (formatRating(r.rating))
+        metadata.append(el("span", { class: "rating-badge" }, el("strong", {}, formatRating(r.rating)), r.source));
     if (!ratings.length && Number.isFinite(data.vote_average_tmdb) && data.vote_average_tmdb > 0)
       metadata.append(el("span", { class: "rating-badge" }, `TMDB ${data.vote_average_tmdb.toFixed(1)}/10`));
     const streams = data.streams || t.streams;
-    if (streams?.video_height)
-      metadata.append(el("span", { class: "rating-badge flag" }, `${streams.video_height}p`));
-    if (streams?.hdr_type) metadata.append(el("span", { class: "rating-badge flag" }, streams.hdr_type));
+    const quality = qualityLabel(streams?.video_height, streams?.video_width);
+    if (quality) metadata.append(el("span", { class: "rating-badge flag" }, quality));
+    if (hdrLabel(streams?.hdr_type))
+      metadata.append(el("span", { class: "rating-badge flag", title: streams.hdr_type }, hdrLabel(streams.hdr_type)));
     if (streams?.audio_languages?.length)
       metadata.append(el("span", { class: "rating-badge" }, streams.audio_languages.join(" · ")));
     if (metadata.childNodes.length) facts.append(metadata);
@@ -169,13 +171,13 @@ export async function detail(t, actions) {
             translateUI("Trailer"),
           )
         : null,
-      button(translateUI("Do seznamu"), () => actions.save(data), "secondary", "plus"),
+      listButton(data, actions),
       seriesNotificationButton(data.id, () => void detail(data, actions), isTV ? "tv" : "movie"),
-      button(translateUI("Hodnotit"), () => titleActivity(data, "rating"), "secondary"),
+      button(translateUI("Hodnotit"), () => titleActivity(data, "rating"), "secondary", "star"),
       !isTV || firstEpisode
-        ? button(translateUI("Sledovat společně"), () => hostParty(data, firstEpisode), "secondary")
+        ? button(translateUI("Sledovat společně"), () => hostParty(data, firstEpisode), "secondary", "users")
         : null,
-      button(translateUI("Označit"), () => titleActivity(data, "watched"), "secondary", "check"),
+      button(translateUI("Zhlédnuto"), () => titleActivity(data, "watched"), "secondary", "check"),
     );
     const heroNode = el(
       "section",
@@ -458,7 +460,7 @@ function episodeRow(data, season, episode, inventoryBadge) {
   window.attachPlayChoice(play, () => sources(data, target, { skipResume: true, autoPlay: false }), translateUI("Vybrat jiný zdroj"));
   const party = button(translateUI("Sledovat společně"), () => hostParty(data, target), "small");
   const watched = button(
-    state.watched ? translateUI("✓ Viděno · odznačit") : translateUI("Viděno"),
+    state.watched ? translateUI("✓ Zhlédnuto · odznačit") : translateUI("Zhlédnuto"),
     async () => {
       watched.disabled = true;
       try {
@@ -466,7 +468,7 @@ function episodeRow(data, season, episode, inventoryBadge) {
         episode.watch_history = confirmed;
         episode.watch_progress = null;
         const done = confirmed?.watch_status === "completed";
-        watched.textContent = done ? translateUI("✓ Viděno · odznačit") : translateUI("Viděno");
+        watched.textContent = done ? translateUI("✓ Zhlédnuto · odznačit") : translateUI("Zhlédnuto");
         watched.setAttribute("aria-pressed", String(done));
         row.classList.toggle("watched", done);
         document.dispatchEvent(new CustomEvent("movly:personal-changed"));
@@ -526,25 +528,76 @@ function episodeRow(data, season, episode, inventoryBadge) {
   );
   return row;
 }
+// Seznamy profilu a ID položky titulu v každém z nich (null = titul v seznamu není).
+export async function listMembership(t) {
+  const lists = array(await api("watchlists"));
+  const memberships = await Promise.all(
+    lists.map(async (list) => {
+      const items = array(await api(`watchlists/${list.id}`));
+      return items.find((item) => item.title_id === t.id)?.id || null;
+    }),
+  );
+  return { lists, memberships };
+}
+// Akce „Můj seznam“ / „V seznamu“ (DESIGN §10): s jediným výchozím seznamem
+// přidá nebo odebere titul přímo, jinak otevře výběr seznamů.
+export function listButton(t, actions) {
+  const node = button(translateUI("Můj seznam"), async () => {
+    node.disabled = true;
+    try {
+      const state = await actions.save(t);
+      if (typeof state === "boolean") paint(state);
+    } finally {
+      node.disabled = false;
+    }
+  }, "secondary", "plus");
+  const paint = (inList) => {
+    node.replaceChildren(icon(inList ? "check" : "plus"), inList ? translateUI("V seznamu") : translateUI("Můj seznam"));
+    node.setAttribute("aria-pressed", String(inList));
+  };
+  node.setAttribute("aria-pressed", "false");
+  listMembership(t)
+    .then(({ memberships }) => paint(memberships.some(Boolean)))
+    .catch(() => {});
+  return node;
+}
+async function toggleDefaultList(t, list, itemID) {
+  if (itemID) await api(`watchlists/${list.id}/items/${itemID}`, { method: "DELETE" });
+  else await api(`watchlists/${list.id}/items`, { method: "POST", body: { title_id: t.id } });
+  toast(itemID ? translateUI("Odebráno z „{0}“.", list.name) : translateUI("Uloženo do „{0}“.", list.name));
+  return !itemID;
+}
 export async function save(t, refresh) {
   const revision = ++detailRevision;
-  const dialog = showDialog(
-    el(
-      "div",
-      { class: "dialog-body lib-dialog" },
-      el("h2", { id: "dialog-title" }, translateUI("Uložit do seznamu")),
-      loading(),
-    ),
-  );
-  try {
-    const lists = array(await api("watchlists"));
-    const memberships = await Promise.all(
-      lists.map(async (list) => {
-        const items = array(await api(`watchlists/${list.id}`));
-        return items.find((item) => item.title_id === t.id)?.id || null;
-      }),
+  const failed = (e) =>
+    showDialog(
+      el(
+        "div",
+        { class: "dialog-body lib-dialog" },
+        el("h2", { id: "dialog-title" }, translateUI("Uložit do seznamu")),
+        errorBox(e, () => save(t, refresh)),
+      ),
     );
-    if (!dialog.open || revision !== detailRevision) return;
+  let membership;
+  try {
+    membership = await listMembership(t);
+  } catch (e) {
+    if (revision === detailRevision) failed(e);
+    return undefined;
+  }
+  if (revision !== detailRevision) return undefined;
+  const { lists, memberships } = membership;
+  if (lists.length === 1 && lists[0].is_default && !lists[0].shared) {
+    try {
+      const inList = await toggleDefaultList(t, lists[0], memberships[0]);
+      refresh?.();
+      return inList;
+    } catch (e) {
+      toast(e.message);
+      return undefined;
+    }
+  }
+  try {
     const status = el("p", { class: "form-status", role: "alert" });
     const content = el(
       "div",
@@ -628,15 +681,7 @@ export async function save(t, refresh) {
     );
     showDialog(content);
   } catch (e) {
-    if (dialog.open && revision === detailRevision)
-      showDialog(
-        el(
-          "div",
-          { class: "dialog-body lib-dialog" },
-          el("h2", { id: "dialog-title" }, translateUI("Uložit do seznamu")),
-          errorBox(e, () => save(t, refresh)),
-        ),
-      );
+    if (revision === detailRevision) failed(e);
   }
 }
 export function editList(list, done) {
@@ -652,7 +697,7 @@ export function editList(list, done) {
   const status = el("p", { class: "form-status", role: "alert" }),
     submit = el(
       "button",
-      { type: "submit", class: "button primary" },
+      { type: "submit", class: "button accent" },
       list ? translateUI("Uložit změny") : translateUI("Vytvořit seznam"),
     );
   const form = el(
@@ -979,7 +1024,7 @@ export async function library(params, signal, actions) {
       button(
         translateUI("Nový seznam"),
         () => editList(null, actions.refresh),
-        "primary",
+        "accent",
         "plus",
       ),
     ),

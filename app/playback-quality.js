@@ -38,7 +38,7 @@ export async function playbackQuality(params, signal) {
   } }, apps.map(value => el("option", { value: value.platform, selected: value.platform === platform }, value.label))),
   el("nav", { class: "playback-quality-controls" }, [1, 24, 168].map(value => el("a", {
     href: `#admin?view=playback&client_app=${app}&platform=${platform}&hours=${value}`,
-    class: value === hours ? "button primary" : "button secondary",
+    class: value === hours ? "button accent" : "button secondary",
   }, `${value} h`))),
   el("p", {}, "Vzorek 10 % pokusů, nejvýše osm verzí. První pozorovaný snímek předaný kompozitoru není důkaz fyzického zobrazení. Playing je slabší fallback a nevstupuje do latence snímku. Nedokončené pokusy zůstávají v počtech."),
   el("p", {}, "Okno vybírá pokusy s událostí ve zvoleném období; přehled zahrnuje jejich uchovaný kontext až sedm dnů."),

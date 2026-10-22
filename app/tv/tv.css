@@ -1,5 +1,8 @@
 /* Movly TV lite: styly pro staré prohlížeče TV (Chrome 34).
-   Bez CSS proměnných, gridu a position: sticky; rozměry v rem (1rem = 20 px při 1280×720). */
+   Bez CSS proměnných, gridu a position: sticky; rozměry v rem (1rem = 20 px při 1280×720).
+   Barvy jsou hex hodnoty brandové palety z docs/DESIGN.md §2 (bez proměnných):
+   pozadí #0a0a12, povrch #1c1c2a, text #ffffff / #a0a0b2, akcent #8b5cf6,
+   fokus #a78bfa, výplň s bílým textem plná #7c3aed (control gradient bez gradientu). */
 html.tv-lite,
 html.tv-lite body {
   margin: 0;
@@ -7,7 +10,7 @@ html.tv-lite body {
   height: 100%;
   overflow: hidden;
   background: #0a0a12;
-  color: #f2f2f7;
+  color: #ffffff;
   font-family: "Helvetica Neue", Arial, sans-serif;
   font-size: 20px;
 }
@@ -50,10 +53,21 @@ html.tv-lite body > #tv-root {
   align-items: center;
   margin-bottom: 1rem;
 }
+.tv-mark {
+  width: 1.4rem;
+  height: 1.5rem;
+  margin-right: 0.5rem;
+  vertical-align: -0.15rem;
+}
+.tv-logo .tv-mark {
+  width: 2.6rem;
+  height: 2.8rem;
+  margin-right: 0.8rem;
+}
 .tv-brand {
   font-size: 1.6rem;
   font-weight: bold;
-  color: #ff4f6d;
+  color: #a78bfa;
   margin-right: 1.5rem;
 }
 .tv-title {
@@ -80,17 +94,17 @@ html.tv-lite body > #tv-root {
 }
 .tv-logo {
   font-size: 3rem;
-  color: #ff4f6d;
+  color: #a78bfa;
   margin: 0 0 1rem;
 }
 .tv-lead {
   font-size: 1.1rem;
-  color: #c9c9d6;
+  color: #d4d4e0;
   margin: 0 0 1.5rem;
 }
 .tv-hint,
 .tv-muted {
-  color: #a3a3b5;
+  color: #a0a0b2;
   font-size: 0.9rem;
 }
 .tv-form {
@@ -101,14 +115,14 @@ html.tv-lite body > #tv-root {
 .tv-label {
   font-size: 1rem;
   margin: 0.5rem 0 0.25rem;
-  color: #c9c9d6;
+  color: #d4d4e0;
 }
 .tv-input {
   font-size: 1.3rem;
   padding: 0.6rem 0.8rem;
-  border: 3px solid #3a3a52;
+  border: 3px solid #2a2a3c;
   border-radius: 0.4rem;
-  background: #1b1b2b;
+  background: #1c1c2a;
   color: #ffffff;
   margin-bottom: 0.5rem;
   outline: none;
@@ -119,13 +133,13 @@ html.tv-lite body > #tv-root {
   padding: 0.6rem 1.4rem;
   border: 3px solid transparent;
   border-radius: 0.4rem;
-  background: #25253a;
-  color: #f2f2f7;
+  background: #1c1c2a;
+  color: #ffffff;
   cursor: pointer;
   outline: none;
 }
 .tv-primary {
-  background: #e3355a;
+  background: #7c3aed;
   color: #ffffff;
 }
 .tv-form .tv-button {
@@ -143,11 +157,11 @@ html.tv-lite body > #tv-root {
 .tv-status {
   font-size: 1.05rem;
   margin: 0.5rem 0;
-  color: #c9c9d6;
+  color: #d4d4e0;
 }
 .tv-status-error,
 .tv-error-text {
-  color: #ff8a8a;
+  color: #f87171;
 }
 .tv-status-info {
   color: #9fc6ff;
@@ -159,7 +173,7 @@ button[disabled].tv-f {
 .tv-f:focus {
   outline: none;
   border-color: #ffffff;
-  box-shadow: 0 0 0 4px #ff4f6d;
+  box-shadow: 0 0 0 4px #a78bfa;
 }
 .tv-button:focus {
   background: #ffffff;
@@ -167,7 +181,7 @@ button[disabled].tv-f {
 }
 .tv-input:focus {
   border-color: #ffffff;
-  background: #262640;
+  background: #2a2a3c;
 }
 /* Řady plakátů */
 .tv-rail {
@@ -202,7 +216,7 @@ button[disabled].tv-f {
 .tv-card:focus {
   -webkit-transform: scale(1.06);
   transform: scale(1.06);
-  background: #1b1b2b;
+  background: #1c1c2a;
 }
 .tv-poster {
   display: block;
@@ -210,7 +224,7 @@ button[disabled].tv-f {
   height: 12rem;
   overflow: hidden;
   border-radius: 0.3rem;
-  background: #1b1b2b;
+  background: #1c1c2a;
 }
 .tv-poster img {
   display: block;
@@ -234,7 +248,7 @@ button[disabled].tv-f {
   display: block;
   padding: 0 0.3rem 0.3rem;
   font-size: 0.8rem;
-  color: #a3a3b5;
+  color: #a0a0b2;
 }
 .tv-grid {
   display: flex;
@@ -278,7 +292,7 @@ button[disabled].tv-f {
   padding: 1rem 0.5rem;
   border: 4px solid transparent;
   border-radius: 0.6rem;
-  background: #1b1b2b;
+  background: #1c1c2a;
   color: inherit;
   font-family: inherit;
   cursor: pointer;
@@ -290,7 +304,7 @@ button[disabled].tv-f {
   margin: 0 auto 0.6rem;
   border-radius: 50%;
   overflow: hidden;
-  background: #3a3a52;
+  background: #2a2a3c;
   font-size: 3rem;
   line-height: 6rem;
 }
@@ -305,7 +319,7 @@ button[disabled].tv-f {
 .tv-profile-lock {
   display: block;
   font-size: 0.8rem;
-  color: #a3a3b5;
+  color: #a0a0b2;
 }
 .tv-keypad {
   display: flex;
@@ -343,13 +357,13 @@ button[disabled].tv-f {
 }
 .tv-meta {
   margin: 0.2rem 0;
-  color: #c9c9d6;
+  color: #d4d4e0;
 }
 .tv-overview {
   font-size: 1rem;
   line-height: 1.4;
   max-width: 44rem;
-  color: #dcdce6;
+  color: #d4d4e0;
 }
 .tv-seasons {
   margin-top: 1.5rem;
@@ -365,7 +379,7 @@ button[disabled].tv-f {
   margin-right: 0.8rem;
 }
 .tv-selected {
-  background: #e3355a;
+  background: #7c3aed;
   color: #ffffff;
 }
 .tv-episodes,
@@ -380,7 +394,7 @@ button[disabled].tv-f {
   padding: 0.6rem 1rem;
   border: 4px solid transparent;
   border-radius: 0.4rem;
-  background: #1b1b2b;
+  background: #1c1c2a;
   color: inherit;
   font-family: inherit;
   font-size: 1rem;
@@ -395,7 +409,7 @@ button[disabled].tv-f {
 }
 .tv-episode:focus,
 .tv-source:focus {
-  background: #2f2f4a;
+  background: #2a2a3c;
 }
 .tv-source-status p {
   margin: 0.15rem 0;
@@ -437,7 +451,7 @@ button[disabled].tv-f {
 }
 .tv-osd-bar {
   height: 0.5rem;
-  background: #3a3a52;
+  background: #2a2a3c;
   border-radius: 0.25rem;
   overflow: hidden;
 }
@@ -445,7 +459,7 @@ button[disabled].tv-f {
   display: block;
   width: 0;
   height: 100%;
-  background: #ff4f6d;
+  background: #8b5cf6;
 }
 .tv-osd-row {
   display: flex;
@@ -454,7 +468,7 @@ button[disabled].tv-f {
   font-size: 1rem;
 }
 .tv-osd-hint {
-  color: #a3a3b5;
+  color: #a0a0b2;
 }
 .tv-osd-status {
   margin: 0.4rem 0 0;
@@ -468,12 +482,12 @@ button[disabled].tv-f {
   right: 20%;
   padding: 2rem;
   border-radius: 0.6rem;
-  background: #1b1b2b;
+  background: #1c1c2a;
   text-align: center;
 }
 .tv-player-error h2 {
   margin-top: 0;
-  color: #ff8a8a;
+  color: #f87171;
 }
 .tv-player-error .tv-actions {
   justify-content: center;
@@ -482,7 +496,7 @@ button[disabled].tv-f {
 /* Ovládání kurzorem (LG NetCast: šipky ovladače pohybují kurzorem) */
 .tv-f:hover {
   border-color: #ffffff;
-  box-shadow: 0 0 0 4px #ff4f6d;
+  box-shadow: 0 0 0 4px #a78bfa;
 }
 .tv-button:hover {
   background: #ffffff;
@@ -511,7 +525,7 @@ button[disabled].tv-f {
 .tv-scroll-nav:hover,
 .tv-scroll-nav:focus {
   outline: none;
-  background: #ff4f6d;
+  background: #7c3aed;
 }
 .tv-scroll-prev {
   left: -3rem;
@@ -541,10 +555,10 @@ button[disabled].tv-f {
 #tv-search-suggestions .tv-button { display: block; width: 100%; margin-bottom: 0.5rem; text-align: left; }
 .tv-screen-search-filters h3 { margin-top: 2rem; }
 .tv-screen-search .tv-button { margin-right: 0.8rem; margin-bottom: 0.8rem; }
-.tv-filter-facets .tv-button[aria-pressed="true"] { background: #673baa; }
-.tv-filter-facets .tv-button[aria-pressed="true"]:focus { background: #ff4f6d; color: #0a0a12; }
+.tv-filter-facets .tv-button[aria-pressed="true"] { background: #7c3aed; }
+.tv-filter-facets .tv-button[aria-pressed="true"]:focus { background: #ffffff; color: #0a0a12; }
 
-.tv-home-preference-row { border: 2px solid #343449; padding: 20px; margin: 20px 0; }
+.tv-home-preference-row { border: 2px solid #2a2a3c; padding: 20px; margin: 20px 0; }
 .tv-home-preference-row h2 { margin: 0 0 12px; }
 .tv-home-preference-row .tv-button { margin: 4px; }
 
@@ -553,5 +567,5 @@ button[disabled].tv-f {
 .tv-detail .database-inventory-badge { display:inline-flex; flex-direction:row; }
 .tv-detail .database-inventory-badge > span { display:inline; }
 
-.title-identifiers { font-family: monospace; color: #b7b0c8; word-wrap: break-word; }
+.title-identifiers { font-family: monospace; color: #a0a0b2; word-wrap: break-word; }
 .title-identifiers[hidden] { display: none; }

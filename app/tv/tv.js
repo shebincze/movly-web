@@ -5,11 +5,202 @@
    Používá výhradně existující cesty BFF /api/app/. */
 (function () {
   "use strict";
+  // Texty TV lite podle jazyka rozhraní (movly.uiLanguage, stejně jako plná aplikace).
+  // Klíč je český text, hodnota [slovensky, anglicky]; chybějící klíč zůstane česky.
+  var TEXT = {
+    " (kódy oddělené čárkou)": [" (kódy oddelené čiarkou)", " (comma-separated codes)"],
+    " titulů": [" titulov", " titles"],
+    " vybraných": [" vybraných", " selected"],
+    " výsledků": [" výsledkov", " results"],
+    "). Zkus jiný zdroj.": ["). Skús iný zdroj.", "). Try another source."],
+    ": hledám…": [": hľadám…", ": searching…"],
+    "API vrátilo neplatný titul.": ["API vrátilo neplatný titul.", "The API returned an invalid title."],
+    "Ano": ["Áno", "Yes"],
+    "Audio": ["Zvuk", "Audio"],
+    "Byl(a) jsi odhlášen(a).": ["Bol(a) si odhlásený(á).", "You have been signed out."],
+    "Chráněno PINem": ["Chránené PINom", "Protected by PIN"],
+    "Další": ["Ďalšie", "Next"],
+    "Další poskytovatelé a doplňky": ["Ďalší poskytovatelia a doplnky", "Other providers and add-ons"],
+    "Další stránka": ["Ďalšia stránka", "Next page"],
+    "Další výsledky": ["Ďalšie výsledky", "More results"],
+    "Databáze": ["Databáza", "Database"],
+    "Databáze AI": ["Databáza AI", "AI database"],
+    "Dolní mez nesmí být vyšší než horní.": ["Dolná hranica nesmie byť vyššia ako horná.", "The lower bound must not exceed the upper bound."],
+    "Domů zatím nemá žádné řady.": ["Domov zatiaľ nemá žiadne rady.", "Home has no rows yet."],
+    "Dostupné zdroje": ["Dostupné zdroje", "Available sources"],
+    "Délka": ["Dĺžka", "Duration"],
+    "Délka do (min)": ["Dĺžka do (min)", "Duration to (min)"],
+    "Délka od (min)": ["Dĺžka od (min)", "Duration from (min)"],
+    "Film": ["Film", "Movie"],
+    "Filmy": ["Filmy", "Movies"],
+    "Filtr byl smazán.": ["Filter bol zmazaný.", "Filter deleted."],
+    "Filtr byl uložen.": ["Filter bol uložený.", "Filter saved."],
+    "Filtry a uložené filtry": ["Filtre a uložené filtre", "Filters and saved filters"],
+    "Filtry hledání": ["Filtre hľadania", "Search filters"],
+    "Hellspy · živé hledání": ["Hellspy · živé hľadanie", "Hellspy · live search"],
+    "Heslo": ["Heslo", "Password"],
+    "Hledat": ["Hľadať", "Search"],
+    "Hledat název nebo výraz": ["Hľadať názov alebo výraz", "Search a title or phrase"],
+    "Hledám nejlepší zdroj…": ["Hľadám najlepší zdroj…", "Finding the best source…"],
+    "Hledám zdroje…": ["Hľadám zdroje…", "Searching sources…"],
+    "Hledám…": ["Hľadám…", "Searching…"],
+    "Hodnocení": ["Hodnotenie", "Rating"],
+    "Hodnocení do": ["Hodnotenie do", "Rating to"],
+    "Hodnocení do (0–10)": ["Hodnotenie do (0–10)", "Rating to (0–10)"],
+    "Hodnocení od": ["Hodnotenie od", "Rating from"],
+    "Hodnocení od (0–10)": ["Hodnotenie od (0–10)", "Rating from (0–10)"],
+    "Jen dostupné": ["Len dostupné", "Available only"],
+    "Kdo se dívá?": ["Kto sa pozerá?", "Who's watching?"],
+    "Kolekce je prázdná.": ["Kolekcia je prázdna.", "The collection is empty."],
+    "Konec videa. Stiskni Zpět.": ["Koniec videa. Stlač Späť.", "End of video. Press Back."],
+    "Kvalita": ["Kvalita", "Quality"],
+    "Libovolná": ["Ľubovoľná", "Any"],
+    "Libovolné": ["Ľubovoľné", "Any"],
+    "Libovolný": ["Ľubovoľný", "Any"],
+    "Na této stránce zatím nejsou žádné řady.": ["Na tejto stránke zatiaľ nie sú žiadne rady.", "This page has no rows yet."],
+    "Nabídka jazyků: zkusit znovu": ["Ponuka jazykov: skúsiť znova", "Languages: try again"],
+    "Nalezeno zdrojů: ": ["Nájdené zdroje: ", "Sources found: "],
+    "Napiš název a potvrď Hledat.": ["Napíš názov a potvrď Hľadať.", "Type a title and confirm Search."],
+    "Napiš název nebo nastav filtry.": ["Napíš názov alebo nastav filtre.", "Type a title or set filters."],
+    "Načítám Domů…": ["Načítavam Domov…", "Loading Home…"],
+    "Načítám detail…": ["Načítavam detail…", "Loading details…"],
+    "Načítám profily…": ["Načítavam profily…", "Loading profiles…"],
+    "Načítám přehrávač…": ["Načítavam prehrávač…", "Loading player…"],
+    "Načítám video…": ["Načítavam video…", "Loading video…"],
+    "Načítám…": ["Načítavam…", "Loading…"],
+    "Nedostupné": ["Nedostupné", "Unavailable"],
+    "Nejdřív vyber uložený filtr.": ["Najprv vyber uložený filter.", "Select a saved filter first."],
+    "Nejčastěji vybírané tituly": ["Najčastejšie vyberané tituly", "Most picked titles"],
+    "Nepodařilo se spojit se serverem Movly. Zkontroluj připojení a zkus to znovu.": ["Nepodarilo sa spojiť so serverom Movly. Skontroluj pripojenie a skús to znova.", "Couldn't connect to the Movly server. Check your connection and try again."],
+    "Nesprávný PIN. Zkus to znovu.": ["Nesprávny PIN. Skús to znova.", "Wrong PIN. Try again."],
+    "Nic jsme nenašli.": ["Nič sme nenašli.", "Nothing found."],
+    "Návrhy hledání": ["Návrhy hľadania", "Search suggestions"],
+    "Název": ["Názov", "Title"],
+    "Název filmu, seriálu nebo popis": ["Názov filmu, seriálu alebo popis", "Movie or series title, or a description"],
+    "Název uloženého filtru": ["Názov uloženého filtra", "Saved filter name"],
+    "Některé zdroje výsledků nejsou dostupné. Výsledky mohou být neúplné.": ["Niektoré zdroje výsledkov nie sú dostupné. Výsledky môžu byť neúplné.", "Some result sources are unavailable. Results may be incomplete."],
+    "OK přehrát/pozastavit · ◀ ▶ posun o 10 s · Zpět ukončit": ["OK prehrať/pozastaviť · ◀ ▶ posun o 10 s · Späť ukončiť", "OK play/pause · ◀ ▶ skip 10 s · Back to exit"],
+    "Obnovit pravidla a návrhy": ["Obnoviť pravidlá a návrhy", "Refresh rules and suggestions"],
+    "Odhlásit se": ["Odhlásiť sa", "Sign out"],
+    "Otevírám profil ": ["Otváram profil ", "Opening profile "],
+    "Ověřuji PIN…": ["Overujem PIN…", "Checking PIN…"],
+    "PIN musí mít 4 až 8 číslic.": ["PIN musí mať 4 až 8 číslic.", "The PIN must have 4 to 8 digits."],
+    "Pojmenuj filtr (nejvýše 60 znaků).": ["Pomenuj filter (najviac 60 znakov).", "Name the filter (up to 60 characters)."],
+    "Popularita": ["Popularita", "Popularity"],
+    "Populární hledání": ["Populárne hľadania", "Popular searches"],
+    "Populární hledání: zkusit znovu": ["Populárne hľadania: skúsiť znova", "Popular searches: try again"],
+    "Populární tituly: zkusit znovu": ["Populárne tituly: skúsiť znova", "Popular titles: try again"],
+    "Poskytovatel nedovoluje přehrát tento stream v prohlížeči televizoru. Zkus jiný zdroj nebo aplikaci Movly.": ["Poskytovateľ nedovoľuje prehrať tento stream v prehliadači televízora. Skús iný zdroj alebo aplikáciu Movly.", "The provider doesn't allow this stream in the TV browser. Try another source or the Movly app."],
+    "Poslední hledání": ["Posledné hľadania", "Recent searches"],
+    "Posunout doleva": ["Posunúť doľava", "Scroll left"],
+    "Posunout doprava": ["Posunúť doprava", "Scroll right"],
+    "Potvrď Hledat nebo vyber návrh.": ["Potvrď Hľadať alebo vyber návrh.", "Confirm Search or pick a suggestion."],
+    "Potvrď Hledat pro obnovení výsledků.": ["Potvrď Hľadať na obnovenie výsledkov.", "Confirm Search to refresh the results."],
+    "Použij platné kódy jazyků a zemí.": ["Použi platné kódy jazykov a krajín.", "Use valid language and country codes."],
+    "Použité filtry: ": ["Použité filtre: ", "Applied filters: "],
+    "Použít filtry": ["Použiť filtre", "Apply filters"],
+    "Pozastavit": ["Pozastaviť", "Pause"],
+    "Pozice se neuložila: ": ["Pozícia sa neuložila: ", "Position not saved: "],
+    "Počet hodnocení": ["Počet hodnotení", "Number of ratings"],
+    "Požadavek selhal (": ["Požiadavka zlyhala (", "Request failed ("],
+    "Pravidla profilu nejsou ověřena.": ["Pravidlá profilu nie sú overené.", "Profile rules are not verified."],
+    "Pravidla profilu se změnila. Načti stránku znovu.": ["Pravidlá profilu sa zmenili. Načítaj stránku znova.", "Profile rules changed. Reload the page."],
+    "Premiéra ": ["Premiéra ", "Premiere "],
+    "Předchozí": ["Predchádzajúce", "Previous"],
+    "Předchozí stránka": ["Predchádzajúca stránka", "Previous page"],
+    "Přehrát": ["Prehrať", "Play"],
+    "Přehrát doporučený zdroj": ["Prehrať odporúčaný zdroj", "Play recommended source"],
+    "Přehrávání selhalo": ["Prehrávanie zlyhalo", "Playback failed"],
+    "Přesná shoda názvu": ["Presná zhoda názvu", "Exact title match"],
+    "Přihlas se svým účtem Movly. Text zadáš klávesnicí televizoru po stisku OK.": ["Prihlás sa svojím účtom Movly. Text zadáš klávesnicou televízora po stlačení OK.", "Sign in with your Movly account. Press OK to type with the TV keyboard."],
+    "Přihlašuji…": ["Prihlasujem…", "Signing in…"],
+    "Přihlásit se": ["Prihlásiť sa", "Sign in"],
+    "Přihlášení se nepodařilo: ": ["Prihlásenie sa nepodarilo: ", "Sign-in failed: "],
+    "Přihlášení se nepodařilo: nesprávné uživatelské jméno nebo heslo.": ["Prihlásenie sa nepodarilo: nesprávne používateľské meno alebo heslo.", "Sign-in failed: wrong username or password."],
+    "Přihlášení vypršelo. Přihlas se znovu.": ["Prihlásenie vypršalo. Prihlás sa znova.", "Your session expired. Sign in again."],
+    "Připravuji video…": ["Pripravujem video…", "Preparing video…"],
+    "Připravuji video… ": ["Pripravujem video… ", "Preparing video… "],
+    "Původní jazyk": ["Pôvodný jazyk", "Original language"],
+    "Rok": ["Rok", "Year"],
+    "Rok do": ["Rok do", "Year to"],
+    "Rok od": ["Rok od", "Year from"],
+    "Rozkoukáno ": ["Rozpozerané ", "In progress "],
+    "Rozpoznané filtry: ": ["Rozpoznané filtre: ", "Detected filters: "],
+    "Rozpoznat filtry z textu": ["Rozpoznať filtre z textu", "Detect filters from text"],
+    "Seriál": ["Seriál", "Series"],
+    "Seriál zatím nemá žádné epizody.": ["Seriál zatiaľ nemá žiadne epizódy.", "The series has no episodes yet."],
+    "Seriály": ["Seriály", "Series"],
+    "Server vrátil neplatný zdroj přehrávání.": ["Server vrátil neplatný zdroj prehrávania.", "The server returned an invalid playback source."],
+    "Server vrátil nečitelnou odpověď.": ["Server vrátil nečitateľnú odpoveď.", "The server returned an unreadable response."],
+    "Sestupně": ["Zostupne", "Descending"],
+    "Shoda žánrů": ["Zhoda žánrov", "Genre match"],
+    "Směr": ["Smer", "Order"],
+    "Stiskni OK pro přehrání.": ["Stlač OK na prehratie.", "Press OK to play."],
+    "TV lite: omezená verze pro starší televizory.": ["TV lite: obmedzená verzia pre staršie televízory.", "TV lite: a limited version for older TVs."],
+    "Televizor nedokáže toto video dekódovat. Zkus jiný zdroj.": ["Televízor nedokáže toto video dekódovať. Skús iný zdroj.", "The TV can't decode this video. Try another source."],
+    "Televizor nemůže video přehrát (kód ": ["Televízor nemôže video prehrať (kód ", "The TV can't play the video (code "],
+    "Televizor tento zdroj neotevřel. Zkus jiný zdroj, nebo ho otevři v aplikaci Movly.": ["Televízor tento zdroj neotvoril. Skús iný zdroj alebo ho otvor v aplikácii Movly.", "The TV didn't open this source. Try another source or open it in the Movly app."],
+    "Tento televizor neumí přehrát video ve formátu HLS (chybí nativní HLS i Media Source Extensions).": ["Tento televízor nevie prehrať video vo formáte HLS (chýba natívne HLS aj Media Source Extensions).", "This TV can't play HLS video (no native HLS or Media Source Extensions)."],
+    "Tento televizor neumí přehrát video ve formátu HLS (hls.js zde není podporováno).": ["Tento televízor nevie prehrať video vo formáte HLS (hls.js tu nie je podporované).", "This TV can't play HLS video (hls.js is not supported here)."],
+    "Tento zdroj nejde na televizoru přehrát přímo. Otevři ho v aplikaci Movly, nebo zkus jiný zdroj.": ["Tento zdroj sa nedá na televízore prehrať priamo. Otvor ho v aplikácii Movly alebo skús iný zdroj.", "This source can't play directly on the TV. Open it in the Movly app or try another source."],
+    "Titulky": ["Titulky", "Subtitles"],
+    "Typ": ["Typ", "Type"],
+    "Uložené filtry": ["Uložené filtre", "Saved filters"],
+    "Uložené filtry: zkusit znovu": ["Uložené filtre: skúsiť znova", "Saved filters: try again"],
+    "Uložit jako nový filtr": ["Uložiť ako nový filter", "Save as new filter"],
+    "Upravit vybraný filtr": ["Upraviť vybraný filter", "Edit selected filter"],
+    "Uživatelské jméno": ["Používateľské meno", "Username"],
+    "Zhlédnuto": ["Pozreté", "Watched"],
+    "Vyber nejvýše 30 hodnot v jednom poli.": ["Vyber najviac 30 hodnôt v jednom poli.", "Choose at most 30 values per field."],
+    "Vyber profil znovu.": ["Vyber profil znova.", "Choose the profile again."],
+    "Vyber řadu a epizodu níže.": ["Vyber sériu a epizódu nižšie.", "Choose a season and episode below."],
+    "Vybraný filtr: ": ["Vybraný filter: ", "Selected filter: "],
+    "Vybrat jiný zdroj": ["Vybrať iný zdroj", "Choose another source"],
+    "Vybrat zdroj": ["Vybrať zdroj", "Choose source"],
+    "Vymazat historii": ["Vymazať históriu", "Clear history"],
+    "Vyplň uživatelské jméno a heslo.": ["Vyplň používateľské meno a heslo.", "Enter your username and password."],
+    "Vyčistit formulář": ["Vyčistiť formulár", "Clear form"],
+    "Vyžaduje připojení účtu v plné aplikaci": ["Vyžaduje pripojenie účtu v plnej aplikácii", "Requires connecting the account in the full app"],
+    "Vzestupně": ["Vzostupne", "Ascending"],
+    "Výsledky": ["Výsledky", "Results"],
+    "Vše": ["Všetko", "All"],
+    "Všechny": ["Všetky", "All"],
+    "Webshare · živé hledání": ["Webshare · živé hľadanie", "Webshare · live search"],
+    "Zadej PIN profilu. Můžeš použít číselná tlačítka ovladače.": ["Zadaj PIN profilu. Môžeš použiť číselné tlačidlá ovládača.", "Enter the profile PIN. You can use the number buttons on the remote."],
+    "Zatím nemáš žádné uložené filtry.": ["Zatiaľ nemáš žiadne uložené filtre.", "You have no saved filters yet."],
+    "Zatím tu žádná hledání nejsou.": ["Zatiaľ tu nie sú žiadne hľadania.", "No searches yet."],
+    "Zdroj se nepodařilo připravit: ": ["Zdroj sa nepodarilo pripraviť: ", "Couldn't prepare the source: "],
+    "Země": ["Krajina", "Country"],
+    "Zjišťuji, kde jsi skončil(a)…": ["Zisťujem, kde si skončil(a)…", "Finding where you left off…"],
+    "Zkontroluj číselné rozsahy filtru.": ["Skontroluj číselné rozsahy filtra.", "Check the filter number ranges."],
+    "Zkusit návrhy znovu": ["Skúsiť návrhy znova", "Retry suggestions"],
+    "Zkusit znovu": ["Skúsiť znova", "Try again"],
+    "Změnit profil": ["Zmeniť profil", "Switch profile"],
+    "Zobrazit vše — ": ["Zobraziť všetko — ", "Show all — "],
+    "Zpět": ["Späť", "Back"],
+    "Zrušit filtry": ["Zrušiť filtre", "Clear filters"],
+    "\u25C0 Zpět": ["\u25C0 Späť", "\u25C0 Back"],
+    "Účet nemá žádný profil. Vytvoř ho v plné aplikaci Movly.": ["Účet nemá žiadny profil. Vytvor ho v plnej aplikácii Movly.", "The account has no profile. Create one in the full Movly app."],
+    "účet není připojený": ["účet nie je pripojený", "account not connected"],
+    "Řada ": ["Séria ", "Season "],
+    "Řada nemá žádné epizody.": ["Séria nemá žiadne epizódy.", "The season has no episodes."],
+    "Řady a epizody": ["Série a epizódy", "Seasons and episodes"],
+    "Řazení": ["Radenie", "Sort"],
+    "Žádné tituly.": ["Žiadne tituly.", "No titles."],
+    "Žádné zdroje nebyly nalezeny. Webshare a další účty připoj v plné aplikaci Movly.": ["Nenašli sa žiadne zdroje. Webshare a ďalšie účty pripoj v plnej aplikácii Movly.", "No sources found. Connect Webshare and other accounts in the full Movly app."],
+    "Žánr musí mít platný číselný kód.": ["Žáner musí mať platný číselný kód.", "A genre must have a valid numeric code."],
+    "Žánry": ["Žánre", "Genres"],
+    "Žánry: zkusit znovu": ["Žánre: skúsiť znova", "Genres: try again"]
+  };
+  function t(cs) {
+    var lang = homeLanguage(), entry = TEXT.hasOwnProperty(cs) ? TEXT[cs] : null;
+    return entry && lang !== "cs" ? entry[lang === "sk" ? 0 : 1] : cs;
+  }
   if (window.__movlyStarted || window.__movlyTvStarted) return;
 
   var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, ENTER: 13, BACK: 461, BACKSPACE: 8, ESC: 27,
     PLAY: 415, PAUSE: 19, PLAY_PAUSE: 10252, STOP: 413, REWIND: 412, FORWARD: 417 };
-  var NETWORK_ERROR = "Nepodařilo se spojit se serverem Movly. Zkontroluj připojení a zkus to znovu.";
+  var NETWORK_ERROR = t("Nepodařilo se spojit se serverem Movly. Zkontroluj připojení a zkus to znovu.");
   var SESSION_CODES = ["app_session_required", "session_revoked", "account_inactive", "invalid_or_expired_session"];
   var PROFILE_CODES = ["app_profile_required", "profile_grant_required", "profile_access_denied", "profile_grant_expired", "invalid_profile_grant"];
   var HLS_SCRIPT = "/app/vendor/hls-0.14.17.light.min.js";
@@ -49,6 +240,10 @@
     return n;
   }
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+  // Wordmark se značkou M (stejný soubor jako plná aplikace).
+  function brand(tag, className) {
+    return h(tag, { className: className }, [h("img", { className: "tv-mark", src: "/assets/movly-mark.svg", alt: "" }), "Movly"]);
+  }
   function button(label, onclick, className) {
     return h("button", { type: "button", className: "tv-f tv-button" + (className ? " " + className : ""), onclick: onclick, text: label });
   }
@@ -62,8 +257,8 @@
         sync();
       };
     }
-    var prev = h("button", { type: "button", className: "tv-scroll-nav tv-scroll-prev", "aria-label": "Posunout doleva", onclick: by(-1), text: "\u25C0" });
-    var next = h("button", { type: "button", className: "tv-scroll-nav tv-scroll-next", "aria-label": "Posunout doprava", onclick: by(1), text: "\u25B6" });
+    var prev = h("button", { type: "button", className: "tv-scroll-nav tv-scroll-prev", "aria-label": t("Posunout doleva"), onclick: by(-1), text: "\u25C0" });
+    var next = h("button", { type: "button", className: "tv-scroll-nav tv-scroll-next", "aria-label": t("Posunout doprava"), onclick: by(1), text: "\u25B6" });
     function sync() {
       prev.hidden = track.scrollLeft <= 0;
       next.hidden = track.scrollLeft + track.clientWidth >= track.scrollWidth - 2;
@@ -99,7 +294,7 @@
   // ---------- API (XHR přes BFF) ----------
   function apiError(status, body) {
     var message = body && typeof body.message === "string" && body.message ? body.message
-      : status === 0 ? NETWORK_ERROR : "Požadavek selhal (" + status + ").";
+      : status === 0 ? NETWORK_ERROR : t("Požadavek selhal (") + status + ").";
     var e = new Error(message);
     e.status = status;
     e.code = body && body.code;
@@ -173,7 +368,7 @@
     xhr.open(options.method || "GET", "/api/app/" + path, true);
     xhr.setRequestHeader("Accept", "application/json");
     xhr.setRequestHeader("X-Movly-App", "1");
-    xhr.setRequestHeader("X-Movly-Language", "cs");
+    xhr.setRequestHeader("X-Movly-Language", homeLanguage());
     // Pin requests to the account/profile that opened the screen, including
     // history writes and session teardown after another tab switches profiles.
     if (account && isId(account.id) && profile && isId(profile.id) && path !== "session" && path !== "profiles" && path !== "profile" && path !== "login" && path !== "logout") {
@@ -197,7 +392,7 @@
       if (xhr.status === 0) { finish(apiError(0)); return; }
       var data = null;
       try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null; }
-      catch (e) { finish(apiError(502, { message: "Server vrátil nečitelnou odpověď." })); return; }
+      catch (e) { finish(apiError(502, { message: t("Server vrátil nečitelnou odpověď.") })); return; }
       if (xhr.status >= 200 && xhr.status < 300) finish(null, data);
       else finish(apiError(xhr.status, data));
     };
@@ -218,13 +413,13 @@
     if (err.status === 401 || contains(SESSION_CODES, err.code)) {
       stopPlayback();
       account = null; profile = null;
-      resetTo(loginScreen("Přihlášení vypršelo. Přihlas se znovu."));
+      resetTo(loginScreen(t("Přihlášení vypršelo. Přihlas se znovu.")));
       return true;
     }
     if (contains(PROFILE_CODES, err.code)) {
       stopPlayback();
       profile = null;
-      resetTo(profilesScreen("Vyber profil znovu."));
+      resetTo(profilesScreen(t("Vyber profil znovu.")));
       return true;
     }
     return false;
@@ -239,7 +434,7 @@
     root.className = "tv-root tv-screen-" + screen.name;
     // Viditelné „Zpět“ pro ovládání kurzorem (klávesa Zpět nemusí stránce dorazit).
     var head = screen.el.querySelector(".tv-header");
-    if (head && stack.length > 1 && !head.querySelector(".tv-back")) head.insertBefore(button("\u25C0 Zpět", back, "tv-back"), head.firstChild);
+    if (head && stack.length > 1 && !head.querySelector(".tv-back")) head.insertBefore(button(t("\u25C0 Zpět"), back, "tv-back"), head.firstChild);
     if (screen.onShow) screen.onShow();
     var target = screen.lastFocus && screen.el.contains(screen.lastFocus) && isFocusable(screen.lastFocus) ? screen.lastFocus : null;
     focusEl(target || firstFocusable(screen.el), true);
@@ -407,7 +602,7 @@
   // ---------- společné prvky ----------
   function header(title, extra) {
     return h("header", { className: "tv-header" }, [
-      h("span", { className: "tv-brand", text: "Movly" }),
+      brand("span", "tv-brand"),
       title ? h("h1", { className: "tv-title", text: title }) : null,
       extra ? h("div", { className: "tv-header-actions" }, extra) : null
     ]);
@@ -456,15 +651,15 @@
 
   // ---------- přihlášení ----------
   function loginScreen(notice) {
-    var user = h("input", { type: "text", className: "tv-f tv-input tv-autofocus", autocomplete: "username", autocapitalize: "off", spellcheck: "false", "aria-label": "Uživatelské jméno", placeholder: "Uživatelské jméno" });
-    var pass = h("input", { type: "password", className: "tv-f tv-input", autocomplete: "current-password", "aria-label": "Heslo", placeholder: "Heslo" });
-    var submit = h("button", { type: "submit", className: "tv-f tv-button tv-primary", text: "Přihlásit se" });
+    var user = h("input", { type: "text", className: "tv-f tv-input tv-autofocus", autocomplete: "username", autocapitalize: "off", spellcheck: "false", "aria-label": t("Uživatelské jméno"), placeholder: t("Uživatelské jméno") });
+    var pass = h("input", { type: "password", className: "tv-f tv-input", autocomplete: "current-password", "aria-label": t("Heslo"), placeholder: t("Heslo") });
+    var submit = h("button", { type: "submit", className: "tv-f tv-button tv-primary", text: t("Přihlásit se") });
     var status = statusBox(notice || "", notice ? "info" : null);
     status.hidden = !notice;
     var busy = false;
     var form = h("form", { className: "tv-form", novalidate: true }, [
-      h("label", { className: "tv-label", text: "Uživatelské jméno" }), user,
-      h("label", { className: "tv-label", text: "Heslo" }), pass,
+      h("label", { className: "tv-label", text: t("Uživatelské jméno") }), user,
+      h("label", { className: "tv-label", text: t("Heslo") }), pass,
       submit, status
     ]);
     form.onsubmit = function (event) {
@@ -472,18 +667,18 @@
       if (busy) return;
       if (document.activeElement === user && !pass.value) { focusEl(pass); return; }
       if (document.activeElement === pass && !user.value) { focusEl(user); return; }
-      if (!user.value.replace(/\s+/g, "") || !pass.value) { setStatus(status, "Vyplň uživatelské jméno a heslo.", "error"); return; }
+      if (!user.value.replace(/\s+/g, "") || !pass.value) { setStatus(status, t("Vyplň uživatelské jméno a heslo."), "error"); return; }
       busy = true;
       submit.disabled = true;
-      setStatus(status, "Přihlašuji…", "info");
+      setStatus(status, t("Přihlašuji…"), "info");
       api("login", { method: "POST", body: { username: user.value, password: pass.value }, quiet: true }, function (err, data) {
         busy = false;
         submit.disabled = false;
         if (err) {
           pass.value = "";
           setStatus(status, err.status === 0 ? NETWORK_ERROR
-            : err.status === 401 || err.status === 403 ? "Přihlášení se nepodařilo: nesprávné uživatelské jméno nebo heslo."
-            : "Přihlášení se nepodařilo: " + err.message, "error");
+            : err.status === 401 || err.status === 403 ? t("Přihlášení se nepodařilo: nesprávné uživatelské jméno nebo heslo.")
+            : t("Přihlášení se nepodařilo: ") + err.message, "error");
           focusEl(pass);
           return;
         }
@@ -495,10 +690,10 @@
     };
     return makeScreen("login", [
       h("div", { className: "tv-center" }, [
-        h("h1", { className: "tv-logo", text: "Movly" }),
-        h("p", { className: "tv-lead", text: "Přihlas se svým účtem Movly. Text zadáš klávesnicí televizoru po stisku OK." }),
+        brand("h1", "tv-logo"),
+        h("p", { className: "tv-lead", text: t("Přihlas se svým účtem Movly. Text zadáš klávesnicí televizoru po stisku OK.") }),
         form,
-        h("p", { className: "tv-hint", text: "TV lite: omezená verze pro starší televizory." })
+        h("p", { className: "tv-hint", text: t("TV lite: omezená verze pro starší televizory.") })
       ])
     ]);
   }
@@ -506,14 +701,14 @@
   // ---------- profily a PIN ----------
   function profilesScreen(notice) {
     var list = h("div", { className: "tv-profiles" });
-    var status = statusBox(notice || "Načítám profily…", notice ? "info" : null);
-    var logout = button("Odhlásit se", doLogout);
+    var status = statusBox(notice || t("Načítám profily…"), notice ? "info" : null);
+    var logout = button(t("Odhlásit se"), doLogout);
     function load() {
-      setStatus(status, "Načítám profily…");
+      setStatus(status, t("Načítám profily…"));
       api("profiles", {}, function (err, data) {
         clear(list);
-        if (err) { setStatus(status, err.message, "error"); list.appendChild(button("Zkusit znovu", load, "tv-autofocus")); focusEl(firstFocusable(s.el)); return; }
-        if (!data || !data.length) { setStatus(status, "Účet nemá žádný profil. Vytvoř ho v plné aplikaci Movly.", "error"); return; }
+        if (err) { setStatus(status, err.message, "error"); list.appendChild(button(t("Zkusit znovu"), load, "tv-autofocus")); focusEl(firstFocusable(s.el)); return; }
+        if (!data || !data.length) { setStatus(status, t("Účet nemá žádný profil. Vytvoř ho v plné aplikaci Movly."), "error"); return; }
         setStatus(status, notice || "", notice ? "info" : null);
         each(data, function (p) {
           if (!isId(p.id) || typeof p.name !== "string") return;
@@ -521,7 +716,7 @@
           list.appendChild(h("button", { type: "button", className: "tv-f tv-profile" + (list.firstChild ? "" : " tv-autofocus"), onclick: function () { chooseProfile(p); } }, [
             h("span", { className: "tv-avatar" }, [src ? h("img", { src: src, alt: "" }) : h("span", { text: p.name.charAt(0).toUpperCase() })]),
             h("span", { className: "tv-profile-name", text: p.name }),
-            p.has_pin ? h("span", { className: "tv-profile-lock", text: "Chráněno PINem" }) : null
+            p.has_pin ? h("span", { className: "tv-profile-lock", text: t("Chráněno PINem") }) : null
           ]));
         });
         autoFocus(s, list);
@@ -529,11 +724,11 @@
     }
     function chooseProfile(p) {
       if (p.has_pin) { push(pinScreen(p)); return; }
-      setStatus(status, "Otevírám profil " + p.name + "…", "info");
+      setStatus(status, t("Otevírám profil ") + p.name + "…", "info");
       selectProfile(p, null, function (err) { if (err) setStatus(status, err.message, "error"); });
     }
     var s = makeScreen("profiles", [
-      header("Kdo se dívá?", [logout]),
+      header(t("Kdo se dívá?"), [logout]),
       status,
       list
     ], { onShow: function () { if (!list.firstChild) load(); } });
@@ -561,14 +756,14 @@
     var busy = false;
     function submit() {
       if (busy) return;
-      if (!/^\d{4,8}$/.test(input.value)) { setStatus(status, "PIN musí mít 4 až 8 číslic.", "error"); return; }
+      if (!/^\d{4,8}$/.test(input.value)) { setStatus(status, t("PIN musí mít 4 až 8 číslic."), "error"); return; }
       busy = true;
-      setStatus(status, "Ověřuji PIN…", "info");
+      setStatus(status, t("Ověřuji PIN…"), "info");
       selectProfile(p, input.value, function (err) {
         busy = false;
         if (!err) return;
         input.value = "";
-        setStatus(status, err.code === "invalid_profile_pin" || err.status === 401 ? "Nesprávný PIN. Zkus to znovu." : err.message, "error");
+        setStatus(status, err.code === "invalid_profile_pin" || err.status === 401 ? t("Nesprávný PIN. Zkus to znovu.") : err.message, "error");
       });
     }
     function type(d) { if (input.value.length < 8) input.value += d; }
@@ -585,9 +780,9 @@
     return makeScreen("pin", [
       header("Profil " + p.name),
       h("div", { className: "tv-center" }, [
-        h("p", { className: "tv-lead", text: "Zadej PIN profilu. Můžeš použít číselná tlačítka ovladače." }),
+        h("p", { className: "tv-lead", text: t("Zadej PIN profilu. Můžeš použít číselná tlačítka ovladače.") }),
         form, keys, status,
-        button("Zpět", back)
+        button(t("Zpět"), back)
       ])
     ], {
       onKey: function (event) {
@@ -602,7 +797,7 @@
     api("logout", { method: "POST", body: {}, quiet: true }, function () {
       account = null;
       profile = null;
-      resetTo(loginScreen("Byl(a) jsi odhlášen(a)."));
+      resetTo(loginScreen(t("Byl(a) jsi odhlášen(a).")));
     });
   }
 
@@ -616,13 +811,13 @@
     function currentScope() { return !cancelled && scope === searchScope(); }
     request = api("profiles/effective-content-policy", {}, function (err, policy) {
       if (!currentScope()) return;
-      if (err || !validPolicy(policy)) { done(err || { message: "Pravidla profilu nejsou ověřena." }); return; }
+      if (err || !validPolicy(policy)) { done(err || { message: t("Pravidla profilu nejsou ověřena.") }); return; }
       request = api(path, {}, function (error, data) {
         if (!currentScope()) return;
         if (error) { done(error); return; }
         request = api("profiles/effective-content-policy", {}, function (policyError, fresh) {
           if (!currentScope()) return;
-          if (policyError || !validPolicy(fresh) || fresh.revision !== policy.revision) { done(policyError || { message: "Pravidla profilu se změnila. Načti stránku znovu." }); return; }
+          if (policyError || !validPolicy(fresh) || fresh.revision !== policy.revision) { done(policyError || { message: t("Pravidla profilu se změnila. Načti stránku znovu.") }); return; }
           done(null, data);
         });
       });
@@ -761,7 +956,7 @@
   // ---------- Domů ----------
   function homeScreen() {
     var body = h("div", { className: "tv-home" });
-    var status = statusBox("Načítám Domů…");
+    var status = statusBox(t("Načítám Domů…"));
     var s, scope = searchScope(), alive = true, generation = 0, request = null, watcher;
     function valid() { return alive && scope === searchScope() && current() === s && !s.el.hidden; }
     function homeAction(label, action) {
@@ -773,13 +968,13 @@
       if (!valid()) return;
       var mine = ++generation;
       if (request) request.abort();
-      clear(body); setStatus(status, "Načítám Domů…");
+      clear(body); setStatus(status, t("Načítám Domů…"));
       request = pageFeed("home" + query({ include_highlights: "true", page: 1 }), function (err, data) {
         if (!valid() || mine !== generation) return;
         clear(body);
         if (err) {
           setStatus(status, err.message, "error");
-          body.appendChild(homeAction("Zkusit znovu", load));
+          body.appendChild(homeAction(t("Zkusit znovu"), load));
           autoFocus(s, body);
           return;
         }
@@ -796,7 +991,7 @@
               scroller(h("div", { className: "tv-rail-track tv-scroll-x" }, map(banners, function (c) {
                 return h("button", { type: "button", className: "tv-f tv-collection", onclick: function () { if (valid() && mine === generation) open(collectionScreen(c)); } }, [
                   h("strong", { text: c.name }),
-                  c.total_items ? h("span", { text: c.total_items + " titulů" }) : null
+                  c.total_items ? h("span", { text: c.total_items + t(" titulů") }) : null
                 ]);
               })))
             ]));
@@ -808,7 +1003,7 @@
           body.appendChild(rail(row.name, row.kind === "top10" ? items.slice(0, 10) : items, function (title) { if (valid() && mine === generation) openDetail(title); }));
           shown++;
         });
-        setStatus(status, shown ? "" : "Domů zatím nemá žádné řady.", shown ? null : "info");
+        setStatus(status, shown ? "" : t("Domů zatím nemá žádné řady."), shown ? null : "info");
         autoFocus(s, body); if (watcher) watcher.start();
       });
     }
@@ -816,10 +1011,10 @@
       header(profile ? profile.name : "", [
         homeAction(window.MovlyHomePreferences.text("movies", homeLanguage()), function () { open(catalogPageScreen("movies")); }),
         homeAction(window.MovlyHomePreferences.text("series", homeLanguage()), function () { open(catalogPageScreen("series")); }),
-        homeAction("Hledat", function () { open(searchScreen()); }),
+        homeAction(t("Hledat"), function () { open(searchScreen()); }),
         homeAction(window.MovlyHomePreferences.text("settings", homeLanguage()), function () { open(tvSettingsScreen()); }),
-        homeAction("Změnit profil", function () { resetTo(profilesScreen()); }),
-        homeAction("Odhlásit se", doLogout)
+        homeAction(t("Změnit profil"), function () { resetTo(profilesScreen()); }),
+        homeAction(t("Odhlásit se"), doLogout)
       ]),
       status,
       body
@@ -839,11 +1034,11 @@
     function guarded(label, fn) { var control = button(label, function () { if (valid() && screen.el.contains(control)) fn(); }); return control; }
     function load() {
       if (!valid()) return;
-      var mine = ++generation; if (request) request.abort(); clear(body); setStatus(status, "Načítám…");
+      var mine = ++generation; if (request) request.abort(); clear(body); setStatus(status, t("Načítám…"));
       request = pageFeed("main" + query({ type: type, limit: 30 }), function (err, data) {
         if (!valid() || mine !== generation) return;
         clear(body);
-        if (err) { setStatus(status, err.message, "error"); body.appendChild(guarded("Zkusit znovu", load)); autoFocus(screen, body); return; }
+        if (err) { setStatus(status, err.message, "error"); body.appendChild(guarded(t("Zkusit znovu"), load)); autoFocus(screen, body); return; }
         var lists = (data && data.lists && data.lists.length !== undefined ? data.lists.slice(0) : []), seen = {}, shown = 0;
         lists.sort(function (a, b) { return (a.display_order || 0) - (b.display_order || 0); });
         each(lists, function (row) {
@@ -852,15 +1047,15 @@
           var items = filter(map(row.items || [], titleOf), Boolean); if (!items.length) return;
           var node = rail(row.name || row.slug, row.slug === "top-watched" ? items.slice(0, 10) : items, function (title) { if (valid() && mine === generation) push(detailScreen(title)); });
           node.setAttribute("data-rail-slug", row.slug);
-          var more = guarded("Zobrazit vše — " + (row.name || row.slug), function () { push(catalogListScreen(row, page)); });
+          var more = guarded(t("Zobrazit vše — ") + (row.name || row.slug), function () { push(catalogListScreen(row, page)); });
           node.appendChild(more); body.appendChild(node); shown++;
         });
-        setStatus(status, shown ? "" : "Na této stránce zatím nejsou žádné řady.", shown ? null : "info"); autoFocus(screen, body); if (watcher) watcher.start();
+        setStatus(status, shown ? "" : t("Na této stránce zatím nejsou žádné řady."), shown ? null : "info"); autoFocus(screen, body); if (watcher) watcher.start();
       });
     }
     screen = makeScreen("catalog-" + page, [header(window.MovlyHomePreferences.text(page, homeLanguage()), [
       guarded(window.MovlyHomePreferences.text("settings", homeLanguage()), function () { push(homePreferencesScreen(page)); }),
-      guarded("Hledat", function () { push(searchScreen()); })]), status, body], {
+      guarded(t("Hledat"), function () { push(searchScreen()); })]), status, body], {
       onShow: function () { screen.el.hidden = false; load(); },
       onBlur: function () { if (watcher) watcher.stop(); generation++; if (request) request.abort(); screen.el.hidden = true; },
       onFocus: function () { verifySearchScope(screen, scope, load); },
@@ -874,17 +1069,17 @@
     var body = h("div"), status = statusBox("");
     function valid() { return alive && scope === searchScope() && current() === screen && !screen.el.hidden; }
     function load() {
-      if (!valid()) return; var mine = ++generation; if (request) request.abort(); clear(body); setStatus(status, "Načítám…");
+      if (!valid()) return; var mine = ++generation; if (request) request.abort(); clear(body); setStatus(status, t("Načítám…"));
       request = pageFeed("main/lists/" + encodeURIComponent(row.slug) + query({ page: pageNumber, limit: 30, type: page === "series" ? "tv" : "movie" }), function (err, data) {
         if (!valid() || mine !== generation) return;
-        clear(body); if (err) { setStatus(status, err.message, "error"); var retry = button("Zkusit znovu", function () { if (valid() && screen.el.contains(retry)) load(); }); body.appendChild(retry); autoFocus(screen, body); return; }
+        clear(body); if (err) { setStatus(status, err.message, "error"); var retry = button(t("Zkusit znovu"), function () { if (valid() && screen.el.contains(retry)) load(); }); body.appendChild(retry); autoFocus(screen, body); return; }
         var list = data && (data.list || data);
         var items = filter(map(list && list.items || [], titleOf), Boolean);
         body.appendChild(rail(row.name || row.slug, items, function (title) { if (valid() && mine === generation) push(detailScreen(title)); }));
         function paging(label, delta) { var control = button(label, function () { if (valid() && screen.el.contains(control)) { pageNumber += delta; load(); } }); return control; }
-        if (pageNumber > 1) body.appendChild(paging("Předchozí", -1));
-        if (items.length === 30) body.appendChild(paging("Další", 1));
-        setStatus(status, items.length ? "" : "Žádné tituly."); autoFocus(screen, body);
+        if (pageNumber > 1) body.appendChild(paging(t("Předchozí"), -1));
+        if (items.length === 30) body.appendChild(paging(t("Další"), 1));
+        setStatus(status, items.length ? "" : t("Žádné tituly.")); autoFocus(screen, body);
       });
     }
     screen = makeScreen("catalog-list-" + page, [header(row.name || row.slug), status, body], {
@@ -894,7 +1089,7 @@
   }
   function collectionScreen(c) {
     var body = h("div");
-    var status = statusBox("Načítám…");
+    var status = statusBox(t("Načítám…"));
     var s = makeScreen("collection", [header(c.name), status, body], {
       onShow: function () {
         if (body.firstChild) return;
@@ -902,7 +1097,7 @@
           if (err) { setStatus(status, err.message, "error"); return; }
           var items = [];
           each((data && data.sections) || [], function (row) { items = items.concat(filter(map(row.items || [], titleOf), Boolean)); });
-          setStatus(status, items.length ? "" : "Kolekce je prázdná.", items.length ? null : "info");
+          setStatus(status, items.length ? "" : t("Kolekce je prázdná."), items.length ? null : "info");
           body.appendChild(grid(items));
           autoFocus(s, body);
         });
@@ -974,9 +1169,9 @@
   }
   function searchScreen() {
     var owner = searchOwner(), scope = searchScope(), alive = true, revision = 0, suggestRevision = 0, policyRevision = "", policyGeneration = 0, discoveryAllowed = false, discoveryError = false;
-    var input = h("input", { type: "search", maxlength: 200, className: "tv-f tv-input tv-autofocus", autocomplete: "off", "aria-label": "Hledat název nebo výraz", placeholder: "Název filmu, seriálu nebo popis", role: "combobox", "aria-expanded": "false", "aria-controls": "tv-search-suggestions" });
-    var suggestions = h("div", { id: "tv-search-suggestions", role: "listbox", "aria-label": "Návrhy hledání" });
-    var status = statusBox("Napiš název a potvrď Hledat.", "info"), results = h("div"), idle = h("div"), activeFilters = h("p", { className: "tv-hint" });
+    var input = h("input", { type: "search", maxlength: 200, className: "tv-f tv-input tv-autofocus", autocomplete: "off", "aria-label": t("Hledat název nebo výraz"), placeholder: t("Název filmu, seriálu nebo popis"), role: "combobox", "aria-expanded": "false", "aria-controls": "tv-search-suggestions" });
+    var suggestions = h("div", { id: "tv-search-suggestions", role: "listbox", "aria-label": t("Návrhy hledání") });
+    var status = statusBox(t("Napiš název a potvrď Hledat."), "info"), results = h("div"), idle = h("div"), activeFilters = h("p", { className: "tv-hint" });
     var suggestTimer = null, suggestionRequest = null, activeRequest = null, definition = {}, page = 1, natural = false, committedQuery = null, lastResult = null, pendingResultFocus = false, s;
     function valid() { return alive && scope === searchScope(); }
     function active() { return valid() && current() === s && !s.el.hidden; }
@@ -994,23 +1189,23 @@
       clear(idle);
       if (input.value.replace(/\s/g, "")) return;
       var history = h("div", { className: "tv-search-history" }), terms = historyTerms(owner);
-      history.appendChild(h("h2", { text: "Poslední hledání" }));
+      history.appendChild(h("h2", { text: t("Poslední hledání") }));
       each(terms, function (term) {
         history.appendChild(h("div", { className: "tv-search-term" }, [termButton(term), searchAction("Odebrat „" + term + "“", function () {
           storeTerms(owner, filter(historyTerms(owner), function (v) { return v !== term; })); renderHistory(); focusEl(firstFocusable(idle));
         })]));
       });
-      if (!terms.length) history.appendChild(h("p", { text: "Zatím tu žádná hledání nejsou." }));
-      else history.appendChild(searchAction("Vymazat historii", function () { storeTerms(owner, []); renderHistory(); focusEl(firstFocusable(s.el)); }));
+      if (!terms.length) history.appendChild(h("p", { text: t("Zatím tu žádná hledání nejsou.") }));
+      else history.appendChild(searchAction(t("Vymazat historii"), function () { storeTerms(owner, []); renderHistory(); focusEl(firstFocusable(s.el)); }));
       idle.appendChild(history);
       var discoveries = h("div"); idle.appendChild(discoveries);
-      if (!discoveryAllowed) { if (discoveryError) discoveries.appendChild(searchAction("Obnovit pravidla a návrhy", function () { s.onShow(); })); return; }
+      if (!discoveryAllowed) { if (discoveryError) discoveries.appendChild(searchAction(t("Obnovit pravidla a návrhy"), function () { s.onShow(); })); return; }
       var mine = revision, policy = policyRevision;
       function unchanged() { return valid() && mine === revision && policy === policyRevision && !input.value.replace(/\s/g, ""); }
       api("trending-searches?limit=10", {}, function (err, data) {
         if (!unchanged()) return;
-        var section = h("div", {}, [h("h2", { text: "Populární hledání" })]);
-        if (err) section.appendChild(searchAction("Populární hledání: zkusit znovu", renderHistory));
+        var section = h("div", {}, [h("h2", { text: t("Populární hledání") })]);
+        if (err) section.appendChild(searchAction(t("Populární hledání: zkusit znovu"), renderHistory));
         else each(arrayList(data && data.trending_searches).slice(0, 10), function (v) {
           if (v && typeof v.query === "string" && v.query.length <= 100 && v.search_count > 0) section.appendChild(termButton(v.query));
         });
@@ -1018,8 +1213,8 @@
       });
       api("popular-titles-search?limit=10", {}, function (err, data) {
         if (!unchanged()) return;
-        var section = h("div", {}, [h("h2", { text: "Nejčastěji vybírané tituly" })]);
-        if (err) section.appendChild(searchAction("Populární tituly: zkusit znovu", renderHistory));
+        var section = h("div", {}, [h("h2", { text: t("Nejčastěji vybírané tituly") })]);
+        if (err) section.appendChild(searchAction(t("Populární tituly: zkusit znovu"), renderHistory));
         else each(arrayList(data && data.popular_titles).slice(0, 10), function (v) {
           if (!v || !isId(v.title_id) || v.interaction_count <= 0 || typeof v.title !== "string") return;
           // No unrestricted title data/poster hydration: the discovery API is policy-scoped.
@@ -1037,7 +1232,7 @@
       suggestionRequest = api("autocomplete" + query({ q: q, limit: 8 }), {}, function (err, data) {
         if (!valid() || mine !== suggestRevision || policy !== policyRevision || input.value.replace(/^\s+|\s+$/g, "") !== q) return;
         if (err) {
-          var retry = searchAction("Zkusit návrhy znovu", suggest); retry.setAttribute("role", "option"); suggestions.appendChild(retry);
+          var retry = searchAction(t("Zkusit návrhy znovu"), suggest); retry.setAttribute("role", "option"); suggestions.appendChild(retry);
           input.setAttribute("aria-expanded", "true"); return;
         }
         each(arrayList(data && data.suggestions).slice(0, 8), function (term) {
@@ -1051,9 +1246,9 @@
       lastResult = { data: data, text: searchText, offset: resultOffset, policy: policyRevision };
       var items = filter(map((data && data.results) || [], titleOf), Boolean);
       clear(results);
-      setStatus(status, items.length ? "Nalezeno: " + (typeof data.total === "number" ? data.total : items.length) : "Nic jsme nenašli.", items.length ? null : "info");
-      if (data.degraded || (data.warnings && data.warnings.length) || (data.degraded_sources && data.degraded_sources.length)) results.appendChild(statusBox("Některé zdroje výsledků nejsou dostupné. Výsledky mohou být neúplné.", "info"));
-      if (data.parsed && data.parsed.matched) results.appendChild(statusBox("Rozpoznané filtry: " + filterDescription(data.parsed), "info"));
+      setStatus(status, items.length ? "Nalezeno: " + (typeof data.total === "number" ? data.total : items.length) : t("Nic jsme nenašli."), items.length ? null : "info");
+      if (data.degraded || (data.warnings && data.warnings.length) || (data.degraded_sources && data.degraded_sources.length)) results.appendChild(statusBox(t("Některé zdroje výsledků nejsou dostupné. Výsledky mohou být neúplné."), "info"));
+      if (data.parsed && data.parsed.matched) results.appendChild(statusBox(t("Rozpoznané filtry: ") + filterDescription(data.parsed), "info"));
       var renderedRevision = generation, renderedQuery = searchText;
       var grouped = exactSearchGroups(data.results, renderedQuery, resultOffset);
       function section(entries, heading, className) {
@@ -1069,11 +1264,11 @@
         });
         results.appendChild(section);
       }
-      section(grouped.exact, "Přesná shoda názvu", "tv-search-exact");
-      section(grouped.related, grouped.exact.length ? "Další výsledky" : "Výsledky", "tv-search-related");
+      section(grouped.exact, t("Přesná shoda názvu"), "tv-search-exact");
+      section(grouped.related, grouped.exact.length ? t("Další výsledky") : t("Výsledky"), "tv-search-related");
       var pages = h("div", { className: "tv-search-actions" });
-      if (page > 1) pages.appendChild(searchAction("Předchozí stránka", function () { page--; run(false); }));
-      if (data.total > page * 30 || data.total_pages > page) pages.appendChild(searchAction("Další stránka", function () { page++; run(false); }));
+      if (page > 1) pages.appendChild(searchAction(t("Předchozí stránka"), function () { page--; run(false); }));
+      if (data.total > page * 30 || data.total_pages > page) pages.appendChild(searchAction(t("Další stránka"), function () { page++; run(false); }));
       results.appendChild(pages);
       if (focus && current() === s) focusEl(firstFocusable(results) || input);
     }
@@ -1087,10 +1282,10 @@
       if (focus) cancelSuggestions();
       var q = committedQuery, params = filterQuery(definition), mine = ++revision, resultOffset = (page - 1) * 30;
       lastResult = null; clear(results); clear(idle);
-      if (!q && !Object.keys(params).length) { setStatus(status, "Napiš název nebo nastav filtry.", "info"); renderHistory(); return; }
+      if (!q && !Object.keys(params).length) { setStatus(status, t("Napiš název nebo nastav filtry."), "info"); renderHistory(); return; }
       if (q.length > 200) return;
       if (q && focus) rememberTerm(owner, q);
-      setStatus(status, "Hledám…");
+      setStatus(status, t("Hledám…"));
       if (activeRequest) activeRequest.abort();
       var filtered = Object.keys(params).length > 0;
       params.limit = 30; params.page = page;
@@ -1100,11 +1295,11 @@
       if (path === "search/filters") params = { q: q, page: page, limit: 30 };
       function done(err, data) {
         if (!valid() || mine !== revision) return;
-        if (err) { setStatus(status, err.message, "error"); results.appendChild(searchAction("Zkusit znovu", function () { if (mine === revision) run(focus); })); return; }
+        if (err) { setStatus(status, err.message, "error"); results.appendChild(searchAction(t("Zkusit znovu"), function () { if (mine === revision) run(focus); })); return; }
         if (path === "search/filters" && data && data.parsed && data.parsed.matched === false) {
           activeRequest = api("search" + query({ q: q, type: "both", limit: 30, offset: (page - 1) * 30 }), {}, function (fallbackError, fallback) {
             if (!valid() || mine !== revision) return;
-            if (fallbackError) { setStatus(status, fallbackError.message, "error"); results.appendChild(searchAction("Zkusit znovu", function () { if (mine === revision) run(focus); })); return; }
+            if (fallbackError) { setStatus(status, fallbackError.message, "error"); results.appendChild(searchAction(t("Zkusit znovu"), function () { if (mine === revision) run(focus); })); return; }
             renderResults(fallback || {}, focus, q, resultOffset, mine);
           });
           return;
@@ -1118,17 +1313,17 @@
       revision++; cancelSuggestions(); committedQuery = null; lastResult = null; page = 1; natural = false;
       if (activeRequest) { activeRequest.abort(); activeRequest = null; }
       clear(results); clear(idle);
-      if (!input.value.replace(/\s/g, "")) { clear(results); setStatus(status, "Napiš název nebo nastav filtry.", "info"); renderHistory(); return; }
-      setStatus(status, "Potvrď Hledat nebo vyber návrh.", "info");
+      if (!input.value.replace(/\s/g, "")) { clear(results); setStatus(status, t("Napiš název nebo nastav filtry."), "info"); renderHistory(); return; }
+      setStatus(status, t("Potvrď Hledat nebo vyber návrh."), "info");
       suggestTimer = setTimeout(suggest, 250);
     }, false);
     var form = h("form", { className: "tv-form tv-search-form", novalidate: true, role: "search" }, [input, suggestions,
-      h("div", { className: "tv-search-actions" }, [searchAction("Hledat", function () { page = 1; natural = false; commitSearch(); }), searchAction("Rozpoznat filtry z textu", function () { page = 1; natural = true; commitSearch(); }), searchAction("Filtry a uložené filtry", function () {
+      h("div", { className: "tv-search-actions" }, [searchAction(t("Hledat"), function () { page = 1; natural = false; commitSearch(); }), searchAction(t("Rozpoznat filtry z textu"), function () { page = 1; natural = true; commitSearch(); }), searchAction(t("Filtry a uložené filtry"), function () {
         cancelSuggestions(); revision++;
-        push(searchFilterScreen(definition, function (next) { definition = next; natural = false; page = 1; activeFilters.textContent = Object.keys(next).length ? "Použité filtry: " + filterDescription(next) : ""; pendingResultFocus = true; back(); }));
-      }), searchAction("Zrušit filtry", function () { definition = {}; activeFilters.textContent = ""; page = 1; commitSearch(); })])]);
+        push(searchFilterScreen(definition, function (next) { definition = next; natural = false; page = 1; activeFilters.textContent = Object.keys(next).length ? t("Použité filtry: ") + filterDescription(next) : ""; pendingResultFocus = true; back(); }));
+      }), searchAction(t("Zrušit filtry"), function () { definition = {}; activeFilters.textContent = ""; page = 1; commitSearch(); })])]);
     form.onsubmit = function (event) { event.preventDefault(); page = 1; natural = false; commitSearch(); };
-    s = makeScreen("search", [header("Hledat"), form, activeFilters, status, idle, results], {
+    s = makeScreen("search", [header(t("Hledat")), form, activeFilters, status, idle, results], {
       onShow: function () {
         if (!valid()) return;
         var policyMine = ++policyGeneration;
@@ -1144,7 +1339,7 @@
           renderHistory();
           if (pendingResultFocus) { pendingResultFocus = false; commitSearch(); }
           else if (lastResult && lastResult.policy === policyRevision && lastResult.text === committedQuery) renderResults(lastResult.data, false, lastResult.text, lastResult.offset, revision);
-          else if (committedQuery !== null) setStatus(status, "Potvrď Hledat pro obnovení výsledků.", "info");
+          else if (committedQuery !== null) setStatus(status, t("Potvrď Hledat pro obnovení výsledků."), "info");
         });
         renderHistory();
       },
@@ -1162,14 +1357,14 @@
   }
 
   function filterDescription(definition) {
-    var labels = { type: "Typ", genre_ids: "Žánry", genre_names: "Žánry", genre_match: "Shoda žánrů", year_from: "Rok od", year_to: "Rok do", rating_from: "Hodnocení od", rating_to: "Hodnocení do", runtime_from: "Délka od (min)", runtime_to: "Délka do (min)", video_height_min: "Kvalita", hdr: "HDR", has_streams: "Dostupné zdroje", audio_languages: "Audio", audio_language: "Audio", subtitle_languages: "Titulky", subtitle_language: "Titulky", original_languages: "Původní jazyk", original_language: "Původní jazyk", countries: "Země", sort_by: "Řazení", sort_order: "Směr", text: "Název" };
-    var values = { movie: "Filmy", tv: "Seriály", all: "Všechny", any: "Libovolný", asc: "Vzestupně", desc: "Sestupně", popularity: "Popularita", rating: "Hodnocení", year: "Rok", title: "Název", runtime: "Délka", vote_count: "Počet hodnocení" }, out = [];
+    var labels = { type: t("Typ"), genre_ids: t("Žánry"), genre_names: t("Žánry"), genre_match: t("Shoda žánrů"), year_from: t("Rok od"), year_to: t("Rok do"), rating_from: t("Hodnocení od"), rating_to: t("Hodnocení do"), runtime_from: t("Délka od (min)"), runtime_to: t("Délka do (min)"), video_height_min: t("Kvalita"), hdr: "HDR", has_streams: t("Dostupné zdroje"), audio_languages: t("Audio"), audio_language: t("Audio"), subtitle_languages: t("Titulky"), subtitle_language: t("Titulky"), original_languages: t("Původní jazyk"), original_language: t("Původní jazyk"), countries: t("Země"), sort_by: t("Řazení"), sort_order: t("Směr"), text: t("Název") };
+    var values = { movie: t("Filmy"), tv: t("Seriály"), all: t("Všechny"), any: t("Libovolný"), asc: t("Vzestupně"), desc: t("Sestupně"), popularity: t("Popularita"), rating: t("Hodnocení"), year: t("Rok"), title: t("Název"), runtime: t("Délka"), vote_count: t("Počet hodnocení") }, out = [];
     for (var key in definition) if (Object.prototype.hasOwnProperty.call(definition, key) && labels[key]) {
       var value = definition[key];
       if (value === null || value === undefined || value === false || value === "") continue;
-      if (key === "genre_ids") { if (definition.genre_names) continue; value = value.length + " vybraných"; }
+      if (key === "genre_ids") { if (definition.genre_names) continue; value = value.length + t(" vybraných"); }
       else if (Object.prototype.toString.call(value) === "[object Array]") { if (!value.length) continue; value = value.join(", "); }
-      else if (value === true) value = "Ano";
+      else if (value === true) value = t("Ano");
       else value = values[value] || String(value);
       out.push(labels[key] + ": " + value);
     }
@@ -1178,7 +1373,7 @@
   function searchFilterScreen(initial, apply) {
     var owner = searchOwner(), scope = searchScope(), alive = true, fields = {}, stored = [], selectedID = null, savedGeneration = 0, genreGeneration = 0, facetGeneration = 0, s;
     var status = statusBox(""), controls = h("div", { className: "tv-search-filter-fields" }), saved = h("div"), facetHints = h("div"), genreChoices = h("div", { className: "tv-filter-facets" });
-    var name = h("input", { type: "text", maxlength: 60, className: "tv-f tv-input", "aria-label": "Název uloženého filtru" });
+    var name = h("input", { type: "text", maxlength: 60, className: "tv-f tv-input", "aria-label": t("Název uloženého filtru") });
     function valid() { return alive && scope === searchScope(); }
     function active() { return valid() && current() === s && !s.el.hidden; }
     function filterAction(label, action, className) {
@@ -1197,21 +1392,21 @@
         control.value = options[(at + 1) % options.length][0]; control.refresh();
       });
       control.value = "";
-      control.refresh = function () { var text = control.value; each(options, function (o) { if (o[0] === control.value) text = o[1]; }); control.textContent = label + ": " + (text || "Libovolné"); };
+      control.refresh = function () { var text = control.value; each(options, function (o) { if (o[0] === control.value) text = o[1]; }); control.textContent = label + ": " + (text || t("Libovolné")); };
       fields[key] = control; row(label, control);
     }
-    cycle("type", "Typ", [["", "Vše"], ["movie", "Filmy"], ["tv", "Seriály"]]);
+    cycle("type", t("Typ"), [["", t("Vše")], ["movie", t("Filmy")], ["tv", t("Seriály")]]);
     fields.genre_ids = h("input", { type: "hidden" });
-    controls.appendChild(h("h2", { text: "Žánry" })); controls.appendChild(genreChoices);
-    cycle("genre_match", "Shoda žánrů", [["any", "Libovolný"], ["all", "Všechny"]]);
-    each([["year_from", "Rok od"], ["year_to", "Rok do"], ["rating_from", "Hodnocení od (0–10)"], ["rating_to", "Hodnocení do (0–10)"], ["runtime_from", "Délka od (min)"], ["runtime_to", "Délka do (min)"]], function (entry) { field(entry[0], entry[1], "number"); });
-    cycle("video_height_min", "Kvalita", [["", "Libovolná"], ["720", "HD"], ["1080", "Full HD"], ["2160", "4K"]]);
-    cycle("hdr", "HDR", [["", "Libovolné"], ["true", "Ano"]]);
-    cycle("has_streams", "Dostupné zdroje", [["", "Vše"], ["true", "Jen dostupné"]]);
-    each([["audio_languages", "Audio"], ["subtitle_languages", "Titulky"], ["original_languages", "Původní jazyk"], ["countries", "Země"]], function (entry) { field(entry[0], entry[1] + " (kódy oddělené čárkou)"); });
+    controls.appendChild(h("h2", { text: t("Žánry") })); controls.appendChild(genreChoices);
+    cycle("genre_match", t("Shoda žánrů"), [["any", t("Libovolný")], ["all", t("Všechny")]]);
+    each([["year_from", t("Rok od")], ["year_to", t("Rok do")], ["rating_from", t("Hodnocení od (0–10)")], ["rating_to", t("Hodnocení do (0–10)")], ["runtime_from", t("Délka od (min)")], ["runtime_to", t("Délka do (min)")]], function (entry) { field(entry[0], entry[1], "number"); });
+    cycle("video_height_min", t("Kvalita"), [["", t("Libovolná")], ["720", "HD"], ["1080", "Full HD"], ["2160", "4K"]]);
+    cycle("hdr", "HDR", [["", t("Libovolné")], ["true", t("Ano")]]);
+    cycle("has_streams", t("Dostupné zdroje"), [["", t("Vše")], ["true", t("Jen dostupné")]]);
+    each([["audio_languages", t("Audio")], ["subtitle_languages", t("Titulky")], ["original_languages", t("Původní jazyk")], ["countries", t("Země")]], function (entry) { field(entry[0], entry[1] + t(" (kódy oddělené čárkou)")); });
     controls.appendChild(facetHints);
-    cycle("sort_by", "Řazení", [["popularity", "Popularita"], ["title", "Název"], ["year", "Rok"], ["rating", "Hodnocení"], ["runtime", "Délka"], ["vote_count", "Počet hodnocení"]]);
-    cycle("sort_order", "Směr", [["desc", "Sestupně"], ["asc", "Vzestupně"]]);
+    cycle("sort_by", t("Řazení"), [["popularity", t("Popularita")], ["title", t("Název")], ["year", t("Rok")], ["rating", t("Hodnocení")], ["runtime", t("Délka")], ["vote_count", t("Počet hodnocení")]]);
+    cycle("sort_order", t("Směr"), [["desc", t("Sestupně")], ["asc", t("Vzestupně")]]);
     function refreshChoices() {
       each(controls.querySelectorAll(".tv-filter-choice"), function (choice) {
         var key = choice.getAttribute("data-filter-key"), code = choice.getAttribute("data-filter-code");
@@ -1246,55 +1441,55 @@
         if (key === "hdr" || key === "has_streams") { out[key] = raw === "true"; return; }
         if (key === "genre_ids" || /_languages$/.test(key) || key === "countries") {
           var parts = raw.split(","), values = [];
-          if (parts.length > 30) throw new Error("Vyber nejvýše 30 hodnot v jednom poli.");
+          if (parts.length > 30) throw new Error(t("Vyber nejvýše 30 hodnot v jednom poli."));
           each(parts, function (part) {
             part = part.replace(/^\s+|\s+$/g, "");
-            if (key === "genre_ids") { if (!/^[1-9]\d*$/.test(part)) throw new Error("Žánr musí mít platný číselný kód."); part = Number(part); }
-            else { if (!(key === "countries" ? /^[a-z]{2}$/i : /^[a-z]{2,3}$/i).test(part)) throw new Error("Použij platné kódy jazyků a zemí."); part = key === "countries" ? part.toUpperCase() : part.toLowerCase(); }
+            if (key === "genre_ids") { if (!/^[1-9]\d*$/.test(part)) throw new Error(t("Žánr musí mít platný číselný kód.")); part = Number(part); }
+            else { if (!(key === "countries" ? /^[a-z]{2}$/i : /^[a-z]{2,3}$/i).test(part)) throw new Error(t("Použij platné kódy jazyků a zemí.")); part = key === "countries" ? part.toUpperCase() : part.toLowerCase(); }
             if (!contains(values, part)) values.push(part);
           }); out[key] = values; return;
         }
         if (/^(year_|rating_|runtime_|video_height)/.test(key)) {
           var value = Number(raw), low = key.indexOf("year_") === 0 ? 1800 : 0, high = key.indexOf("year_") === 0 ? 2100 : key.indexOf("rating_") === 0 ? 10 : 10000;
-          if (!isFinite(value) || value < low || value > high) throw new Error("Zkontroluj číselné rozsahy filtru.");
+          if (!isFinite(value) || value < low || value > high) throw new Error(t("Zkontroluj číselné rozsahy filtru."));
           out[key] = value; return;
         }
         out[key] = raw;
       });
-      each(["year", "rating", "runtime"], function (key) { if (out[key + "_from"] !== undefined && out[key + "_to"] !== undefined && out[key + "_from"] > out[key + "_to"]) throw new Error("Dolní mez nesmí být vyšší než horní."); });
+      each(["year", "rating", "runtime"], function (key) { if (out[key + "_from"] !== undefined && out[key + "_to"] !== undefined && out[key + "_from"] > out[key + "_to"]) throw new Error(t("Dolní mez nesmí být vyšší než horní.")); });
       return out;
     }
-    function choose(item) { selectedID = item.id; name.value = item.name; fill(item.filter || {}); setStatus(status, "Vybraný filtr: " + item.name, "info"); focusEl(firstFocusable(controls)); }
+    function choose(item) { selectedID = item.id; name.value = item.name; fill(item.filter || {}); setStatus(status, t("Vybraný filtr: ") + item.name, "info"); focusEl(firstFocusable(controls)); }
     function loadSaved() {
       var mine = ++savedGeneration;
       api("saved-filters", {}, function (err, data) {
         if (!valid() || mine !== savedGeneration) return; clear(saved);
-        saved.appendChild(h("h2", { text: "Uložené filtry" }));
-        if (err) { saved.appendChild(filterAction("Uložené filtry: zkusit znovu", loadSaved)); return; }
+        saved.appendChild(h("h2", { text: t("Uložené filtry") }));
+        if (err) { saved.appendChild(filterAction(t("Uložené filtry: zkusit znovu"), loadSaved)); return; }
         stored = data && data.items || [];
         each(stored, function (item) {
           if (!item || !isId(item.id) || typeof item.name !== "string") return;
           saved.appendChild(h("div", { className: "tv-search-term" }, [filterAction(item.name, function () { choose(item); }), filterAction("Smazat filtr „" + item.name + "“", function () {
-            api("saved-filters/" + item.id, { method: "DELETE" }, function (error) { if (!valid()) return; if (error) setStatus(status, error.message, "error"); else { if (selectedID === item.id) selectedID = null; loadSaved(); setStatus(status, "Filtr byl smazán.", "info"); } });
+            api("saved-filters/" + item.id, { method: "DELETE" }, function (error) { if (!valid()) return; if (error) setStatus(status, error.message, "error"); else { if (selectedID === item.id) selectedID = null; loadSaved(); setStatus(status, t("Filtr byl smazán."), "info"); } });
           })]));
         });
-        if (!stored.length) saved.appendChild(h("p", { text: "Zatím nemáš žádné uložené filtry." }));
+        if (!stored.length) saved.appendChild(h("p", { text: t("Zatím nemáš žádné uložené filtry.") }));
       });
     }
     function save(update) {
       if (!active()) return;
       var definition; try { definition = read(); } catch (e) { setStatus(status, e.message, "error"); return; }
       var value = name.value.replace(/^\s+|\s+$/g, "");
-      if (!value || value.length > 60) { setStatus(status, "Pojmenuj filtr (nejvýše 60 znaků).", "error"); focusEl(name); return; }
-      if (update && !selectedID) { setStatus(status, "Nejdřív vyber uložený filtr.", "error"); return; }
-      api("saved-filters" + (update ? "/" + selectedID : ""), { method: update ? "PUT" : "POST", body: { name: value, filter: definition } }, function (err) { if (!valid()) return; setStatus(status, err ? err.message : "Filtr byl uložen.", err ? "error" : "info"); if (!err) loadSaved(); });
+      if (!value || value.length > 60) { setStatus(status, t("Pojmenuj filtr (nejvýše 60 znaků)."), "error"); focusEl(name); return; }
+      if (update && !selectedID) { setStatus(status, t("Nejdřív vyber uložený filtr."), "error"); return; }
+      api("saved-filters" + (update ? "/" + selectedID : ""), { method: update ? "PUT" : "POST", body: { name: value, filter: definition } }, function (err) { if (!valid()) return; setStatus(status, err ? err.message : t("Filtr byl uložen."), err ? "error" : "info"); if (!err) loadSaved(); });
     }
     each(["audio_languages", "subtitle_languages", "original_languages", "countries"], function (key) { fields[key].addEventListener("input", refreshChoices, false); });
     fill(initial);
-    s = makeScreen("search-filters", [header("Filtry hledání"), status, saved, controls, name, h("div", { className: "tv-search-actions" }, [
-      filterAction("Použít filtry", function () { if (!valid()) return; try { apply(read()); } catch (e) { setStatus(status, e.message, "error"); } }),
-      filterAction("Uložit jako nový filtr", function () { save(false); }), filterAction("Upravit vybraný filtr", function () { save(true); }),
-      filterAction("Vyčistit formulář", function () { selectedID = null; name.value = ""; fill({}); })
+    s = makeScreen("search-filters", [header(t("Filtry hledání")), status, saved, controls, name, h("div", { className: "tv-search-actions" }, [
+      filterAction(t("Použít filtry"), function () { if (!valid()) return; try { apply(read()); } catch (e) { setStatus(status, e.message, "error"); } }),
+      filterAction(t("Uložit jako nový filtr"), function () { save(false); }), filterAction(t("Upravit vybraný filtr"), function () { save(true); }),
+      filterAction(t("Vyčistit formulář"), function () { selectedID = null; name.value = ""; fill({}); })
     ])], { onBlur: function () { facetGeneration++; genreGeneration++; s.el.hidden = true; }, onFocus: function () { verifySearchScope(s, scope, function () { loadFacets(); loadGenres(); }); }, onDestroy: function () { alive = false; } });
     loadSaved();
     function loadGenres() {
@@ -1302,7 +1497,7 @@
     clear(genreChoices);
     api("titles/genres", {}, function (err, data) {
       if (!valid() || mine !== genreGeneration) return;
-      if (err) { genreChoices.appendChild(filterAction("Žánry: zkusit znovu", loadGenres)); return; }
+      if (err) { genreChoices.appendChild(filterAction(t("Žánry: zkusit znovu"), loadGenres)); return; }
       each(arrayList(data && data.genres || data).slice(0, 60), function (genre) {
         if (!genre || !isId(genre.id)) return;
         genreChoices.appendChild(facetChoice("genre_ids", String(genre.id), genre.name_cs || genre.name || String(genre.id)));
@@ -1314,7 +1509,7 @@
     clear(facetHints);
     api("titles/filter/facets", {}, function (err, facets) {
       if (!valid() || mine !== facetGeneration) return;
-      if (err || !facets || facets.policy_scoped !== true) { facetHints.appendChild(filterAction("Nabídka jazyků: zkusit znovu", loadFacets)); return; }
+      if (err || !facets || facets.policy_scoped !== true) { facetHints.appendChild(filterAction(t("Nabídka jazyků: zkusit znovu"), loadFacets)); return; }
       each(["audio_languages", "subtitle_languages", "original_languages", "countries"], function (key) {
         var group = h("div", { className: "tv-filter-facets" }, [h("h3", { text: fields[key].getAttribute("aria-label") })]);
         each(arrayList(facets && facets[key]).slice(0, 60), function (facet) {
@@ -1338,7 +1533,7 @@
   }
   function detailScreen(t) {
     var body = h("div", { className: "tv-detail" });
-    var status = statusBox("Načítám detail…");
+    var status = statusBox(t("Načítám detail…"));
     var s;
     var inventory = null, inventoryAccess = !!account && (["premium","vip","moderator","admin"].indexOf(account.role)>=0 || Date.parse(account.premiumUntil || "")>Date.now()), inventoryGeneration = 0, detailData = null;
     function inventoryBadge(episodeId) {
@@ -1368,7 +1563,7 @@
         data.year || (typeof data.release_date === "string" ? data.release_date.slice(0, 4) : null),
         data.runtime ? data.runtime + " min" : null,
         map(filter(data.genres || [], function (g) { return g && typeof g.name === "string"; }), function (g) { return g.name; }).slice(0, 3).join(", ") || null,
-        data.type === "tv" ? "Seriál" : "Film"
+        data.type === "tv" ? t("Seriál") : t("Film")
       ], Boolean).join(" · ");
       var ratings = map(filter(data.ratings || [], function (r) { return r && r.source && typeof r.rating === "number"; }), function (r) { return r.source + " " + r.rating + " %"; }).join(" · ");
       var src = imageURL(data.poster_path, "w342");
@@ -1390,12 +1585,12 @@
       ]));
       if (data.type !== "tv") {
         var resume = wp && wp.watch_status !== "completed" && wp.progress_seconds > 5 ? " (od " + clock(wp.progress_seconds) + ")" : "";
-        var playTitle = button("Přehrát" + resume, function () { push(sourcesScreen(data, null, true)); }, "tv-primary tv-autofocus");
-        window.attachPlayChoice(playTitle, function () { push(sourcesScreen(data, null, false)); }, "Vybrat jiný zdroj");
+        var playTitle = button(t("Přehrát") + resume, function () { push(sourcesScreen(data, null, true)); }, "tv-primary tv-autofocus");
+        window.attachPlayChoice(playTitle, function () { push(sourcesScreen(data, null, false)); }, t("Vybrat jiný zdroj"));
         actions.appendChild(playTitle);
-        actions.appendChild(button("Vybrat zdroj", function () { push(sourcesScreen(data, null, false)); }));
+        actions.appendChild(button(t("Vybrat zdroj"), function () { push(sourcesScreen(data, null, false)); }));
       } else {
-        actions.appendChild(statusBox("Vyber řadu a epizodu níže.", "info"));
+        actions.appendChild(statusBox(t("Vyber řadu a epizodu níže."), "info"));
         loadSeasons(data);
       }
       if (data.type !== "tv") autoFocus(s, body);
@@ -1413,7 +1608,7 @@
       // Pouze běžné řady a epizody (bez speciálů s číslem 0).
       seasons = filter(seasons, function (x) { return x && x.season_number > 0; });
       seasons.sort(function (a, b) { return a.season_number - b.season_number; });
-      if (!seasons.length) { body.appendChild(statusBox("Seriál zatím nemá žádné epizody.", "info")); return; }
+      if (!seasons.length) { body.appendChild(statusBox(t("Seriál zatím nemá žádné epizody."), "info")); return; }
       var wp = data.watch_progress;
       var selected = seasons[0];
       each(seasons, function (x) { if (wp && wp.season_number === x.season_number) selected = x; });
@@ -1426,30 +1621,30 @@
         clear(episodes);
         var list = filter(season.episodes || [], function (e) { return e && isId(e.id) && e.episode_number > 0; });
         list.sort(function (a, b) { return a.episode_number - b.episode_number; });
-        if (!list.length) episodes.appendChild(statusBox("Řada nemá žádné epizody.", "info"));
+        if (!list.length) episodes.appendChild(statusBox(t("Řada nemá žádné epizody."), "info"));
         each(list, function (e) {
           var episode = { id: e.id, season_number: season.season_number, episode_number: e.episode_number, name: e.name, runtime: e.runtime, air_date: e.air_date };
           var ok = released(e);
           var progress = e.watch_history || e.watch_progress;
-          var note = !ok ? "Premiéra " + e.air_date.slice(0, 10)
-            : progress && progress.watch_status === "completed" ? "Viděno"
-            : progress && progress.progress_seconds > 5 ? "Rozkoukáno " + clock(progress.progress_seconds) : "";
+          var note = !ok ? t("Premiéra ") + e.air_date.slice(0, 10)
+            : progress && progress.watch_status === "completed" ? t("Zhlédnuto")
+            : progress && progress.progress_seconds > 5 ? t("Rozkoukáno ") + clock(progress.progress_seconds) : "";
           var btn = h("button", { type: "button", className: "tv-f tv-episode", disabled: !ok, onclick: function () { push(sourcesScreen(data, episode, true)); } }, [
             h("strong", { text: "S" + pad(season.season_number) + "E" + pad(e.episode_number) + " · " + (e.name || "Epizoda " + e.episode_number) }),
             inventoryBadge(e.id),
             note ? h("span", { className: "tv-muted", text: note }) : null
           ]);
-          window.attachPlayChoice(btn, function () { if (ok) push(sourcesScreen(data, episode, false)); }, "Vybrat jiný zdroj");
+          window.attachPlayChoice(btn, function () { if (ok) push(sourcesScreen(data, episode, false)); }, t("Vybrat jiný zdroj"));
           episodes.appendChild(btn);
         });
         if (focusFirst) { var f = firstFocusable(episodes); if (f) focusEl(f); }
       }
       each(seasons, function (season) {
-        var btn = button(season.name || "Řada " + season.season_number, function () { pick(season, true); }, "tv-season");
+        var btn = button(season.name || t("Řada ") + season.season_number, function () { pick(season, true); }, "tv-season");
         tabButtons.push({ btn: btn, season: season });
         tabs.appendChild(btn);
       });
-      body.appendChild(h("section", { className: "tv-seasons" }, [h("h2", { text: "Řady a epizody" }), scroller(tabs), episodes]));
+      body.appendChild(h("section", { className: "tv-seasons" }, [h("h2", { text: t("Řady a epizody") }), scroller(tabs), episodes]));
       pick(selected, false);
       autoFocus(s, firstFocusable(episodes) ? episodes : tabs);
     }
@@ -1463,8 +1658,8 @@
           return;
         }
         api("titles/" + t.id, {}, function (err, data) {
-          if (err) { setStatus(status, err.message, "error"); body.appendChild(button("Zkusit znovu", function () { clear(body); s.onShow(); }, "tv-autofocus")); focusEl(firstFocusable(s.el), true); return; }
-          if (!data || !isId(data.id)) { setStatus(status, "API vrátilo neplatný titul.", "error"); return; }
+          if (err) { setStatus(status, err.message, "error"); body.appendChild(button(t("Zkusit znovu"), function () { clear(body); s.onShow(); }, "tv-autofocus")); focusEl(firstFocusable(s.el), true); return; }
+          if (!data || !isId(data.id)) { setStatus(status, t("API vrátilo neplatný titul."), "error"); return; }
           setStatus(status, "");
           render(data);
         });
@@ -1500,12 +1695,12 @@
     return width >= 1920 ? 2 : width >= 1280 ? 1 : 0;
   }
   function sourcesScreen(t, episode, autoPlay) {
-    var origins = ["Databáze", "Databáze AI", "Webshare · živé hledání", "Hellspy · živé hledání", "Další poskytovatelé a doplňky"];
+    var origins = [t("Databáze"), t("Databáze AI"), t("Webshare · živé hledání"), t("Hellspy · živé hledání"), t("Další poskytovatelé a doplňky")];
     var statusList = h("div", { className: "tv-source-status" });
-    var rows = map(origins, function (name) { var r = h("p", { className: "tv-muted", text: name + ": hledám…" }); statusList.appendChild(r); return r; });
+    var rows = map(origins, function (name) { var r = h("p", { className: "tv-muted", text: name + t(": hledám…") }); statusList.appendChild(r); return r; });
     var bestBox = h("div", { className: "tv-actions" });
     var list = h("div", { className: "tv-sources" });
-    var status = statusBox(autoPlay ? "Hledám nejlepší zdroj…" : "Hledám zdroje…");
+    var status = statusBox(autoPlay ? t("Hledám nejlepší zdroj…") : t("Hledám zdroje…"));
     var connections = {}, results = [], pending = origins.length, alive = true, s;
     function ready(stream) {
       var key = providerKey(stream.provider_name || stream.provider_identifier || "");
@@ -1555,7 +1750,7 @@
       clear(list);
       var b = best();
       if (b) {
-        bestBox.appendChild(button("Přehrát doporučený zdroj", function () { play(b); }, "tv-primary tv-autofocus"));
+        bestBox.appendChild(button(t("Přehrát doporučený zdroj"), function () { play(b); }, "tv-primary tv-autofocus"));
         bestBox.appendChild(h("p", { className: "tv-muted", text: label(b) }));
       }
       var sorted = results.slice(0);
@@ -1565,10 +1760,10 @@
         list.appendChild(h("button", { type: "button", className: "tv-f tv-source", disabled: !ok, onclick: function () { play(x); } }, [
           h("strong", { text: label(x) }),
           x.file_name ? h("span", { className: "tv-muted", text: x.file_name }) : null,
-          !ok ? h("span", { className: "tv-muted", text: x.available === false ? "Nedostupné" : "Vyžaduje připojení účtu v plné aplikaci" }) : null
+          !ok ? h("span", { className: "tv-muted", text: x.available === false ? t("Nedostupné") : t("Vyžaduje připojení účtu v plné aplikaci") }) : null
         ]));
       });
-      if (!pending) setStatus(status, results.length ? "Nalezeno zdrojů: " + results.length : "Žádné zdroje nebyly nalezeny. Webshare a další účty připoj v plné aplikaci Movly.", results.length ? null : "error");
+      if (!pending) setStatus(status, results.length ? t("Nalezeno zdrojů: ") + results.length : t("Žádné zdroje nebyly nalezeny. Webshare a další účty připoj v plné aplikaci Movly."), results.length ? null : "error");
       if (s && (!hadFocus || !s.el.contains(focused))) { s.touched = false; autoFocus(s); }
     }
     function search() {
@@ -1589,7 +1784,7 @@
           else {
             var streams = data && data.streams && data.streams.length !== undefined ? data.streams : [];
             each(streams, function (x) { if (x && typeof x === "object") { x.origin = i; results.push(x); } });
-            rows[i].textContent = origins[i] + ": " + (data && data.state === "not_connected" ? (data.message || "účet není připojený") : streams.length + " výsledků");
+            rows[i].textContent = origins[i] + ": " + (data && data.state === "not_connected" ? (data.message || t("účet není připojený")) : streams.length + t(" výsledků"));
           }
           if (autoPlay && !pending && current() === s) {
             var b = best();
@@ -1650,17 +1845,17 @@
     var titleText = t.title + (episode ? " · S" + pad(episode.season_number) + "E" + pad(episode.episode_number) + (episode.name ? " " + episode.name : "") : "");
     var timeText = h("span", { className: "tv-osd-time", text: "00:00" });
     var fill = h("span", { className: "tv-osd-fill" });
-    var info = h("p", { className: "tv-osd-status", role: "status", text: "Připravuji video…" });
+    var info = h("p", { className: "tv-osd-status", role: "status", text: t("Připravuji video…") });
     var osd = h("div", { className: "tv-osd" }, [
       h("p", { className: "tv-osd-title", text: titleText }),
       h("div", { className: "tv-osd-bar" }, [fill]),
-      h("div", { className: "tv-osd-row" }, [timeText, h("span", { className: "tv-osd-hint", text: "OK přehrát/pozastavit · ◀ ▶ posun o 10 s · Zpět ukončit" })]),
+      h("div", { className: "tv-osd-row" }, [timeText, h("span", { className: "tv-osd-hint", text: t("OK přehrát/pozastavit · ◀ ▶ posun o 10 s · Zpět ukončit") })]),
       info
     ]);
     // Tlačítka pro kurzor ovladače (LG NetCast posílá šipky jako pohyb kurzoru).
-    var playButton = button("Pozastavit", function () { togglePlay(); }, "tv-f-player tv-osd-play");
+    var playButton = button(t("Pozastavit"), function () { togglePlay(); }, "tv-f-player tv-osd-play");
     var controls = h("div", { className: "tv-osd-controls" }, [
-      button("\u25C0 Zpět", back, "tv-f-player"),
+      button(t("\u25C0 Zpět"), back, "tv-f-player"),
       button("\u221210 s", function () { seek(-10); }, "tv-f-player"),
       playButton,
       button("+10 s", function () { seek(10); }, "tv-f-player"),
@@ -1696,10 +1891,10 @@
       offset = at;
       say("");
       clear(errorBox);
-      errorBox.appendChild(h("h2", { text: "Přehrávání selhalo" }));
+      errorBox.appendChild(h("h2", { text: t("Přehrávání selhalo") }));
       errorBox.appendChild(h("p", { text: text }));
-      var retry = button("Zkusit znovu", function () { errorBox.hidden = true; start(position()); }, "tv-primary tv-f-player");
-      errorBox.appendChild(h("div", { className: "tv-actions" }, [retry, button("Zpět", back, "tv-f-player")]));
+      var retry = button(t("Zkusit znovu"), function () { errorBox.hidden = true; start(position()); }, "tv-primary tv-f-player");
+      errorBox.appendChild(h("div", { className: "tv-actions" }, [retry, button(t("Zpět"), back, "tv-f-player")]));
       errorBox.hidden = false;
       focusEl(retry, true);
     }
@@ -1720,7 +1915,7 @@
       api("watch-history", { method: "POST", body: body, quiet: true }, function (err) {
         if (err) {
           if (lastSaved === pos) lastSaved = -1;
-          if (!stopped) say("Pozice se neuložila: " + err.message);
+          if (!stopped) say(t("Pozice se neuložila: ") + err.message);
         }
       });
     }
@@ -1741,18 +1936,18 @@
       teardown();
       seekTarget = null;
       offset = Math.max(0, Math.floor(at || 0));
-      say("Připravuji video…");
+      say(t("Připravuji video…"));
       var body = {};
       for (var k in selection) if (Object.prototype.hasOwnProperty.call(selection, k)) body[k] = selection[k];
       api("playback", { method: "POST", body: body }, function (err, data) {
         if (stopped || mine !== generation) return;
         if (err) {
           fail(err.code === "app_required"
-            ? "Tento zdroj nejde na televizoru přehrát přímo. Otevři ho v aplikaci Movly, nebo zkus jiný zdroj."
-            : err.status === 0 ? NETWORK_ERROR : "Zdroj se nepodařilo připravit: " + err.message);
+            ? t("Tento zdroj nejde na televizoru přehrát přímo. Otevři ho v aplikaci Movly, nebo zkus jiný zdroj.")
+            : err.status === 0 ? NETWORK_ERROR : t("Zdroj se nepodařilo připravit: ") + err.message);
           return;
         }
-        if (!data || data.direct !== true || typeof data.url !== "string" || !/^https:\/\//.test(data.url) || (data.kind !== "file" && data.kind !== "hls")) { fail("Server vrátil neplatný zdroj přehrávání."); return; }
+        if (!data || data.direct !== true || typeof data.url !== "string" || !/^https:\/\//.test(data.url) || (data.kind !== "file" && data.kind !== "hls")) { fail(t("Server vrátil neplatný zdroj přehrávání.")); return; }
         session = data;
         diag("session", { kind: data.kind, offset: offset });
         paint();
@@ -1762,7 +1957,7 @@
     function attach(mine, skipNative) {
       function go() {
         var p = video.play();
-        if (p && typeof p.then === "function") p.then(null, function () { say("Stiskni OK pro přehrání."); });
+        if (p && typeof p.then === "function") p.then(null, function () { say(t("Stiskni OK pro přehrání.")); });
       }
       clearInterval(progressTimer);
       progressTimer = setInterval(function () { saveHistory(); }, 20000);
@@ -1772,7 +1967,7 @@
       clearTimeout(openTimer);
       openTimer = setTimeout(function () {
         if (stopped || mine !== generation || loaded || video.error) return;
-        fail("Televizor tento zdroj neotevřel. Zkus jiný zdroj, nebo ho otevři v aplikaci Movly.");
+        fail(t("Televizor tento zdroj neotevřel. Zkus jiný zdroj, nebo ho otevři v aplikaci Movly."));
       }, 24000);
       if (session.kind === "file" || (!skipNative && canNativeHls(video))) {
         el.setAttribute("data-engine", session.kind === "file" ? "file" : "native");
@@ -1781,11 +1976,11 @@
         go();
         return;
       }
-      if (!hasMediaSource()) { fail("Tento televizor neumí přehrát video ve formátu HLS (chybí nativní HLS i Media Source Extensions)."); return; }
-      say("Načítám přehrávač…");
+      if (!hasMediaSource()) { fail(t("Tento televizor neumí přehrát video ve formátu HLS (chybí nativní HLS i Media Source Extensions).")); return; }
+      say(t("Načítám přehrávač…"));
       loadHls(function (Hls) {
         if (stopped || mine !== generation) return;
-        if (!Hls || !Hls.isSupported()) { fail("Tento televizor neumí přehrát video ve formátu HLS (hls.js zde není podporováno)."); return; }
+        if (!Hls || !Hls.isSupported()) { fail(t("Tento televizor neumí přehrát video ve formátu HLS (hls.js zde není podporováno).")); return; }
         el.setAttribute("data-engine", "hls.js");
         diag("engine", { e: "hls.js" });
         hls = new Hls({ enableWorker: false, startPosition: offset, maxBufferLength: 24 });
@@ -1793,7 +1988,7 @@
           if (data) diag("hls-error", { type: data.type, fatal: Boolean(data.fatal), code: data.response && data.response.code });
           if (!data || !data.fatal || stopped || mine !== generation) return;
           if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !hls.__recovered) { hls.__recovered = true; hls.recoverMediaError(); return; }
-          fail(data.type === Hls.ErrorTypes.NETWORK_ERROR ? "Poskytovatel nedovoluje přehrát tento stream v prohlížeči televizoru. Zkus jiný zdroj nebo aplikaci Movly." : "Televizor nedokáže toto video dekódovat. Zkus jiný zdroj.");
+          fail(data.type === Hls.ErrorTypes.NETWORK_ERROR ? t("Poskytovatel nedovoluje přehrát tento stream v prohlížeči televizoru. Zkus jiný zdroj nebo aplikaci Movly.") : t("Televizor nedokáže toto video dekódovat. Zkus jiný zdroj."));
         });
         hls.on(Hls.Events.MANIFEST_PARSED, go);
         hls.loadSource(session.url);
@@ -1827,7 +2022,7 @@
       if (offset > 0 && session.kind === "file") { try { video.currentTime = offset; } catch (e) { /* ignorovat */ } }
       paint();
     }, false);
-    function syncPlayButton() { playButton.textContent = video.paused ? "Přehrát" : "Pozastavit"; }
+    function syncPlayButton() { playButton.textContent = video.paused ? t("Přehrát") : t("Pozastavit"); }
     video.addEventListener("play", syncPlayButton, false);
     video.addEventListener("pause", syncPlayButton, false);
     // Pohyb kurzoru ukáže ovládání; klik do obrazu přepne přehrávání.
@@ -1846,8 +2041,8 @@
     each(["loadstart", "loadedmetadata", "canplay", "stalled"], function (name) {
       video.addEventListener(name, function () { diag("video", { ev: name, rs: video.readyState, ns: video.networkState }); }, false);
     });
-    video.addEventListener("waiting", function () { say("Načítám video…"); diag("video", { ev: "waiting", ct: video.currentTime }); }, false);
-    video.addEventListener("ended", function () { saveHistory(); say("Konec videa. Stiskni Zpět."); }, false);
+    video.addEventListener("waiting", function () { say(t("Načítám video…")); diag("video", { ev: "waiting", ct: video.currentTime }); }, false);
+    video.addEventListener("ended", function () { saveHistory(); say(t("Konec videa. Stiskni Zpět.")); }, false);
     video.addEventListener("timeupdate", function () { if (video.currentTime > 1) played = true; }, false);
     video.addEventListener("error", function () {
       diag("video-error", { code: video.error ? video.error.code : null, engine: el.getAttribute("data-engine"), played: played });
@@ -1860,7 +2055,7 @@
         attach(generation, true);
         return;
       }
-      fail("Televizor nemůže video přehrát (kód " + (video.error ? video.error.code : "?") + "). Zkus jiný zdroj.");
+      fail(t("Televizor nemůže video přehrát (kód ") + (video.error ? video.error.code : "?") + t("). Zkus jiný zdroj."));
     }, false);
     var player = {
       stop: function () {
@@ -1881,13 +2076,13 @@
         activePlayer = player;
         if (session || stopped) return;
         window.addEventListener("pagehide", unload, false);
-        say("Zjišťuji, kde jsi skončil(a)…");
+        say(t("Zjišťuji, kde jsi skončil(a)…"));
         var path = "watch-history/position/" + t.id + (episode ? query({ season_number: episode.season_number, episode_number: episode.episode_number }) : "");
         api(path, { quiet: true }, function (err, pos) {
           if (stopped) return;
           if (err && err.status !== 404 && err.status !== 0) { if (handleAuthError(err)) return; }
           var at = !err && pos && pos.watch_status !== "completed" && pos.progress_seconds > 0 ? pos.progress_seconds : 0;
-          if (sourceLabel) say("Připravuji video… " + sourceLabel);
+          if (sourceLabel) say(t("Připravuji video… ") + sourceLabel);
           start(at);
         });
       },
@@ -1937,14 +2132,14 @@
     root = document.getElementById("tv-root");
     if (!root) { root = h("div", { id: "tv-root", className: "tv-root" }); document.body.appendChild(root); }
     document.title = "Movly TV";
-    var loading = makeScreen("boot", [h("div", { className: "tv-center" }, [h("h1", { className: "tv-logo", text: "Movly" }), statusBox("Načítám…")])]);
+    var loading = makeScreen("boot", [h("div", { className: "tv-center" }, [brand("h1", "tv-logo"), statusBox(t("Načítám…"))])]);
     resetTo(loading);
     api("session", { quiet: true }, function (err, data) {
       if (err) {
         if (err.status === 401 || contains(SESSION_CODES, err.code)) { resetTo(loginScreen()); return; }
         if (contains(PROFILE_CODES, err.code)) { resetTo(profilesScreen()); return; }
-        var retry = button("Zkusit znovu", boot, "tv-autofocus");
-        resetTo(makeScreen("boot-error", [h("div", { className: "tv-center" }, [h("h1", { className: "tv-logo", text: "Movly" }), statusBox(err.message, "error"), retry])]));
+        var retry = button(t("Zkusit znovu"), boot, "tv-autofocus");
+        resetTo(makeScreen("boot-error", [h("div", { className: "tv-center" }, [brand("h1", "tv-logo"), statusBox(err.message, "error"), retry])]));
         return;
       }
       searchEnvironment = data && /^[a-f0-9]{32}$/.test(data.environment || "") ? data.environment : "";

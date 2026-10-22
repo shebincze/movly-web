@@ -1,4 +1,8 @@
-# Design a vizuální ověření — 5. 9. 2026
+# Design a vizuální ověření — 5. 9. 2026 (historický dokument)
+
+> **Historické.** Tento dokument a obrázky `catalog-*.png` popisují první koncept webu ze září 2026 (pozadí `#0c0d12`, fialové primární CTA, navigace „Objevovat“). Neodpovídají současné implementaci ani specifikaci a nepoužívej je jako referenci.
+>
+> Platný zdroj pravdy: `docs/DESIGN.md` (§2 barvy a tokeny, §10 glosář a společná rozhodnutí z 22. 10. 2026) a `docs/SCREENS.md` v hlavním repozitáři Movly; webové tokeny v `app/styles.css` (`:root`) a `assets/tokens.css`; webové odchylky a pravidla v `WEB_APP.md` (sekce „Design a konzistence“). Ověření designové konzistence webu z 22. 10. 2026: `docs/qa/design-consistency-2026-10-22/`.
 
 Koncept: `catalog-concept.png`, vytvořen vestavěným Image Gen před implementací.
 Render: `catalog-desktop.png` (1536×1024), `catalog-mobile.png` (390×844), screenshoty z Codex IAB. Koncept i oba rendery byly otevřeny přes view_image a přímo porovnány. Nejde o screenshoty živé produkce; obsah dodalo izolované testovací API.

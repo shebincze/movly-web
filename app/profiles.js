@@ -139,7 +139,7 @@ export async function editProfile(profile, done) {
     }
     const submit = el(
       "button",
-      { type: "submit", class: "button primary" },
+      { type: "submit", class: "button accent" },
       translateUI("Uložit"),
     );
     const form = el(

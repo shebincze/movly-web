@@ -46,7 +46,7 @@ export async function titleActivity(t, section = "all") {
     });
     const submit = el(
       "button",
-      { type: "submit", class: "button primary" },
+      { type: "submit", class: "button accent" },
       translateUI("Uložit hodnocení"),
     );
     const form = el(
@@ -183,13 +183,13 @@ export async function titleActivity(t, section = "all") {
       );
   }
 }
-// Společná hlavička „Moje knihovna“: nadpis, akce a záložky jednotlivých částí.
+// Společná hlavička „Moje seznamy“: nadpis, akce a záložky jednotlivých částí.
 export function libraryHead(active, ...extra) {
   return [
     el(
       "div",
       { class: "lib-head" },
-      el("h1", {}, translateUI("Moje knihovna")),
+      el("h1", {}, translateUI("Moje seznamy")),
       el("span", { class: "lib-spacer" }),
       ...extra,
     ),
@@ -198,9 +198,9 @@ export function libraryHead(active, ...extra) {
       { class: "lib-tabs", "aria-label": translateUI("Části knihovny") },
       [
         ["lists", translateUI("Seznamy")],
-        ["history", translateUI("Historie")],
-        ["hidden", translateUI("Skryté")],
-        ["offline", translateUI("Offline")],
+        ["history", translateUI("Historie sledování")],
+        ["hidden", translateUI("Skryté tituly")],
+        ["offline", translateUI("Offline knihovna")],
       ].map(([key, label]) =>
         el(
           "a",
@@ -395,7 +395,7 @@ export async function history(params, signal, actions) {
       { class: "lib-toolbar" },
       el(
         "nav",
-        { class: "lib-segmented", "aria-label": translateUI("Historie sledování") },
+        { class: "segmented lib-segmented", "aria-label": translateUI("Historie sledování") },
         segment("watching", translateUI("Rozkoukané")),
         segment("completed", translateUI("Zhlédnuté")),
       ),
@@ -490,7 +490,7 @@ export async function stats(params, signal) {
       el("span", { class: "lib-spacer" }),
       el(
         "nav",
-        { class: "lib-segmented", "aria-label": translateUI("Období statistik") },
+        { class: "segmented lib-segmented", "aria-label": translateUI("Období statistik") },
         period("", translateUI("Celkem")),
         ...Array.from({ length: 6 }, (_, i) => period(current - i, String(current - i))),
       ),
@@ -537,7 +537,7 @@ export async function stats(params, signal) {
       ),
       chosen
         ? el("a", { class: "button secondary", href: "#stats" }, translateUI("Celá historie"))
-        : el("a", { class: "button primary", href: `#stats?year=${wrappedYear}` }, translateUI("Zobrazit rok {0}", wrappedYear)),
+        : el("a", { class: "button accent", href: `#stats?year=${wrappedYear}` }, translateUI("Zobrazit rok {0}", wrappedYear)),
     ),
   );
 }

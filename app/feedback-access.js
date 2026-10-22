@@ -28,6 +28,8 @@ export function setFeedbackAccount(value) {
   }
   document.querySelectorAll('[href="#feedback"], [data-feedback-entry]').forEach(node => { node.hidden = !feedbackAllowed(); });
 }
+export const FEEDBACK_PREMIUM_REQUIRED = "feedback_premium_required";
 export function requireFeedback() {
-  if (!feedbackAllowed()) throw new Error("Pomozte zlepšovat Movly je dostupné s Premium.");
+  if (!feedbackAllowed())
+    throw Object.assign(new Error("Vylepšit Movly je součástí Premium."), { code: FEEDBACK_PREMIUM_REQUIRED });
 }

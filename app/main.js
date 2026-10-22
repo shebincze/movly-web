@@ -1,6 +1,6 @@
 import { observeOfflineNavigation } from "./offline-navigation.js";
 import { preparePlaybackAttemptSupport } from "./playback-attempt-support.js";
-import { setFeedbackAccount } from "./feedback-access.js";
+import { setFeedbackAccount, feedbackAllowed, FEEDBACK_PREMIUM_REQUIRED } from "./feedback-access.js";
 import { invalidateApiContext } from "./api.js";
 import { openSettingsMenu } from "./settings-menu.js";
 import { clearLegacyIntroCache } from "./intro-skip-policy.js";
@@ -27,11 +27,14 @@ import {
   button,
   icon,
   loading,
+  empty,
   errorBox,
+  premiumGate,
   formField,
   showDialog,
   toast,
 } from "./ui.js";
+import { navigationParent } from "./navigation.js";
 import { resetUserState } from "./user-state.js";
 import {
   home,
@@ -52,6 +55,8 @@ window.__movlyStarted = true;
 // Segmenty přeskakování jsou jen v paměti stránky (Movly#1117); smaž dřívější perzistentní cache.
 try { clearLegacyIntroCache(localStorage); } catch { /* storage nedostupné */ }
 translateShell(document.body);
+// Zásady soukromí v jazyce rozhraní (anglická verze existuje v /en/).
+document.querySelector('footer a[href="/privacy.html"]')?.setAttribute("href", uiLanguage() === "en" ? "/en/privacy.html" : "/privacy.html");
 const languagePicker = document.createElement("select");
 languagePicker.className = "language-picker";
 languagePicker.setAttribute("aria-label", translateUI("Jazyk rozhraní"));
@@ -180,7 +185,7 @@ function login(message = "") {
   const status = el("p", { class: "form-status", role: "alert" }, message);
   const submit = el(
     "button",
-    { type: "submit", class: "button primary" },
+    { type: "submit", class: "button accent" },
     translateUI("Přihlásit se"),
   );
   const form = el(
@@ -377,7 +382,7 @@ function chooseProfile(profile) {
   });
   const submit = el(
     "button",
-    { type: "submit", class: "button primary" },
+    { type: "submit", class: "button accent" },
     translateUI("Pokračovat"),
   );
   const form = el(
@@ -449,9 +454,18 @@ function chooseProfile(profile) {
   );
   if (!profile.has_pin) form.requestSubmit();
 }
+// Podtrasy zvýrazní rodičovskou položku hlavní navigace (Historie a Skryté jsou záložky Mých seznamů).
+function markNavigation(route) {
+  const navPage = navigationParent(route);
+  document.querySelectorAll("[data-page]").forEach((link) => {
+    if (link.dataset.page === navPage) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+}
 async function render() {
   if (location.hash === "#offline") {
     document.body.dataset.route = "offline";
+    markNavigation("offline");
     document.title = "Movly — " + translateUI("Offline knihovna");
     document.querySelector("#account-menu").hidden = true;
     document
@@ -499,12 +513,14 @@ async function render() {
       : "home",
     params = new URLSearchParams(query);
   document.body.dataset.route = route;
-  const navPage = route;
-  document.querySelectorAll("[data-page]").forEach((link) => {
-    if (link.dataset.page === navPage) link.setAttribute("aria-current", "page");
-    else link.removeAttribute("aria-current");
-  });
-  document.title = `Movly — ${translateUI({ home: translateUI("Home"), movies: translateUI("Filmy"), series: translateUI("Seriály"), lists: translateUI("Moje seznamy"), search: translateUI("Hledání"), collection: translateUI("Katalog"), history: translateUI("Historie"), friends: translateUI("Přátelé"), stats: translateUI("Statistiky"), admin: params.get("view") === "client-quality" ? "Události klientů" : translateUI("Nahlášené streamy") }[route] || { premium: "Premium", hidden: "Skryté tituly", feedback: "Vylepšujeme Movly" }[route])}`;
+  markNavigation(route);
+  document.title = `Movly — ${{ home: translateUI("Domů"), movies: translateUI("Filmy"), series: translateUI("Seriály"), lists: translateUI("Moje seznamy"), search: translateUI("Hledání"), collection: translateUI("Katalog"), history: translateUI("Historie sledování"), friends: translateUI("Přátelé"), stats: translateUI("Statistiky"), admin: params.get("view") === "client-quality" ? translateUI("Události klientů") : translateUI("Nahlášení"), premium: translateUI("Premium"), hidden: translateUI("Skryté tituly"), feedback: translateUI("Vylepšit Movly") }[route]}`;
+  // Bez Premium je Vylepšit Movly informační stav. chrome() už v tomto renderu ohlásil
+  // odebrání přístupu a zrušil jeho signál, takže loader by jinak zůstal viset.
+  if (route === "feedback" && !feedbackAllowed()) {
+    content.replaceChildren(el("div", { class: "page" }, premiumGate(translateUI("Vylepšit Movly"))));
+    return;
+  }
   content.replaceChildren(loading());
   try {
     const result = await (route === "feedback" ? feedback(params, signal, session.account) : route === "premium"
@@ -547,7 +563,9 @@ async function render() {
       await profiles();
       return;
     }
-    content.replaceChildren(el("div", { class: "page" }, errorBox(e, render)));
+    content.replaceChildren(
+      el("div", { class: "page" }, e.code === FEEDBACK_PREMIUM_REQUIRED ? premiumGate(translateUI("Vylepšit Movly")) : errorBox(e, render)),
+    );
   }
 }
 const panels = [
@@ -641,7 +659,7 @@ function renderInbox() {
               ),
             ),
           )
-        : el("p", {}, translateUI("Zatím žádná upozornění.")),
+        : empty(translateUI("Zatím žádná upozornění."), null, { glyph: "bell" }),
     el(
       "button",
       {
@@ -785,7 +803,7 @@ window.addEventListener("focus", async () => {
   } catch {
     if (!current()) return;
     setFeedbackAccount(null);
-    content.replaceChildren(errorBox(new Error("Pomozte zlepšovat Movly je dostupné s Premium.")));
+    content.replaceChildren(el("div", { class: "page" }, premiumGate(translateUI("Vylepšit Movly"))));
   }
 });
 
@@ -793,5 +811,5 @@ window.addEventListener("movly-feedback-revoked", () => {
   if (!location.hash.startsWith("#feedback")) return;
   controller?.abort();
   if (dialog.open) dialog.close();
-  content.replaceChildren(errorBox(new Error("Pomozte zlepšovat Movly je dostupné s Premium.")));
+  content.replaceChildren(el("div", { class: "page" }, premiumGate(translateUI("Vylepšit Movly"))));
 });

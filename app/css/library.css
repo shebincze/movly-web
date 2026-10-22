@@ -1,5 +1,5 @@
 /* Movly Web redesign — library area. Loaded after /app/styles.css; uses its :root tokens. */
-/* Moje knihovna (#lists, #history, #hidden, #offline), Přátelé (#friends), Statistiky (#stats). */
+/* Moje seznamy (#lists, #history, #hidden, #offline), Přátelé (#friends), Statistiky (#stats). */
 
 .library-page {
   display: flex;
@@ -87,37 +87,9 @@
   border-bottom-color: var(--accent-soft);
 }
 
-/* Segmentový přepínač (historie, období statistik) */
+/* Segmentový přepínač historie a období statistik je sdílený .segmented. */
 .lib-segmented {
   display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: var(--radius);
-  background: var(--surface);
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.lib-segmented::-webkit-scrollbar {
-  display: none;
-}
-.lib-segmented a {
-  display: flex;
-  align-items: center;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: var(--radius-sm);
-  color: var(--muted);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.lib-segmented a:hover {
-  color: var(--text);
-}
-.lib-segmented a[aria-current] {
-  background: var(--surface-3);
-  color: var(--text);
-  font-weight: 600;
 }
 .lib-toolbar {
   display: flex;
@@ -294,7 +266,7 @@
 }
 .lib-mini-button,
 .lib-icon-button {
-  height: 36px;
+  height: 44px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
   background: transparent;
@@ -313,7 +285,7 @@
 }
 .lib-icon-button {
   flex: none;
-  width: 36px;
+  width: 44px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -329,11 +301,11 @@
 }
 .lib-icon-button.accept {
   border-color: transparent;
-  background: var(--accent-strong);
-  color: var(--text);
+  background: var(--gradient-control);
+  color: #fff;
 }
 .lib-icon-button.accept:hover {
-  background: var(--accent);
+  filter: brightness(1.12);
 }
 .lib-mini-button:disabled,
 .lib-icon-button:disabled {
@@ -516,7 +488,7 @@
   display: block;
   height: 100%;
   border-radius: 4px;
-  background: var(--accent);
+  background: var(--gradient-brand);
 }
 .lib-wrapped {
   display: flex;
@@ -653,39 +625,6 @@
   gap: 12px;
   cursor: pointer;
 }
-.library-page input[role="switch"] {
-  appearance: none;
-  -webkit-appearance: none;
-  flex: none;
-  position: relative;
-  width: 44px;
-  height: 24px;
-  min-height: 24px;
-  padding: 0;
-  margin: 0;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: var(--surface-3);
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.library-page input[role="switch"]::before {
-  content: "";
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--text);
-  transition: transform 0.15s ease;
-}
-.library-page input[role="switch"]:checked {
-  background: var(--accent);
-}
-.library-page input[role="switch"]:checked::before {
-  transform: translateX(20px);
-}
 .lib-person > .lib-actions {
   margin-left: 52px;
 }
@@ -776,21 +715,21 @@
   color: var(--text-2);
   font-size: 14px;
 }
-.library-page .offline-settings {
+.offline-settings {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   align-items: end;
   gap: 20px;
   margin: 0;
 }
-.library-page .offline-toggle {
+.offline-toggle {
   display: flex;
   align-items: center;
   gap: 12px;
   min-height: 46px;
   cursor: pointer;
 }
-.library-page .offline-toggle input {
+.offline-toggle input {
   flex: none;
   width: 20px;
   height: 20px;
@@ -798,7 +737,7 @@
   accent-color: var(--accent);
 }
 
-@media (max-width: 700px) {
+@media (max-width: 600px) {
   .library-page {
     gap: 24px;
   }
