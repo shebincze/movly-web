@@ -92,6 +92,9 @@ test("aplikace nemá text v translateUI() ani ve shellu bez SK/EN klíče a slov
   assert.deepEqual(checker.missingShellKeys(html, translations), []);
   assert.deepEqual(checker.duplicateKeys(fs.readFileSync(path.join(__dirname, "app/translations.js"), "utf8")), []);
   assert.deepEqual(checker.duplicateKeys('export const translations = { "A": ["a", "a"], A: ["b", "b"] };'), ["A"]);
+  // Glosář DESIGN §10: tykání a jednotné názvy.
+  for (const file of [...checker.appModules(), path.join(__dirname, "app/index.html"), path.join(__dirname, "app/tv/tv.js")])
+    assert.doesNotMatch(fs.readFileSync(file, "utf8"), /Vyberte|Device Hub|Moje knihovna|Pomoz vylepšit Movly/, path.basename(file));
 });
 
 test("tokeny webu odpovídají DESIGN §2 a §10 a starší natvrdo zadané barvy zmizely", () => {
