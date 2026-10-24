@@ -46,13 +46,21 @@
   --danger-soft: #fca5a5;
   --danger-tint: rgba(248, 113, 113, 0.14);
   --info: #3b82f6;
+  /* Radiusy podle rolí DESIGN §4: s 10, m 14 (PosterCard), l 20, xl 28 (hero artwork); xs jen pro drobné značky. */
   --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
+  --radius-s: 10px;
+  --radius-m: 14px;
+  --radius-l: 20px;
   --radius-xl: 28px;
   --radius-pill: 999px;
+  /* Typografie DESIGN §3 (iPhone → iPad/Mac), v rem kvůli velikosti písma prohlížeče. */
+  --font-hero: clamp(2.25rem, 5vw, 4rem);
+  --font-display: clamp(2.125rem, 4vw, 2.75rem);
+  --font-title1: clamp(1.75rem, 2.5vw, 2rem);
+  --font-title2: clamp(1.25rem, 1.8vw, 1.375rem);
+  --font-headline: 1.0625rem;
+  --font-caption: 0.8125rem;
+  --font-micro: 0.6875rem;
   --control-h: 48px;
   --gutter: clamp(16px, 4vw, 56px);
   font-family:
@@ -62,7 +70,7 @@
     "Segoe UI",
     system-ui,
     sans-serif;
-  font-size: 16px;
+  font-size: 100%;
   line-height: 1.5;
   background: var(--bg);
   color: var(--text);
@@ -122,18 +130,18 @@ p {
   margin-top: 0;
 }
 h1 {
-  font-size: clamp(32px, 4vw, 44px);
+  font-size: var(--font-display);
   line-height: 1.08;
   letter-spacing: -0.5px;
   font-weight: 800;
 }
 h2 {
-  font-size: 22px;
+  font-size: var(--font-title2);
   line-height: 1.25;
   font-weight: 600;
 }
 h3 {
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 600;
 }
 p {
@@ -148,7 +156,7 @@ hr {
 }
 kbd {
   font: inherit;
-  font-size: 12px;
+  font-size: 0.75rem;
   padding: 1px 6px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--line-bold);
@@ -179,7 +187,7 @@ body[data-route="home"] .header {
   gap: 8px;
   font-family: "SF Pro Rounded", ui-rounded, "SF Pro Display", -apple-system,
     "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
-  font-size: 28px;
+  font-size: 1.75rem;
   font-weight: 900;
   letter-spacing: -0.5px;
   line-height: 1;
@@ -230,7 +238,7 @@ body[data-route="home"] .header {
   width: 240px;
   height: 44px;
   padding: 0 14px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   background: var(--surface);
   border: 1px solid var(--line-strong);
   color: var(--muted);
@@ -261,7 +269,7 @@ body[data-route="home"] .header-search {
   padding: 0;
   display: inline-grid;
   place-items: center;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   color: inherit;
 }
 .icon-button:hover {
@@ -291,7 +299,7 @@ body[data-route="home"] .header-search {
   background: var(--warning-tint);
   color: var(--warning);
   font-weight: 700;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .coin-pill svg {
   width: 16px;
@@ -340,7 +348,7 @@ body[data-route="home"] .header-search {
 /* Jediný popover: menu v hlavičce, našeptávač hledání, nabídka „Vybrat jiný zdroj“. */
 .popover {
   padding: 8px;
-  border-radius: 20px;
+  border-radius: var(--radius-l);
   background: var(--bg-raised);
   border: 1px solid var(--line-strong);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
@@ -373,7 +381,7 @@ body[data-route="home"] .header-search {
   min-height: 44px;
   padding: 0 12px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-s);
   background: none;
   color: var(--text);
   text-align: left;
@@ -384,7 +392,7 @@ body[data-route="home"] .header-search {
   background: rgba(255, 255, 255, 0.06);
 }
 .header-panel small {
-  font-size: 13px;
+  font-size: var(--font-caption);
   color: var(--muted);
 }
 .account-head {
@@ -396,7 +404,7 @@ body[data-route="home"] .header-search {
 .account-head .avatar {
   width: 44px;
   height: 44px;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 800;
 }
 .account-who {
@@ -428,7 +436,7 @@ body[data-route="home"] .header-search {
 .account-profile .avatar {
   width: 36px;
   height: 36px;
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 #switch-profile {
   flex: 1;
@@ -436,7 +444,7 @@ body[data-route="home"] .header-search {
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
   background: none;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 #switch-profile:hover {
   background: rgba(255, 255, 255, 0.06);
@@ -453,7 +461,7 @@ body[data-route="home"] .header-search {
 }
 .header-panel-title {
   padding: 10px 12px 6px;
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 .inbox-menu {
   width: 340px;
@@ -461,14 +469,14 @@ body[data-route="home"] .header-search {
 .inbox-menu > p {
   padding: 8px 12px;
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .inbox-menu > .empty {
   margin: 4px;
   padding: 24px 16px;
 }
 .inbox-menu > .empty h2 {
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 .inbox-menu .loading {
   min-height: 80px;
@@ -484,7 +492,7 @@ body[data-route="home"] .header-search {
   gap: 2px;
   padding: 10px 12px 10px 24px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-s);
   background: none;
   text-align: left;
   position: relative;
@@ -527,7 +535,7 @@ body[data-route="home"] .header-search {
   border-radius: var(--radius-pill);
   background: rgba(28, 28, 42, 0.75);
   color: var(--text);
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 600;
   white-space: nowrap;
   transition: background 0.15s, border-color 0.15s, transform 0.15s;
@@ -571,7 +579,7 @@ body[data-route="home"] .header-search {
 .button.small {
   min-height: 44px;
   padding: 0 16px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 .actions {
@@ -583,7 +591,7 @@ body[data-route="home"] .header-search {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -600,7 +608,7 @@ body[data-route="home"] .header-search {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--text);
 }
@@ -611,7 +619,7 @@ textarea {
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   padding: 0 14px;
   min-width: 0;
   font-weight: 400;
@@ -649,7 +657,7 @@ select {
 }
 .form-status {
   color: var(--danger);
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.5;
   margin: 0;
 }
@@ -658,7 +666,7 @@ select {
 }
 .form-status.ok {
   padding: 12px 14px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   background: var(--success-tint);
   color: var(--success-soft);
 }
@@ -697,6 +705,51 @@ select {
   scrollbar-width: thin;
   scrollbar-color: var(--surface-3) transparent;
 }
+/* Stránkování řady pro myš (WEB-N25): jen jemný ukazatel s hoverem, mimo pořadí Tab. */
+.rail-viewport {
+  position: relative;
+}
+.rail-page {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .rail-page {
+    position: absolute;
+    top: calc(50% - 32px);
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    background: rgba(10, 10, 18, 0.82);
+    color: var(--text);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .rail-page.prev {
+    left: 4px;
+  }
+  .rail-page.next {
+    right: 4px;
+  }
+  .rail-page.prev svg {
+    transform: rotate(180deg);
+  }
+  .rail-viewport:hover > .rail-page,
+  .rail-page:focus-visible {
+    opacity: 1;
+  }
+  .rail-page:hover {
+    background: var(--bg-raised);
+  }
+}
+.rail-page[hidden] {
+  display: none !important;
+}
 .poster-card {
   min-width: 0;
   scroll-snap-align: start;
@@ -716,7 +769,7 @@ select {
   position: relative;
   width: 100%;
   aspect-ratio: 2/3;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   overflow: hidden;
   background:
     radial-gradient(110% 80% at 75% 15%, rgba(139, 92, 246, 0.35), transparent 55%),
@@ -744,7 +797,7 @@ select {
 .poster-meta {
   display: block;
   margin-top: -6px;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--muted);
   min-height: 18px;
 }
@@ -757,7 +810,7 @@ select {
   place-items: center;
   padding: 16px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
   text-align: center;
 }
 .poster-badges {
@@ -775,7 +828,7 @@ select {
   border-radius: var(--radius-xs);
   background: rgba(10, 10, 18, 0.78);
   color: var(--text);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 /* Hodnocení podle typu štítku, ne podle pořadí (bez hodnocení nezezelená kvalita). */
@@ -801,7 +854,7 @@ select {
   border-radius: 50%;
   background: var(--success);
   color: var(--bg);
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-weight: 800;
   line-height: 24px;
   text-align: center;
@@ -894,7 +947,7 @@ select {
   padding: 48px 24px;
   text-align: center;
   border: 1px dashed var(--line-bold);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-l);
 }
 .empty-icon {
   display: grid;
@@ -929,11 +982,11 @@ select {
   padding: 20px 24px;
   background: var(--danger-tint);
   border: 1px solid rgba(248, 113, 113, 0.3);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-m);
   margin: 24px 0;
 }
 .error-state h2 {
-  font-size: 18px;
+  font-size: 1.125rem;
   margin-bottom: 4px;
   color: var(--danger-soft);
 }
@@ -942,7 +995,7 @@ select {
 }
 .notice {
   padding: 14px 18px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   background: var(--warning-tint);
   border: 1px solid rgba(251, 191, 36, 0.25);
   color: #fcd34d;
@@ -961,7 +1014,7 @@ select {
   background: var(--bg-surface);
   border: 1px solid var(--line-strong);
   color: var(--text);
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 .chip[aria-pressed="true"],
@@ -1012,7 +1065,7 @@ select {
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 0.875rem;
   white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
@@ -1039,12 +1092,29 @@ select {
   outline: 3px solid var(--accent-soft);
   outline-offset: 2px;
 }
+/* Neinteraktivní souhrn kritérií: štítek bez cíle dotyku a bez vybraného stavu (WEB-25). */
+.criteria-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.criteria-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  color: var(--accent-light);
+  font-size: var(--font-caption);
+  font-weight: 600;
+}
 .badge {
   display: inline-flex;
   align-items: center;
   padding: 2px 10px;
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   background: rgba(255, 255, 255, 0.1);
@@ -1059,8 +1129,9 @@ select {
   flex-direction: column;
   justify-content: flex-end;
   padding: 140px var(--gutter) 88px;
+  /* Záložní artwork bez obrázku: dvoubarevný gradient jen z brand tokenů (DESIGN §2 Artwork). */
   background:
-    radial-gradient(60% 90% at 78% 30%, rgba(236, 72, 153, 0.4) 0, rgba(139, 92, 246, 0.25) 35%, transparent 62%),
+    radial-gradient(60% 90% at 78% 30%, color-mix(in srgb, var(--pink) 40%, transparent) 0, color-mix(in srgb, var(--accent) 25%, transparent) 35%, transparent 62%),
     linear-gradient(180deg, var(--bg-raised) 0%, var(--bg) 100%);
 }
 .hero-art {
@@ -1095,13 +1166,13 @@ select {
   border-radius: var(--radius-xs);
   background: var(--gradient-control);
   color: #fff;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .hero h1 {
-  font-size: clamp(40px, 5vw, 68px);
+  font-size: var(--font-hero);
   line-height: 1.02;
   letter-spacing: -1px;
 }
@@ -1110,7 +1181,7 @@ select {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-  font-size: 15px;
+  font-size: 0.9375rem;
   color: var(--text-2);
   margin-bottom: 16px;
 }
@@ -1124,7 +1195,7 @@ select {
   padding: 1px 7px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: var(--radius-xs);
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-weight: 700;
 }
 .meta-score {
@@ -1133,7 +1204,7 @@ select {
 }
 .synopsis {
   max-width: 600px;
-  font-size: 17px;
+  font-size: var(--font-headline);
   line-height: 1.55;
   color: var(--text-2);
   display: -webkit-box;
@@ -1150,7 +1221,7 @@ select {
 }
 .hero .actions .button.primary {
   padding: 0 28px;
-  font-size: 17px;
+  font-size: var(--font-headline);
 }
 .home-carousel {
   position: relative;
@@ -1242,7 +1313,7 @@ select {
 }
 .continue-rail .poster-frame {
   aspect-ratio: 16/9;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-m);
 }
 .continue-play {
   position: absolute;
@@ -1277,7 +1348,7 @@ select {
   display: none;
 }
 .rank-number {
-  font-size: 170px;
+  font-size: 10.625rem;
   font-weight: 900;
   line-height: 0.78;
   letter-spacing: -10px;
@@ -1289,7 +1360,7 @@ select {
   user-select: none;
 }
 .top-ten .poster-title {
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .top-ten .poster-badges {
   display: none;
@@ -1304,7 +1375,7 @@ select {
   overflow: hidden;
   isolation: isolate;
   height: 160px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-m);
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -1336,11 +1407,11 @@ select {
   z-index: -1;
 }
 .collection-banner strong {
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 700;
 }
 .collection-banner span {
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--text-2);
 }
 .genre-chips {
@@ -1380,7 +1451,7 @@ body[data-route="profiles"] .header {
   padding-top: 48px;
 }
 .login-intro h1 {
-  font-size: clamp(38px, 5vw, 58px);
+  font-size: clamp(2.375rem, 5vw, 3.625rem);
   max-width: 520px;
 }
 .login-intro h1 span {
@@ -1390,7 +1461,7 @@ body[data-route="profiles"] .header {
   color: transparent;
 }
 .login-intro p {
-  font-size: 18px;
+  font-size: 1.125rem;
   max-width: 420px;
   color: var(--text-2);
 }
@@ -1398,10 +1469,10 @@ body[data-route="profiles"] .header {
   padding: 32px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-l);
 }
 .login-panel h2 {
-  font-size: 28px;
+  font-size: var(--font-title1);
   font-weight: 800;
   margin-bottom: 4px;
 }
@@ -1452,7 +1523,7 @@ body[data-route="profiles"] .header {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 22px;
+  font-size: var(--font-title2);
 }
 .login-tv .button {
   align-self: stretch;
@@ -1507,7 +1578,7 @@ body[data-route="profiles"] .header {
   width: 150px;
   height: 150px;
   border-radius: var(--radius-xl);
-  font-size: 56px;
+  font-size: 3.5rem;
   font-weight: 800;
   transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -1517,14 +1588,14 @@ body[data-route="profiles"] .header {
   box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent-soft);
 }
 .profile-choice strong {
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 600;
 }
 .profile-choice small {
   margin-top: -8px;
   padding: 2px 10px;
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 .profile-choice small:empty {
@@ -1623,7 +1694,7 @@ dialog:has(.pin-dialog) {
   width: 220px;
   height: 64px;
   text-align: center;
-  font-size: 28px;
+  font-size: 1.75rem;
   letter-spacing: 12px;
 }
 .pin-head {
@@ -1636,7 +1707,7 @@ dialog:has(.pin-dialog) {
 .pin-head .avatar {
   width: 72px;
   height: 72px;
-  font-size: 30px;
+  font-size: 1.875rem;
   font-weight: 800;
 }
 .pin-head h2 {
@@ -1654,7 +1725,7 @@ dialog {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-l);
   padding: 0;
   box-shadow: 0 30px 100px rgba(0, 0, 0, 0.7);
 }
@@ -1681,6 +1752,7 @@ dialog::backdrop {
 }
 .dialog-body h2 {
   padding-right: 40px;
+  font-size: var(--font-title2);
   font-weight: 700;
 }
 .dialog-form {
@@ -1709,7 +1781,7 @@ dialog::backdrop {
 .plain-fieldset > legend {
   padding: 0;
   margin-bottom: 8px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 .pill-group {
@@ -1724,7 +1796,7 @@ dialog::backdrop {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 16px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   background: var(--surface-2);
 }
 .switch-row > span {
@@ -1732,7 +1804,7 @@ dialog::backdrop {
   flex-direction: column;
 }
 .switch-row small {
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--muted);
 }
 /* Jediný přepínač (role="switch") pro celý web. */
@@ -1794,7 +1866,7 @@ input[type="checkbox"][role="switch"]:disabled {
   background: var(--surface-2);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 14px 22px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-m);
   max-width: calc(100% - 32px);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
 }
@@ -1805,7 +1877,7 @@ footer {
   gap: 12px 32px;
   padding: 32px var(--gutter);
   border-top: 1px solid var(--line);
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--muted);
 }
 footer a:hover {
@@ -1817,7 +1889,7 @@ footer a:hover {
   left: 20px;
   z-index: 50;
   padding: 12px 16px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   background: var(--text);
   color: var(--bg);
   font-weight: 700;
@@ -1879,7 +1951,7 @@ footer a:hover {
   .header nav a {
     min-height: 44px;
     padding: 0 12px;
-    font-size: 14px;
+    font-size: 0.875rem;
   }
   .header-actions {
     gap: 4px;
@@ -1888,7 +1960,7 @@ footer a:hover {
     padding: 0 10px;
   }
   .brand {
-    font-size: 24px;
+    font-size: 1.5rem;
   }
   /* Na telefonu se značka i akce vejdou do jednoho řádku hlavičky (WEB-N22);
      název „Movly — domů“ nese aria-label odkazu. */
@@ -1911,7 +1983,7 @@ footer a:hover {
     right: 20px;
   }
   .synopsis {
-    font-size: 15px;
+    font-size: 0.9375rem;
   }
   .poster-rail {
     grid-auto-columns: 140px;
@@ -1927,7 +1999,7 @@ footer a:hover {
     flex-basis: 110px;
   }
   .rank-number {
-    font-size: 120px;
+    font-size: 7.5rem;
     letter-spacing: -6px;
   }
   /* Jedna mobilní mřížka pro hledání, katalog, kolekce, osobu i podobné tituly. */
@@ -1948,7 +2020,7 @@ footer a:hover {
   }
   .profile-choice .avatar {
     height: 120px;
-    font-size: 44px;
+    font-size: 2.75rem;
   }
   .dialog-body {
     padding: 28px 20px;
@@ -1961,7 +2033,7 @@ footer a:hover {
     max-width: 100%;
     max-height: 92dvh;
     margin: auto 0 0;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
   }
   body > #dialog:has(.pk-picker),
   body > #dialog:has(.pk-player),
@@ -1988,7 +2060,7 @@ footer a:hover {
   width: 100%;
   aspect-ratio: 16/9;
   background: #000;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
 }
 .player-seek {
   display: flex;
@@ -2017,7 +2089,7 @@ footer a:hover {
 }
 .source-section-title {
   margin: 20px 0 4px;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -2044,30 +2116,30 @@ footer a:hover {
   padding: 32px;
   background: #14141f;
   border: 1px solid #2a2a3c;
-  border-radius: 24px;
+  border-radius: var(--radius-l);
   font-family: sans-serif;
 }
 .legacy-notice h1 {
-  font-size: 32px;
+  font-size: var(--font-display);
   margin: 0 0 16px;
   color: #ffffff;
 }
 .legacy-notice p {
   color: #d4d4e0;
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1.5;
 }
 .legacy-link {
   display: inline-block;
   margin: 8px 0 16px;
   padding: 12px 22px;
-  border-radius: 12px;
+  border-radius: var(--radius-m);
   background: #ffffff;
   color: #0a0a12;
   font-weight: bold;
 }
 .legacy-ua {
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .legacy-ua code {
   word-break: break-all;
@@ -2080,12 +2152,12 @@ footer a:hover {
 
 /* Editor řad na stránkách: táhnout lze jen úchytem, přepínač je sdílený .switch. */
 .home-preferences-rows { list-style: none; margin: 16px 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-.home-preferences-rows li { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-surface); }
+.home-preferences-rows li { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-surface); }
 .home-preferences-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
 .home-preferences-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .home-preferences-status { min-height: 1.5em; }
 .home-preferences-toggle { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
-.home-preferences-handle { touch-action: none; cursor: grab; min-width: 44px; min-height: 44px; padding: 0; font-size: 22px; }
+.home-preferences-handle { touch-action: none; cursor: grab; min-width: 44px; min-height: 44px; padding: 0; font-size: 1.375rem; }
 .home-preferences-rows .dragging { opacity: 0.7; outline: 3px solid var(--accent-soft); }
 .home-preferences select { width: 100%; max-width: 384px; }
 .home-preferences-toolbar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: flex-end; padding: 6px 40px 6px 4px; background: var(--surface); border-bottom: 1px solid var(--line); }
@@ -2095,7 +2167,7 @@ footer a:hover {
 }
 
 /* Approved compact DB inventory capsule, shared with the TV helper. */
-.database-inventory-badge { display:inline-flex; flex-wrap:wrap; align-items:center; gap:3px; width:fit-content; max-width:100%; box-sizing:border-box; padding:3px 7px; border-radius:20px; background:rgba(0,0,0,.48); color:#fff; font-size:11px; line-height:1.35; font-weight:700; vertical-align:middle; }
+.database-inventory-badge { display:inline-flex; flex-wrap:wrap; align-items:center; gap:3px; width:fit-content; max-width:100%; box-sizing:border-box; padding:3px 7px; border-radius: var(--radius-l); background:rgba(0,0,0,.48); color:#fff; font-size: var(--font-micro); line-height:1.35; font-weight:700; vertical-align:middle; }
 .database-inventory-badge .inventory-divider { color:rgba(255,255,255,.35); }
 .database-inventory-badge .inventory-audio { color:#ffb74d; overflow-wrap:anywhere; }
 

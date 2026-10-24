@@ -21,4 +21,17 @@
   --danger: #f87171;
   --gradient-brand: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 33%, #c026d3 66%, #ec4899 100%);
   --gradient-control: linear-gradient(135deg, #7c3aed 0%, #a21caf 50%, #be185d 100%);
+  /* Odvozené tóny a tvary shodné s app/styles.css (WEB-32): kořenové stránky nemají vlastní sadu. */
+  --accent-light: #c4b5fd;
+  --accent-tint: rgba(139, 92, 246, 0.18);
+  --stroke-strong: rgba(255, 255, 255, 0.14);
+  --success-soft: #6ee7b7;
+  --success-tint: rgba(52, 211, 153, 0.14);
+  --danger-soft: #fca5a5;
+  --danger-tint: rgba(248, 113, 113, 0.14);
+  --radius-s: 10px;
+  --radius-m: 14px;
+  --radius-l: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
 }

@@ -9,7 +9,7 @@
 }
 .library-page h1 {
   margin: 0;
-  font-size: 36px;
+  font-size: var(--font-display);
   font-weight: 800;
   line-height: 1.15;
 }
@@ -21,11 +21,11 @@
 }
 .lib-muted {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .lib-warning {
   color: var(--warning);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .lib-intro {
   color: var(--text-2);
@@ -105,7 +105,7 @@
   justify-content: center;
   gap: 12px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .lib-pager:empty {
   display: none;
@@ -123,7 +123,7 @@
   gap: 12px;
   min-width: 0;
   padding: 16px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-m);
   background: var(--surface);
   border: 1px solid var(--line);
   color: var(--text);
@@ -148,7 +148,7 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-s);
   background:
     radial-gradient(110% 80% at 75% 15%, var(--accent-tint) 0, transparent 60%),
     linear-gradient(160deg, var(--surface-3), var(--bg-raised));
@@ -175,7 +175,7 @@
   white-space: nowrap;
 }
 .lib-list-text .lib-muted {
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .lib-tag {
   align-self: flex-start;
@@ -184,7 +184,7 @@
   border-radius: var(--radius-pill);
   background: var(--line);
   color: var(--text-2);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -203,10 +203,10 @@
   flex-direction: column;
   gap: 4px;
   padding: 12px 16px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   background: var(--warning-tint);
   color: var(--text-2);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .lib-notice .error-copy,
 .lib-notice .list-meta {
@@ -243,7 +243,7 @@
   gap: 12px;
 }
 .lib-section-head h2 {
-  font-size: 22px;
+  font-size: var(--font-title2);
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -267,12 +267,12 @@
 .lib-mini-button,
 .lib-icon-button {
   height: 44px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-s);
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--text-2);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--font-caption);
   cursor: pointer;
 }
 .lib-mini-button {
@@ -320,22 +320,22 @@
   gap: 14px;
   min-width: 0;
   padding: 24px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-l);
   background: var(--surface);
   border: 1px solid var(--line);
 }
 .lib-card h1 {
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 700;
 }
 .lib-card h2 {
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 700;
 }
 .lib-card .lib-eyebrow,
 .lib-eyebrow {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -345,7 +345,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px 20px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 /* Řádky titulů (historie, skryté) */
@@ -356,7 +356,7 @@
 }
 .lib-day {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -388,7 +388,7 @@
   padding: 6px;
   margin: -6px;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   background: none;
   color: inherit;
   font: inherit;
@@ -428,7 +428,7 @@
 }
 .lib-row-sub {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-caption);
   color: var(--muted);
 }
 .lib-row-text progress {
@@ -451,12 +451,12 @@
   flex-direction: column;
   gap: 4px;
   padding: 20px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-m);
   background: var(--surface);
   border: 1px solid var(--line);
 }
 .lib-kpi strong {
-  font-size: 36px;
+  font-size: 2.25rem;
   font-weight: 800;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
@@ -473,7 +473,7 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .lib-bar-label span:first-child {
   min-width: 0;
@@ -496,7 +496,7 @@
   align-items: center;
   gap: 24px;
   padding: 40px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-l);
   overflow: hidden;
   background:
     radial-gradient(60% 120% at 90% 10%, color-mix(in srgb, var(--pink) 55%, transparent) 0, transparent 60%),
@@ -510,7 +510,7 @@
   gap: 8px;
 }
 .lib-wrapped h2 {
-  font-size: clamp(30px, 4vw, 48px);
+  font-size: clamp(1.875rem, 4vw, 3rem);
   font-weight: 800;
   line-height: 1.05;
 }
@@ -519,7 +519,7 @@
 }
 .lib-wrapped .lib-eyebrow {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-caption);
   letter-spacing: 0.1em;
   color: color-mix(in srgb, var(--pink) 35%, var(--text));
 }
@@ -582,14 +582,14 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--text-2);
   overflow-wrap: anywhere;
 }
 .lib-activity .lib-avatar {
   width: 32px;
   height: 32px;
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .lib-activity strong {
   color: var(--text);
@@ -665,12 +665,12 @@
   flex-direction: column;
   gap: 10px;
   padding: 16px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   background: var(--bg);
 }
 .lib-public-link h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
 }
 .lib-link-row {
   display: flex;
@@ -713,7 +713,7 @@
   flex: 1 1 240px;
   margin: 0;
   color: var(--text-2);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .offline-settings {
   display: grid;
@@ -741,15 +741,12 @@
   .library-page {
     gap: 24px;
   }
-  .library-page h1 {
-    font-size: 30px;
-  }
   .lib-column-side {
     max-width: none;
   }
   .lib-card {
     padding: 18px;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-m);
   }
   .lib-wrapped {
     padding: 24px;
@@ -769,6 +766,6 @@
     gap: 20px 12px;
   }
   .lib-kpi strong {
-    font-size: 28px;
+    font-size: 1.75rem;
   }
 }

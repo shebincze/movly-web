@@ -23,16 +23,6 @@
     <a id="open" href="/">Otevřít v Movly</a>
     <p>Pokud se aplikace neotevře, spusť Movly a zadej zobrazený kód v části Společné sledování.</p>
   </main>
-  <script>
-    'use strict';
-    const match = /^\/party\/([ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6})$/.exec(location.pathname);
-    if (!match) {
-      document.querySelector('main').textContent = 'Pozvánka nemá platný kód.';
-    } else {
-      const code = match[1];
-      document.getElementById('code').textContent = code;
-      document.getElementById('open').href = `movly://party/${code}`;
-    }
-  </script>
+  <script src="/party.js" defer></script>
 </body>
 </html>

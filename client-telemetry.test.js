@@ -5,7 +5,8 @@ const fs = require("node:fs/promises");
 async function render(app, event, diagnostics) {
   const source = (await fs.readFile("app/client-telemetry.js", "utf8"))
     .replace('import { api } from "./api.js";', 'const api = async () => globalThis.__terminationLabelData;')
-    .replace('import { el } from "./ui.js";', 'const el = globalThis.__terminationLabelEl;');
+    .replace('import { el } from "./ui.js";', 'const el = globalThis.__terminationLabelEl;')
+    .replace('import { translateUI as t } from "./i18n.js";', 'const t = (text) => text;');
   const day = "2026-10-19";
   globalThis.__terminationLabelData = {client_app: app, day, rows: [{event, outcome: "failure", provider: "none", count: 1, duration_count: 0, duration_ms_total: 0}], ...(diagnostics === undefined ? {} : {diagnostics})};
   globalThis.__terminationLabelEl = (tag, attrs, ...children) => ({tag, attrs, children, append(...nodes) {this.children.push(...nodes);}});

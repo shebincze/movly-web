@@ -195,7 +195,7 @@ function reportCard(row, refresh) {
           statusLabel[row.status],
         ),
         row.reviewComment && row.reviewComment.startsWith("auto-approved")
-          ? el("span", { class: "badge auto" }, "auto")
+          ? el("span", { class: "badge auto" }, translateUI("Automaticky"))
           : null,
       ),
       el(
@@ -378,7 +378,7 @@ async function trustedView(signal, refresh) {
       "p",
       { class: "meta" },
       translateUI(
-        "Nahlášení od těchto uživatelů se rovnou schválí a stream se skryje bez čekání na kontrolu. Objeví se v záložce Schválené se štítkem auto.",
+        "Nahlášení od těchto uživatelů se rovnou schválí a stream se skryje bez čekání na kontrolu. Objeví se v záložce Schválené se štítkem Automaticky.",
       ),
     ),
     form,
@@ -397,11 +397,11 @@ async function trustedView(signal, refresh) {
 
 export async function admin(params, signal, actions, account) {
   if (params.get("view") === "client-quality") {
-    if (account?.role !== "admin") throw new Error("Přehled vyžaduje správce.");
+    if (account?.role !== "admin") throw new Error(translateUI("Přehled vyžaduje správce."));
     return clientTelemetry(params, signal);
   }
   if (params.get("view") === "playback") {
-    if (account?.role !== "admin") throw new Error("Přehled vyžaduje správce.");
+    if (account?.role !== "admin") throw new Error(translateUI("Přehled vyžaduje správce."));
     return playbackQuality(params, signal);
   }
   const view = params.get("view") === "trusted" ? "trusted" : "reports";
@@ -444,7 +444,7 @@ export async function admin(params, signal, actions, account) {
   );
   if (!data || !Array.isArray(data.requests))
     throw new Error(translateUI("Server vrátil neplatný seznam nahlášení."));
-  const qualityLink = account?.role === "admin" ? el("span", {}, el("a", {href:"#admin?view=playback",class:"button secondary"}, "Start přehrávání"), el("a", {href:"#admin?view=client-quality",class:"button secondary"}, "Události klientů")) : null;
+  const qualityLink = account?.role === "admin" ? el("span", {}, el("a", {href:"#admin?view=playback",class:"button secondary"}, translateUI("Start přehrávání")), el("a", {href:"#admin?view=client-quality",class:"button secondary"}, translateUI("Události klientů"))) : null;
   const tabs = el(
     "nav",
     {
