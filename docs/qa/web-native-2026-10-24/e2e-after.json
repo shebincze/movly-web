@@ -1,0 +1,112 @@
+{
+ "root": "<worktree>",
+ "passed": 24,
+ "failed": 0,
+ "results": [
+  {
+   "name": "WEB-N02 odkaz Hledat má název i v kompaktní hlavičce (1024 px)",
+   "ok": true
+  },
+  {
+   "name": "WEB-N06 panel účtu je disclosure a zavře se po odchodu fokusu",
+   "ok": true
+  },
+  {
+   "name": "WEB-N01 karta je odkaz s adresou detailu",
+   "ok": true,
+   "detail": "#movies?title=2"
+  },
+  {
+   "name": "WEB-N01/N04 otevření detailu zapíše adresu, titulek a zamkne scroll stránky",
+   "ok": true
+  },
+  {
+   "name": "WEB-N01 Zpět v prohlížeči zavře detail a vrátí fokus na kartu",
+   "ok": true
+  },
+  {
+   "name": "WEB-N01 Vpřed detail znovu otevře",
+   "ok": true
+  },
+  {
+   "name": "WEB-N14 zavření výběru zdroje i osoby vrátí na detail, zavření detailu na stránku",
+   "ok": true
+  },
+  {
+   "name": "WEB-N01 sdílený odkaz otevře detail nad stránkou",
+   "ok": true
+  },
+  {
+   "name": "WEB-N05 klepnutí na pozadí zavře dialog",
+   "ok": true
+  },
+  {
+   "name": "WEB-N07 po navigaci je fokus na nadpisu nové stránky",
+   "ok": true
+  },
+  {
+   "name": "WEB-N08 Hledat přesune fokus do pole hledání",
+   "ok": true
+  },
+  {
+   "name": "WEB-N09 obě pole rozsahu mají vlastní název ve skupině",
+   "ok": true
+  },
+  {
+   "name": "WEB-N10 tečky karuselu mají cíl ≥ 24 px bez překryvu",
+   "ok": true,
+   "detail": {
+    "width": 24,
+    "height": 44,
+    "spacing": 12,
+    "gap": 12,
+    "overhang": 6,
+    "role": "group"
+   }
+  },
+  {
+   "name": "prefers-reduced-motion vypne přechody",
+   "ok": true
+  },
+  {
+   "name": "bez vodorovného posunu stránky (360 px)",
+   "ok": true
+  },
+  {
+   "name": "bez vodorovného posunu stránky (768 px)",
+   "ok": true
+  },
+  {
+   "name": "bez vodorovného posunu stránky (1920 px)",
+   "ok": true
+  },
+  {
+   "name": "WEB-N04 mobilní detail neposouvá stránku pod sebou (360 px)",
+   "ok": true
+  },
+  {
+   "name": "WEB-N03 úvodní stránka nenačítá skripty z cizích CDN",
+   "ok": true
+  },
+  {
+   "name": "WEB-N03 úvodní stránka funguje i při nedostupném unpkg.com",
+   "ok": true
+  },
+  {
+   "name": "WEB-N03 FAQ je nativní <details> ovladatelné klávesnicí",
+   "ok": true
+  },
+  {
+   "name": "WEB-N13 přihlášení na úvodní stránce má propojené popisky",
+   "ok": true
+  },
+  {
+   "name": "WEB-N12 kořenové stránky mají tmavé systémové schéma",
+   "ok": true
+  },
+  {
+   "name": "WEB-N03 zásady soukromí a úvodní stránka jsou čitelné bez JavaScriptu",
+   "ok": true
+  }
+ ]
+}

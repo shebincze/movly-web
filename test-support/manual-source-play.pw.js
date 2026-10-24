@@ -11,7 +11,7 @@ async page => {
   const listener = req => { if(req.url().includes('watch-history/position/2')) positions++; };
   page.on('request',listener);
   async function open() {
-    await page.getByRole('button',{name:'Oppenheimer 2023',exact:true}).first().click();
+    await page.getByRole('link',{name:'Oppenheimer 2023',exact:true}).first().click();
     return page.getByRole('dialog').getByRole('button',{name:'Přehrát',exact:true});
   }
   async function picker(name, expectedPositions) {

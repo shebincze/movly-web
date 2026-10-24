@@ -1955,7 +1955,7 @@ function serveStatic(req, res, pathname) {
   // Authorization is based on the final normalized asset, never the spelling
   // of its URL. Server-side files are outside the public asset allowlist.
   relativePath = path.posix.normalize(relativePath);
-  const rootFiles = new Set(["/index.html", "/privacy.html", "/delete-account.html", "/activate.html", "/activate.js", "/activate.css", "/devices.html", "/devices.js", "/devices.css", "/party.html", "/support.js"]);
+  const rootFiles = new Set(["/index.html", "/privacy.html", "/delete-account.html", "/activate.html", "/activate.js", "/activate.css", "/devices.html", "/devices.js", "/devices.css", "/party.html"]);
   const publicPath = rootFiles.has(relativePath)
     || /^\/(?:en|sk)\/(?:index|privacy|delete-account)\.html$/.test(relativePath)
     || ["/.well-known/apple-app-site-association", "/.well-known/assetlinks.json", "/app/vendor/hls-LICENSE.txt", "/app/vendor/hls-0.14.17-LICENSE.txt", "/app/vendor/feedback-icons/LICENSE"].includes(relativePath)

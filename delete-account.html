@@ -6,65 +6,16 @@
 <title>Movly — smazání účtu</title>
 <meta name="description" content="Postup pro smazání účtu Movly." />
 <meta name="theme-color" content="#0A0A12" />
+<meta name="color-scheme" content="dark" />
 <link rel="icon" type="image/svg+xml" href="assets/movly-icon.svg" />
 <link rel="stylesheet" href="assets/tokens.css" />
-<script src="./support.js"></script>
-<script>
-  (() => {
-    const runtimeReady = () => Boolean(document.querySelector('#dc-root .sc-host'));
-    const removeRuntimeNotice = () => document.getElementById('mvRuntimeNotice')?.remove();
-    const showRuntimeNotice = (failed = false) => {
-      if (!document.body || runtimeReady()) return;
-      let notice = document.getElementById('mvRuntimeNotice');
-      if (!notice) {
-        notice = document.createElement('div');
-        notice.id = 'mvRuntimeNotice';
-        notice.style.cssText = 'position:relative;z-index:1000;margin:24px auto;padding:16px 20px;max-width:760px;border-radius:14px;background:#14141F;border:1px solid rgba(255,255,255,.14);color:#fff;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;';
-        document.body.prepend(notice);
-      }
-      notice.setAttribute('role', failed ? 'alert' : 'status');
-      notice.setAttribute('aria-live', failed ? 'assertive' : 'polite');
-      notice.textContent = failed
-        ? 'Interaktivní část stránky se nepodařila načíst. Obnov stránku; pokud problém trvá, kontaktuj podporu.'
-        : 'Načítám interaktivní část stránky…';
-    };
-    const reportRuntimeFailure = () => showRuntimeNotice(true);
-    window.addEventListener('error', event => {
-      const source = event.target?.src || '';
-      if (source.includes('support.js') || source.includes('unpkg.com/react')) reportRuntimeFailure();
-    }, true);
-    window.addEventListener('unhandledrejection', event => {
-      const message = String(event.reason?.message || event.reason || '');
-      if (message.includes('failed to load') || message.includes('dc-runtime')) reportRuntimeFailure();
-    });
-    document.addEventListener('DOMContentLoaded', () => {
-      if (runtimeReady()) return;
-      showRuntimeNotice(false);
-      const observer = new MutationObserver(() => {
-        if (!runtimeReady()) return;
-        observer.disconnect();
-        removeRuntimeNotice();
-      });
-      observer.observe(document.documentElement, { childList: true, subtree: true });
-      window.setTimeout(() => {
-        if (!runtimeReady()) reportRuntimeFailure();
-      }, 10000);
-    });
-  })();
-</script>
-</head>
-<body>
-<x-dc>
-<helmet>
 <style>
+  :root{color-scheme:dark;}
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth;}
   html,body{margin:0;padding:0;}
   body{background:var(--bg-base);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;color:#fff;}
   a{color:inherit;text-decoration:none;}
-  ::-webkit-scrollbar{width:11px;}
-  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px;}
-  ::-webkit-scrollbar-track{background:var(--bg-base);}
   @keyframes mvShimmer{0%{background-position:0% 50%;}100%{background-position:200% 50%;}}
   @keyframes mvDrift{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(26px,18px) scale(1.08);}}
   @media(max-width:600px){
@@ -77,18 +28,27 @@
     #mvDocRoot *,#mvDocRoot *::before,#mvDocRoot *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}
   }
 </style>
-</helmet>
+<style>
+  /* Stavy hover/focus dříve vkládal dc-runtime; nyní statické CSS. */
+  .dc1:hover{color:#fff !important;background:rgba(255,255,255,.1) !important}
+  .dc2:hover{background:rgba(248,113,113,.24) !important}
+  .dc3:hover{color:#fff !important}
+  .dc4:hover{color:#fff !important}
+</style>
+</head>
+<body>
 <div id="mvDocRoot" style="width:100%;overflow-x:hidden;background:var(--bg-base);min-height:100vh;">
 
   <header style="position:sticky;top:0;z-index:40;background:rgba(10,10,18,.82);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.07);">
     <div style="max-width:820px;margin:0 auto;padding:15px 28px;display:flex;align-items:center;gap:20px;">
       <a href="index.html" style="font-size:23px;font-weight:800;letter-spacing:-.5px;background:var(--gradient-brand);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;"><img src="assets/movly-mark.svg" alt="" width="22" height="24" style="vertical-align:-3px;margin-right:6px;" />Movly</a>
-      <a href="index.html" style="margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--text-secondary);padding:9px 16px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);transition:color .15s,background .15s;" style-hover="color:#fff;background:rgba(255,255,255,.1);">
+      <a class="dc1" href="index.html" style="margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--text-secondary);padding:9px 16px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);transition:color .15s,background .15s;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
         Zpět na web
       </a>
     </div>
   </header>
+  <main id="obsah">
 
   <section style="position:relative;padding:70px 28px 36px;overflow:hidden;">
     <div style="position:absolute;top:-160px;right:-10%;width:760px;height:520px;background:radial-gradient(50% 50% at 50% 50%, rgba(248,113,113,.18), transparent 70%);pointer-events:none;animation:mvDrift 17s ease-in-out infinite;"></div>
@@ -129,25 +89,25 @@
       <div style="background:var(--bg-surface);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:30px;">
         <h2 style="font-size:22px;font-weight:700;letter-spacing:-.4px;margin:0 0 8px;">Odeslat žádost</h2>
         <p style="font-size:15px;line-height:1.6;color:var(--text-secondary);margin:0 0 20px;">Tlačítko otevře tvůj e-mailový program s připraveným předmětem a textem. Před odesláním zkontroluj, že píšeš z adresy registrované v Movly.</p>
-        <a href="mailto:cinelog@outlook.com?subject=Movly%20%E2%80%93%20%C5%BD%C3%A1dost%20o%20smaz%C3%A1n%C3%AD%20%C3%BA%C4%8Dtu&amp;body=Moje%20registra%C4%8Dn%C3%AD%20e-mailov%C3%A1%20adresa%3A%20" style="display:block;text-align:center;width:100%;padding:14px;border-radius:12px;border:1px solid rgba(248,113,113,.4);cursor:pointer;background:rgba(248,113,113,.14);color:var(--danger);font-size:15px;font-weight:700;transition:background .15s;" style-hover="background:rgba(248,113,113,.24);">Požádat e-mailem o smazání účtu</a>
+        <a class="dc2" href="mailto:cinelog@outlook.com?subject=Movly%20%E2%80%93%20%C5%BD%C3%A1dost%20o%20smaz%C3%A1n%C3%AD%20%C3%BA%C4%8Dtu&amp;body=Moje%20registra%C4%8Dn%C3%AD%20e-mailov%C3%A1%20adresa%3A%20" style="display:block;text-align:center;width:100%;padding:14px;border-radius:12px;border:1px solid rgba(248,113,113,.4);cursor:pointer;background:rgba(248,113,113,.14);color:var(--danger);font-size:15px;font-weight:700;transition:background .15s;">Požádat e-mailem o smazání účtu</a>
       </div>
 
       <p style="font-size:14px;line-height:1.6;color:var(--text-secondary);margin:24px 0 0;text-align:center;">Více o tom, jak nakládáme s daty, najdeš v <a href="privacy.html" style="color:var(--accent-soft);text-decoration:underline;">zásadách ochrany soukromí</a>.</p>
     </div>
   </section>
 
+  </main>
   <footer style="border-top:1px solid rgba(255,255,255,.07);padding:40px 28px;background:var(--bg-base);">
     <div style="max-width:820px;margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center;">
       <a href="index.html" style="font-size:18px;font-weight:800;background:var(--gradient-brand);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Movly</a>
       <div style="display:flex;gap:22px;font-size:14px;color:var(--text-secondary);">
-        <a href="index.html" style="transition:color .15s;" style-hover="color:#fff;">Domů</a>
-        <a href="privacy.html" style="transition:color .15s;" style-hover="color:#fff;">Soukromí</a>
+        <a class="dc3" href="index.html" style="transition:color .15s;">Domů</a>
+        <a class="dc4" href="privacy.html" style="transition:color .15s;">Soukromí</a>
       </div>
       <span style="font-size:13px;color:var(--text-secondary);">© 2026 Movly</span>
     </div>
   </footer>
 
 </div>
-</x-dc>
 </body>
 </html>

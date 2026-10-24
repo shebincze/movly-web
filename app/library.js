@@ -23,6 +23,7 @@ import {
   countLabel,
 } from "./ui.js";
 import { sources } from "./player.js";
+import { detailTitleId, withDetail, nextDetailState } from "./detail-route.js";
 import {
   titleActivity,
   libraryHead,
@@ -61,19 +62,29 @@ function sectionNav(sections) {
     "nav",
     { class: "detail-tabs", "aria-label": translateUI("Sekce detailu") },
     sections.map(([label, target]) =>
-      el("button", { type: "button", onClick: () => target.scrollIntoView({ behavior: "smooth", block: "start" }) }, label),
+      el("button", { type: "button", onClick: () => target.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }) }, label),
     ),
   );
 }
-export async function detail(t, actions) {
+let lastDetail = null;
+// Detail má vlastní adresu (#stránka?title=ID, WEB-N01): otevření z karty přidá
+// záznam do historie, Zpět ho zavře. `history: false` používá synchronizace
+// s adresou (Zpět/Vpřed, deep link) a návrat z výběru zdroje.
+export async function detail(t, actions, { history: push = true } = {}) {
   detailInventoryDispose?.(); detailInventoryDispose = null;
   const revision = ++detailRevision;
-  const dialog = showDialog(sheet(el("h2", { id: "dialog-title", class: "detail-loading-title" }, t.title), loading()));
+  if (push && Number.isSafeInteger(t.id) && detailTitleId(location.hash) !== t.id)
+    history.pushState(nextDetailState(history.state), "", withDetail(location.hash, t.id));
+  if (lastDetail?.id !== t.id) lastDetail = t;
+  const dialog = showDialog(sheet(el("h2", { id: "dialog-title", class: "detail-loading-title" }, t.title || translateUI("Načítám…")), loading()));
+  dialog.dataset.detailTitle = String(t.id);
   try {
     const data = await api(`titles/${t.id}`);
     if (revision !== detailRevision || !dialog.open) return;
     if (data.id !== t.id || typeof data.title !== "string")
       throw new Error(translateUI("API vrátilo neplatný detail titulu."));
+    lastDetail = data;
+    document.title = `Movly — ${data.title}`;
     // Karta v seznamu mohla přijít bez plakátu; po zavření detailu ho dostane.
     noteArtwork(data.id, data.poster_path, data.backdrop_path);
     const art = imageURL(data.backdrop_path, "w1280");
@@ -338,6 +349,10 @@ export async function detail(t, actions) {
     if (revision === detailRevision && dialog.open)
       showDialog(sheet(el("h2", { id: "dialog-title", class: "detail-loading-title" }, t.title), errorBox(e, () => detail(t, actions))));
   }
+}
+// Návrat na detail po zavření výběru zdroje, přehrávače nebo jiného dílčího kroku.
+export function reopenDetail(id, actions) {
+  return detail(lastDetail?.id === id ? lastDetail : { id, title: "" }, actions, { history: false });
 }
 // Doplňková fakta (věk, tvůrci, kde sledovat) z /titles/:id/facts. Jsou volitelná:
 // chyba ani starší API bez endpointu detail nerozbije.

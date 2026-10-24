@@ -43,7 +43,8 @@ import {
   collection,
   resetCatalogCache,
 } from "./catalog.js";
-import { library, detail, save, invalidateDetail } from "./library.js";
+import { library, detail, reopenDetail, save, invalidateDetail } from "./library.js";
+import { detailTitleId, withoutDetail, pageKey, detailDepth } from "./detail-route.js";
 import { editProfile } from "./profiles.js";
 import { providerSettings, stop as stopPlayback } from "./player.js";
 import { friends } from "./friends.js";
@@ -80,6 +81,11 @@ const content = document.querySelector("#content"),
   dialog = document.querySelector("#dialog");
 let session = null,
   controller = null,
+  pageTitle = document.title,
+  // Zavření detailu vrací historii o přidané detaily (Zavřít = jeden krok zpět).
+  closingDetailTo = null,
+  // Fokus po navigaci přesouváme jen po akci uživatele, ne při startu.
+  userNavigation = false,
   renderRevision = 0,
   feedbackRefreshRevision = 0,
   profileShortcuts = null,
@@ -112,13 +118,60 @@ dialog.querySelector(".dialog-close").append(icon("close"));
 dialog
   .querySelector(".dialog-close")
   .addEventListener("click", () => dialog.close());
+// Programové zavření při změně stránky nebo relace: bez návratu na detail.
+function closeDialog() {
+  delete dialog.dataset.detailTitle;
+  dialog.close();
+}
+// Zavření detailu vrátí adresu na stránku pod ním (stejně jako Zpět).
+function leaveDetailHistory() {
+  document.title = pageTitle;
+  if (detailTitleId(location.hash) === null) return;
+  const depth = detailDepth(window.history.state);
+  if (depth > 0) {
+    closingDetailTo = pageKey(location.hash);
+    window.history.go(-depth);
+  } else window.history.replaceState(window.history.state, "", withoutDetail(location.hash));
+}
 dialog.addEventListener("close", () => {
   // A close event may arrive after a follow-up dialog was already opened.
-  if (!dialog.open) {
-    invalidateDetail();
-    stopPlayback();
-  }
+  if (dialog.open) return;
+  invalidateDetail();
+  stopPlayback();
+  const flow = Number(dialog.dataset.detailTitle) || null;
+  delete dialog.dataset.detailTitle;
+  if (!flow || flow !== detailTitleId(location.hash) || !session?.profile) return;
+  // Výběr zdroje, přehrávač, hodnocení nebo osoba jsou kroky nad detailem:
+  // jejich zavření vrátí na detail, zavření detailu vrátí stránku.
+  if (!dialog.querySelector("#dialog-content > .detail-sheet:not(.person-sheet)")) void reopenDetail(flow, actions);
+  else leaveDetailHistory();
 });
+// Klepnutí na pozadí zavře dialog jako Esc (respektuje zákaz zavření v `cancel`).
+let backdropPress = false;
+const onBackdrop = (event) => {
+  if (event.target !== dialog) return false;
+  const box = dialog.getBoundingClientRect();
+  return event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+};
+dialog.addEventListener("pointerdown", (event) => { backdropPress = onBackdrop(event); });
+dialog.addEventListener("click", (event) => {
+  const outside = backdropPress && onBackdrop(event);
+  backdropPress = false;
+  if (!outside || !dialog.open) return;
+  const cancel = new Event("cancel", { cancelable: true });
+  if (dialog.dispatchEvent(cancel)) dialog.close();
+});
+// Detail podle adresy: Zpět/Vpřed a sdílené odkazy (#stránka?title=ID).
+function syncDetail() {
+  if (!session?.profile) return;
+  const id = detailTitleId(location.hash), shown = dialog.open ? Number(dialog.dataset.detailTitle) || null : null;
+  if (id === null) {
+    if (shown !== null) closeDialog();
+    document.title = pageTitle;
+    return;
+  }
+  if (shown !== id) void detail({ id, title: "" }, actions, { history: false });
+}
 function chrome() {
   void offlineNavigation.refresh();
   setFeedbackAccount(session?.account);
@@ -165,7 +218,8 @@ function login(message = "") {
   document.body.dataset.route = "login";
   chrome();
   controller?.abort();
-  dialog.close();
+  closeDialog();
+  document.title = pageTitle = `Movly — ${translateUI("Přihlášení")}`;
   const username = el("input", {
     type: "text",
     name: "username",
@@ -289,7 +343,8 @@ async function profiles() {
   controller?.abort();
   renderRevision++;
   invalidateDetail();
-  dialog.close();
+  closeDialog();
+  document.title = pageTitle = `Movly — ${translateUI("Kdo se dívá?")}`;
   document.querySelector("#account-menu").hidden = true;
   content.replaceChildren(loading());
   try {
@@ -409,7 +464,7 @@ function chooseProfile(profile) {
           inboxItems = null;
           inboxRequested = false;
           await synchronizeOfflineContext();
-          dialog.close();
+          closeDialog();
           chrome();
           await render();
         } catch (err) {
@@ -462,17 +517,34 @@ function markNavigation(route) {
     else link.removeAttribute("aria-current");
   });
 }
+// Popis prvku s fokusem, aby ho šlo po překreslení stránky (např. změna filtru) najít znovu.
+function focusKey(node) {
+  if (!node || node === content || !content.contains(node)) return null;
+  if (node.id) return `#${CSS.escape(node.id)}`;
+  const name = node.getAttribute("name");
+  if (!name) return null;
+  const value = node.type === "checkbox" || node.type === "radio" ? `[value="${CSS.escape(node.value)}"]` : "";
+  return `${node.tagName.toLowerCase()}[name="${CSS.escape(name)}"]${value}`;
+}
+// Po navigaci (WEB-N07/N08): stejný ovládací prvek na téže stránce, pole hledání
+// na Hledání, jinak nadpis stránky — čtečka ohlásí novou stránku.
+function focusPage(route, key) {
+  const target = (key && content.querySelector(key)) || (route === "search" && content.querySelector("#search-q")) || content.querySelector("h1");
+  if (!target) return content.focus({ preventScroll: true });
+  if (target.matches("h1")) target.tabIndex = -1;
+  target.focus({ preventScroll: true });
+}
 async function render() {
   if (location.hash === "#offline") {
     document.body.dataset.route = "offline";
     markNavigation("offline");
-    document.title = "Movly — " + translateUI("Offline knihovna");
+    document.title = pageTitle = "Movly — " + translateUI("Offline knihovna");
     document.querySelector("#account-menu").hidden = true;
     document
       .querySelector("#account-button")
       .setAttribute("aria-expanded", "false");
     controller?.abort();
-    dialog.close();
+    closeDialog();
     await offlineLibrary(content, () => {
       location.hash = "#home";
       if (!navigator.onLine)
@@ -490,10 +562,15 @@ async function render() {
   controller = new AbortController();
   const { signal } = controller;
   const revision = ++renderRevision;
-  dialog.close();
+  const restoreFocus = focusKey(document.activeElement), previousRoute = document.body.dataset.route;
+  const moveFocus = userNavigation;
+  userNavigation = false;
+  // Stránka pod případným detailem (#…&title=ID); detail otevře syncDetail() po vykreslení.
+  const page = pageKey(location.hash);
+  closeDialog();
   invalidateDetail();
   chrome();
-  const [routeRaw, query = ""] = (location.hash.slice(1) || "home").split("?"),
+  const [routeRaw, query = ""] = page.slice(1).split("?"),
     route = [
       "home",
       "movies",
@@ -514,7 +591,7 @@ async function render() {
     params = new URLSearchParams(query);
   document.body.dataset.route = route;
   markNavigation(route);
-  document.title = `Movly — ${{ home: translateUI("Domů"), movies: translateUI("Filmy"), series: translateUI("Seriály"), lists: translateUI("Moje seznamy"), search: translateUI("Hledání"), collection: translateUI("Katalog"), history: translateUI("Historie sledování"), friends: translateUI("Přátelé"), stats: translateUI("Statistiky"), admin: params.get("view") === "client-quality" ? translateUI("Události klientů") : translateUI("Nahlášení"), premium: translateUI("Premium"), hidden: translateUI("Skryté tituly"), feedback: translateUI("Vylepšit Movly") }[route]}`;
+  document.title = pageTitle = `Movly — ${{ home: translateUI("Domů"), movies: translateUI("Filmy"), series: translateUI("Seriály"), lists: translateUI("Moje seznamy"), search: translateUI("Hledání"), collection: translateUI("Katalog"), history: translateUI("Historie sledování"), friends: translateUI("Přátelé"), stats: translateUI("Statistiky"), admin: params.get("view") === "client-quality" ? translateUI("Události klientů") : translateUI("Nahlášení"), premium: translateUI("Premium"), hidden: translateUI("Skryté tituly"), feedback: translateUI("Vylepšit Movly") }[route]}`;
   // Bez Premium je Vylepšit Movly informační stav. chrome() už v tomto renderu ohlásil
   // odebrání přístupu a zrušil jeho signál, takže loader by jinak zůstal viset.
   if (route === "feedback" && !feedbackAllowed()) {
@@ -547,6 +624,8 @@ async function render() {
     if (signal.aborted || revision !== renderRevision) return;
     content.replaceChildren(result);
     window.scrollTo(0, 0);
+    if (moveFocus) focusPage(route, previousRoute === route ? restoreFocus : null);
+    syncDetail();
   } catch (e) {
     if (signal.aborted || revision !== renderRevision) return;
     if (e.status === 401) {
@@ -707,6 +786,10 @@ document.querySelector("#account-menu").addEventListener("click", (e) => {
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".header-popover")) closePanels();
 });
+// Rozbalovací panel (vzor disclosure, WEB-N06) se zavře, když z něj odejde fokus klávesnice.
+document.addEventListener("focusin", (e) => {
+  if (!e.target.closest?.(".header-popover")) closePanels();
+});
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && document.querySelector(".header-panel:not([hidden])")) {
     const open = panels.find(([, panel]) => !document.querySelector(panel).hidden);
@@ -738,8 +821,28 @@ document.querySelector("#logout").addEventListener("click", async (e) => {
     e.target.disabled = false;
   }
 });
-window.addEventListener("hashchange", () => {
-  if (session || location.hash === "#offline") render();
+window.addEventListener("hashchange", (event) => {
+  if (!session && location.hash !== "#offline") return;
+  const page = pageKey(location.hash);
+  let previous = null;
+  try {
+    previous = pageKey(new URL(event.oldURL).hash);
+  } catch {}
+  if (closingDetailTo !== null) {
+    // Deep link mohl začít s detailem; po zavření zůstane jen stránka.
+    if (closingDetailTo === page && detailTitleId(location.hash) !== null)
+      window.history.replaceState(window.history.state, "", withoutDetail(location.hash));
+    closingDetailTo = null;
+  }
+  // Změnil se jen parametr detailu (Zpět/Vpřed, zavření): stránka zůstává.
+  // Porovnává se s předchozí adresou, ne s vykreslenou, protože stránky jako
+  // Vylepšit Movly mění hash přes replaceState.
+  if (page === previous && session?.profile) {
+    syncDetail();
+    return;
+  }
+  userNavigation = true;
+  render();
 });
 // Po nákupu Premium obnoví mince a datum v hlavičce.
 window.addEventListener("movly-premium-changed", async () => {
@@ -791,7 +894,7 @@ window.addEventListener("focus", async () => {
   const attempt = ++feedbackRefreshRevision;
   const current = () => attempt === feedbackRefreshRevision && session?.account?.id === owner && location.hash === hash && renderRevision === revision;
   setFeedbackAccount(null);
-  if (dialog.open) dialog.close();
+  if (dialog.open) closeDialog();
   content.replaceChildren(loading());
   try {
     const fresh = await api("session");
@@ -810,6 +913,6 @@ window.addEventListener("focus", async () => {
 window.addEventListener("movly-feedback-revoked", () => {
   if (!location.hash.startsWith("#feedback")) return;
   controller?.abort();
-  if (dialog.open) dialog.close();
+  if (dialog.open) closeDialog();
   content.replaceChildren(el("div", { class: "page" }, premiumGate(translateUI("Vylepšit Movly"))));
 });

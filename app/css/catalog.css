@@ -78,6 +78,11 @@
 .search-box:focus-within {
   border-color: var(--accent);
 }
+/* Pole uvnitř rámečku nemá vlastní obrys; fokus z klávesnice ukáže celý rámeček (WEB-N29). */
+.search-box:has(input:focus-visible) {
+  outline: 3px solid var(--accent-soft);
+  outline-offset: 2px;
+}
 .search-box > svg {
   flex: none;
   width: 24px;

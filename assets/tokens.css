@@ -2,6 +2,8 @@
    zařízení). Hodnoty = app/styles.css :root a docs/DESIGN.md §2/§10 hlavního
    repozitáře; shodu hlídá design-consistency.test.js. */
 :root {
+  /* Tmavé systémové posuvníky a formulářové prvky (aplikace je jen tmavá). */
+  color-scheme: dark;
   --bg-base: #0a0a12;
   --bg-surface: #14141f;
   --bg-raised: #1c1c2a;

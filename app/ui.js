@@ -1,6 +1,7 @@
 import { translateUI, uiLanguage } from "./i18n.js";
 import { formatRating, qualityLabel, genreName } from "./format.js";
 import { imageURL } from "./api.js";
+import { detailHref } from "./detail-route.js";
 import {
   applyUserState,
   isWatched,
@@ -169,12 +170,23 @@ export function poster(raw, onClick, extra) {
     badges.append(el("span", {}, "CZ"));
   if (badges.childNodes.length) frame.append(badges);
   renderCardState(frame, isWatched(t), progressPercent(t));
+  // Karta titulu je odkaz na detail (WEB-N01): jde otevřít v nové kartě, zkopírovat
+  // a prostřední tlačítko myši funguje. Běžné kliknutí otevře detail bez načtení stránky.
+  const linkable = Number.isSafeInteger(t.id) && t.id > 0 && !t.unresolved;
   return el(
     "article",
     { class: "poster-card", "data-title-id": String(t.id) },
     el(
-      "button",
-      { class: "poster-button", onClick: () => onClick(t) },
+      linkable ? "a" : "button",
+      {
+        class: "poster-button",
+        ...(linkable ? { href: detailHref(t.id) } : { type: "button" }),
+        onClick: (event) => {
+          if (linkable && (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) return;
+          event.preventDefault();
+          onClick(t);
+        },
+      },
       frame,
       el("span", { class: "poster-title" }, t.title),
       el(
@@ -302,6 +314,16 @@ export function showDialog(content, { closable = true } = {}) {
   const dialog = document.querySelector("#dialog");
   document.querySelector("#dialog-content").replaceChildren(content);
   dialog.querySelector(".dialog-close").hidden = !closable;
+  // Dialog bez nadpisu #dialog-title (např. náhled screenshotu) dostane název
+  // z obrázku, jinak by aria-labelledby ukazovalo na neexistující prvek.
+  if (content.querySelector?.("#dialog-title") || content.id === "dialog-title") {
+    dialog.setAttribute("aria-labelledby", "dialog-title");
+    dialog.removeAttribute("aria-label");
+  } else {
+    dialog.removeAttribute("aria-labelledby");
+    const heading = content.querySelector?.("h1, h2"), image = content.querySelector?.("img[alt]");
+    dialog.setAttribute("aria-label", heading?.textContent.trim() || image?.alt || "Movly");
+  }
   dialog.oncancel = (e) => {
     if (!closable) e.preventDefault();
   };
