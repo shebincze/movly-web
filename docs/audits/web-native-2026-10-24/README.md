@@ -82,17 +82,26 @@ Brand patří jen do obsahu. Záložka Žánry je záměrně skrytá, takže to 
 | WEB-N21 | `privacy.html:83-138`, `delete-account.html:83-139`, `index.html` | Stránky dokumentů a úvodní stránka nemají `<main>` a úvodní stránka nemá odkaz na přeskočení obsahu (EN verze také). | `<main id="obsah">` a skip link. | Opraveno #225 |
 | WEB-N22 | `app/styles.css:1849-1870` | Na 360–390 px se hlavička zalomí do tří řádků (značka, akce, navigace) a zabere ~150 px. | Do 600 px se zobrazí jen znak a název nese `aria-label`. Značka a akce se vejdou do jednoho řádku. | Opraveno #225 |
 | WEB-N23 | `index.html:415-416, 926-928` | Přepínač náhledů nehlásí vybraný stav. Přihlášení odesílá ručním hlídáním Enter. | `aria-pressed`, odeslání formuláře nativně. | Opraveno #225 |
-| WEB-N24 | `app/styles.css:62` | `:root { font-size: 16px }` ignoruje uživatelskou velikost písma prohlížeče (zoom funguje). | `100 %` a kontrola rozvržení. | Otevřeno #226 |
-| WEB-N25 | `app/styles.css:678` | Řady plakátů nemají pro myš bez vodorovného kolečka tlačítka stránkování (Netflix a Disney+ je mají na hover). | Šipky jen pro `pointer: fine`, mimo pořadí Tab. | Otevřeno #226 |
-| WEB-N26 | `app/catalog.js:37-84` | Karusel nemá `aria-roledescription` ani ohlášení změny snímku. | Vzor APG Carousel. | Otevřeno #226 |
-| WEB-N27 | `index.html:84`, `en/index.html:84` | Úvodní stránka pod 900 px skryje navigaci a nic ji nenahradí. | `<details>` nabídka nebo kotvy. | Otevřeno #226 |
-| WEB-N28 | `index.html:196, 230, 704-707` | Běžící pás plakátů se zastaví jen hoverem nebo s `prefers-reduced-motion` (WCAG 2.2.2). | Tlačítko Pozastavit. | Otevřeno #226 |
+| WEB-N24 | `app/styles.css:62` | `:root { font-size: 16px }` ignoruje uživatelskou velikost písma prohlížeče (zoom funguje). | `100 %` a kontrola rozvržení. | Opraveno #226 |
+| WEB-N25 | `app/styles.css:678` | Řady plakátů nemají pro myš bez vodorovného kolečka tlačítka stránkování (Netflix a Disney+ je mají na hover). | Šipky jen pro `pointer: fine`, mimo pořadí Tab. | Opraveno #226 |
+| WEB-N26 | `app/catalog.js:37-84` | Karusel nemá `aria-roledescription` ani ohlášení změny snímku. | Vzor APG Carousel. | Opraveno #226 |
+| WEB-N27 | `index.html:84`, `en/index.html:84` | Úvodní stránka pod 900 px skryje navigaci a nic ji nenahradí. | `<details>` nabídka nebo kotvy. | Opraveno #226 |
+| WEB-N28 | `index.html:196, 230, 704-707` | Běžící pás plakátů se zastaví jen hoverem nebo s `prefers-reduced-motion` (WCAG 2.2.2). | Tlačítko Pozastavit. | Opraveno #226 |
 | WEB-N29 | `app/css/catalog.css:78-80` | Fokus pole hledání ukáže jen změnu barvy 1px rámečku. | Obrys rámečku při `:focus-visible` pole. | Opraveno #225 |
-| WEB-N30 | `server.js:2038-2040` | Kořenové stránky nemají CSP (aplikace `/app` ji má). Po převodu na statické HTML ji jde doplnit. | CSP se `script-src 'self'` po přesunu inline skriptů. | Otevřeno #226 |
+| WEB-N30 | `server.js:2038-2040` | Kořenové stránky nemají CSP (aplikace `/app` ji má). Po převodu na statické HTML ji jde doplnit. | CSP se `script-src 'self'` po přesunu inline skriptů. | Opraveno #226 |
 
 ## Zbytek po #223 / #224
 
-PR #224 uzavřel #223 a výslovně ponechal P3 nálezy WEB-16, 17, 25, 30, 32 a 35 z `docs/audits/design-consistency-2026-10-22/web.md` hlavního repozitáře. Žádné issue je nesledovalo. Teď jsou s kritérii v #226.
+PR #224 uzavřel #223 a výslovně ponechal P3 nálezy WEB-16, 17, 25, 30, 32 a 35 z `docs/audits/design-consistency-2026-10-22/web.md` hlavního repozitáře. Žádné issue je nesledovalo, proto se přidaly do #226 a tam jsou opravené:
+
+| ID | Oprava v #226 |
+| --- | --- |
+| WEB-16 | Radiusy podle rolí DESIGN §4: `--radius-s/m/l/xl` = 10/14/20/28. PosterCard má `m`. Literály v CSS aplikace i v `activate.css` nahradily tokeny. Zůstaly jen drobné proužky 1–4 px, `0` a kruh. |
+| WEB-17 | Typografická škála DESIGN §3 jako tokeny (`--font-display`, `--font-title1`, `--font-title2`, `--font-headline`, `--font-caption`, `--font-micro`) v `rem`. H1 všech stránek používají `display`, H2 všech dialogů `title2`. Hero a titul detailu mají jeden společný `--font-hero`. |
+| WEB-25 | Souhrn použitých kritérií vykresluje štítky `.criteria-tag` ve skupině „Použitá kritéria“. Nepoužívá vybraný styl chipu. |
+| WEB-30 | Oranžovou a `#1a1024` odstranil už PR #224. Záložní gradient hero teď míchá jen `var(--pink)` a `var(--accent)`. |
+| WEB-32 | `activate.css` nemá vlastní tokeny ani hex literály. Chybějící odvozené tóny a radiusy přibyly do sdíleného `assets/tokens.css` se stejnými hodnotami jako aplikace. |
+| WEB-35 | Moderace, Start přehrávání a Události klientů jdou přes `translateUI` se SK/EN klíči. Štítek „auto“ je teď „Automaticky“. |
 
 Při ověření jsem neviděl regresi tohoto PR:
 
@@ -104,6 +113,6 @@ Při ověření jsem neviděl regresi tohoto PR:
 
 ## Ověření oprav
 
-Přesné příkazy a výsledky jsou v [`docs/qa/web-native-2026-10-24/README.md`](../../qa/web-native-2026-10-24/README.md).
+Přesné příkazy a výsledky jsou v [`docs/qa/web-native-2026-10-24/README.md`](../../qa/web-native-2026-10-24/README.md) (#225) a v [`docs/qa/web-native-p3-2026-10-24/README.md`](../../qa/web-native-p3-2026-10-24/README.md) (#226).
 
 Ruční akceptaci v Safari, Firefoxu, na telefonech a se skutečným účtem sleduje #227.

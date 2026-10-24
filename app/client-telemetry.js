@@ -1,5 +1,6 @@
 import { api } from "./api.js";
 import { el } from "./ui.js";
+import { translateUI as t } from "./i18n.js";
 const apps = [["movly-web","Web"],["movly-ios","iOS"],["movly-macos","macOS"],["movly-tvos","Apple TV"],["movly-android","Android a Android TV"],["movly-windows","Windows"]];
 const events = {unexpected_termination:"Nečisté ukončení předchozího procesu",detail_load:"Načtení detailu",detail_background_refresh:"Obnovení detailu",stream_resolve:"Příprava zdroje",fatal_startup:"Fatální chyba při spuštění",fatal_ui:"Fatální chyba rozhraní",fatal_managed:"Fatální chyba spravovaného běhu",source_switch:"Změna zdroje",first_frame:"První snímek",media_opened:"Otevření média",playing:"Přehrávání",buffering:"Načítání do vyrovnávací paměti",tracks_available:"Dostupné stopy"};
 const outcomes = {success:"Úspěch",failure:"Chyba",timeout:"Vypršel čas",missing:"Chybí",cancelled:"Zrušeno"};
@@ -8,38 +9,38 @@ export async function clientTelemetry(params, signal) {
   const today = new Date().toISOString().slice(0,10);
   const minimum = new Date(Date.parse(today) - 89*86400000).toISOString().slice(0,10);
   const day = params.get("day") || today;
-  const page = el("div", {class:"page admin-page"}, el("h1", {}, "Události klientů"), el("a", {href:"#admin",class:"button secondary"}, "Zpět na nahlášení"));
+  const page = el("div", {class:"page admin-page"}, el("h1", {}, t("Události klientů")), el("a", {href:"#admin",class:"button secondary"}, t("Zpět na nahlášení")));
   const navigate = (application, date) => { location.hash = `#admin?${new URLSearchParams({view:"client-quality",client_app:application,day:date})}`; };
-  page.append(el("label", {}, "Aplikace", el("select", {"aria-label":"Aplikace",onChange:e=>navigate(e.target.value,day)}, apps.map(([id,label])=>el("option",{value:id,selected:id===app},label)))),
-    el("label", {}, "Den (UTC)", el("input",{type:"date",value:day,min:minimum,max:today,"aria-label":"Den (UTC)",onChange:e=>{if(e.target.value) navigate(app,e.target.value);}})),
-    el("p", {}, "Uložené součty událostí za jeden den UTC, uchované nejvýše 90 dnů. Nejde o počet unikátních uživatelů ani míru pádů nebo úspěšnost pokusů. U starších událostí může opakované odeslání zvýšit počet; sběr a vzorkování se mezi klienty liší. Android a Android TV sdílejí jeden údaj. Surové chybové zprávy, cesty ani osobní údaje se neukládají. Omezené diagnostické záznamy Windows mohou obsahovat typ chyby a číselnou verzi aplikace."));
-  if (app === "movly-windows") page.append(el("p", {}, "Nečisté ukončení předchozího procesu znamená, že se předchozí běh řádně neukončil. Tato událost nerozlišuje pád aplikace, vynucené ukončení procesu ani restart systému."));
+  page.append(el("label", {}, t("Aplikace"), el("select", {"aria-label":t("Aplikace"),onChange:e=>navigate(e.target.value,day)}, apps.map(([id,label])=>el("option",{value:id,selected:id===app},t(label))))),
+    el("label", {}, t("Den (UTC)"), el("input",{type:"date",value:day,min:minimum,max:today,"aria-label":t("Den (UTC)"),onChange:e=>{if(e.target.value) navigate(app,e.target.value);}})),
+    el("p", {}, t("Uložené součty událostí za jeden den UTC, uchované nejvýše 90 dnů. Nejde o počet unikátních uživatelů ani míru pádů nebo úspěšnost pokusů. U starších událostí může opakované odeslání zvýšit počet; sběr a vzorkování se mezi klienty liší. Android a Android TV sdílejí jeden údaj. Surové chybové zprávy, cesty ani osobní údaje se neukládají. Omezené diagnostické záznamy Windows mohou obsahovat typ chyby a číselnou verzi aplikace.")));
+  if (app === "movly-windows") page.append(el("p", {}, t("Nečisté ukončení předchozího procesu znamená, že se předchozí běh řádně neukončil. Tato událost nerozlišuje pád aplikace, vynucené ukončení procesu ani restart systému.")));
   let data;
   try { data = await api(`admin/telemetry/client?${new URLSearchParams({client_app:app,day})}`,{signal}); }
   catch(error) {
     if(signal?.aborted) throw error;
-    if([404,405].includes(error.status)) page.append(el("p",{role:"status"},"Tento server přehled událostí klientů zatím nepodporuje."));
-    else if(error.status===400) page.append(el("p",{role:"alert"},"Vyber platný den v posledních 90 dnech UTC."));
+    if([404,405].includes(error.status)) page.append(el("p",{role:"status"},t("Tento server přehled událostí klientů zatím nepodporuje.")));
+    else if(error.status===400) page.append(el("p",{role:"alert"},t("Vyber platný den v posledních 90 dnech UTC.")));
     else if([401,403].includes(error.status)) throw error;
-    else page.append(el("p",{role:"alert"},"Přehled teď není dostupný. Zkus ho načíst znovu."));
+    else page.append(el("p",{role:"alert"},t("Přehled teď není dostupný. Zkus ho načíst znovu.")));
     return page;
   }
-  if(!data || !Array.isArray(data.rows) || data.rows.length>600 || data.client_app!==app || data.day!==day) throw new Error("Server vrátil neplatný přehled událostí.");
-  if(!data.rows.length) page.append(el("p",{role:"status"},"Pro tuto aplikaci a den nejsou uložené události."));
+  if(!data || !Array.isArray(data.rows) || data.rows.length>600 || data.client_app!==app || data.day!==day) throw new Error(t("Server vrátil neplatný přehled událostí."));
+  if(!data.rows.length) page.append(el("p",{role:"status"},t("Pro tuto aplikaci a den nejsou uložené události.")));
   else page.append(el("div",{class:"playback-quality-table"},el("table",{class:"data-table"},
-    el("caption",{},`${apps.find(([id])=>id===app)[1]} · ${day} UTC`),
-    el("thead",{},el("tr",{},["Událost","Výsledek","Provider","Počet","Měřených trvání","Průměr trvání"].map(text=>el("th",{scope:"col"},text)))),
-    el("tbody",{},data.rows.map(row=>el("tr",{},[`${events[row.event] || row.event} (${row.event})`,outcomes[row.outcome] || row.outcome,row.provider,row.count,row.duration_count,row.duration_count>0?`${Math.round(row.duration_ms_total/row.duration_count)} ms`:"—"].map(value=>el("td",{},String(value)))))))));
+    el("caption",{},`${t(apps.find(([id])=>id===app)[1])} · ${day} UTC`),
+    el("thead",{},el("tr",{},[t("Událost"),t("Výsledek"),t("Provider"),t("Počet"),t("Měřených trvání"),t("Průměr trvání")].map(text=>el("th",{scope:"col"},text)))),
+    el("tbody",{},data.rows.map(row=>el("tr",{},[`${events[row.event] ? t(events[row.event]) : row.event} (${row.event})`,outcomes[row.outcome] ? t(outcomes[row.outcome]) : row.outcome,row.provider,row.count,row.duration_count,row.duration_count>0?`${Math.round(row.duration_ms_total/row.duration_count)} ms`:"—"].map(value=>el("td",{},String(value)))))))));
   if (app === "movly-windows" && data.diagnostics !== undefined) {
     const kinds = {memory:"Paměť",access_violation:"Přístup do paměti",null_reference:"Prázdný odkaz",io:"Vstup a výstup",permission:"Oprávnění",other:"Jiná nebo neurčená"};
     const fatal = ["fatal_startup","fatal_ui","fatal_managed","unexpected_termination"];
     const timestamp = value => typeof value === "string" && value.length <= 35 && /^\d{4}-\d\d-\d\dT/.test(value) && Number.isFinite(Date.parse(value));
-    if (!Array.isArray(data.diagnostics) || data.diagnostics.length > 100 || data.diagnostics.some(row => !row || !/^[0-9a-f]{32}$/.test(row.event_id) || !fatal.includes(row.event) || !Object.prototype.hasOwnProperty.call(kinds,row.kind) || !/^[0-9]{1,5}(\.[0-9]{1,5}){3}$/.test(row.client_version) || !timestamp(row.occurred_at) || !timestamp(row.received_at) || (row.event === "unexpected_termination" && row.kind !== "other"))) throw new Error("Server vrátil neplatnou diagnostiku.");
-    if (data.diagnostics.length) page.append(el("h2",{},"Diagnostické záznamy Windows"),
-      el("p",{},"Nejvýše 100 nejnovějších záznamů přijatých ve vybraném dni UTC, uchovaných 90 dnů. Opakované doručení stejné události se započítá jednou. Čas události se může lišit od času přijetí kvůli pozdějšímu odeslání."),
-      el("div",{class:"playback-quality-table"},el("table",{class:"data-table"},el("caption",{},"Typ chyby a verze aplikace"),
-        el("thead",{},el("tr",{},["Čas události (UTC)","Přijato (UTC)","Událost","Typ chyby","Verze aplikace"].map(text=>el("th",{scope:"col"},text)))),
-        el("tbody",{},data.diagnostics.map(row=>el("tr",{},[row.occurred_at,row.received_at,events[row.event],kinds[row.kind],row.client_version].map(value=>el("td",{},String(value)))))))));
+    if (!Array.isArray(data.diagnostics) || data.diagnostics.length > 100 || data.diagnostics.some(row => !row || !/^[0-9a-f]{32}$/.test(row.event_id) || !fatal.includes(row.event) || !Object.prototype.hasOwnProperty.call(kinds,row.kind) || !/^[0-9]{1,5}(\.[0-9]{1,5}){3}$/.test(row.client_version) || !timestamp(row.occurred_at) || !timestamp(row.received_at) || (row.event === "unexpected_termination" && row.kind !== "other"))) throw new Error(t("Server vrátil neplatnou diagnostiku."));
+    if (data.diagnostics.length) page.append(el("h2",{},t("Diagnostické záznamy Windows")),
+      el("p",{},t("Nejvýše 100 nejnovějších záznamů přijatých ve vybraném dni UTC, uchovaných 90 dnů. Opakované doručení stejné události se započítá jednou. Čas události se může lišit od času přijetí kvůli pozdějšímu odeslání.")),
+      el("div",{class:"playback-quality-table"},el("table",{class:"data-table"},el("caption",{},t("Typ chyby a verze aplikace")),
+        el("thead",{},el("tr",{},[t("Čas události (UTC)"),t("Přijato (UTC)"),t("Událost"),t("Typ chyby"),t("Verze aplikace")].map(text=>el("th",{scope:"col"},text)))),
+        el("tbody",{},data.diagnostics.map(row=>el("tr",{},[row.occurred_at,row.received_at,t(events[row.event]),t(kinds[row.kind]),row.client_version].map(value=>el("td",{},String(value)))))))));
   }
   return page;
 }

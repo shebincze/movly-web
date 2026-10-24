@@ -126,7 +126,7 @@ test("WEB-N03/N12/N13/N21: kořenové stránky jsou statické HTML bez React/Bab
   assert.match(landing, /<label for="mvUser"/);
   assert.match(landing, /<label for="mvPass"/);
   assert.match(landing, /<button[^>]* id="mvLoginBtn" type="submit"/);
-  assert.match(landing, /getElementById\('mvLoginForm'\)\?\.addEventListener\('submit'/);
+  assert.match(read("landing.js"), /getElementById\('mvLoginForm'\)\?\.addEventListener\('submit'/, "logika úvodu je v /landing.js (CSP, WEB-N30)");
   assert.match(landing, /<a class="mv-skip" href="#obsah">/);
   assert.doesNotMatch(landing, /background:linear-gradient\(135deg,#8B5CF6,#EC4899\);[^"]*color:#fff/, "bílý text jen na control gradientu");
   assert.doesNotMatch(landing, /color:#6C6C7E/, "text s kontrastem 3,8:1");

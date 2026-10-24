@@ -1,0 +1,219 @@
+{
+  "root": "fix/web-native-p3-226",
+  "passed": 32,
+  "failed": 0,
+  "results": [
+    {
+      "name": "WEB-N02 odkaz Hledat má název i v kompaktní hlavičce (1024 px)",
+      "ok": true
+    },
+    {
+      "name": "WEB-N06 panel účtu je disclosure a zavře se po odchodu fokusu",
+      "ok": true
+    },
+    {
+      "name": "WEB-N01 karta je odkaz s adresou detailu",
+      "ok": true,
+      "detail": "#movies?title=2"
+    },
+    {
+      "name": "WEB-N01/N04 otevření detailu zapíše adresu, titulek a zamkne scroll stránky",
+      "ok": true
+    },
+    {
+      "name": "WEB-N01 Zpět v prohlížeči zavře detail a vrátí fokus na kartu",
+      "ok": true
+    },
+    {
+      "name": "WEB-N01 Vpřed detail znovu otevře",
+      "ok": true
+    },
+    {
+      "name": "WEB-N14 zavření výběru zdroje i osoby vrátí na detail, zavření detailu na stránku",
+      "ok": true
+    },
+    {
+      "name": "WEB-N01 sdílený odkaz otevře detail nad stránkou",
+      "ok": true
+    },
+    {
+      "name": "WEB-N05 klepnutí na pozadí zavře dialog",
+      "ok": true
+    },
+    {
+      "name": "WEB-N07 po navigaci je fokus na nadpisu nové stránky",
+      "ok": true
+    },
+    {
+      "name": "WEB-N08 Hledat přesune fokus do pole hledání",
+      "ok": true
+    },
+    {
+      "name": "WEB-N09 obě pole rozsahu mají vlastní název ve skupině",
+      "ok": true
+    },
+    {
+      "name": "WEB-N10 tečky karuselu mají cíl ≥ 24 px bez překryvu",
+      "ok": true,
+      "detail": {
+        "width": 24,
+        "height": 44,
+        "spacing": 12,
+        "gap": 12,
+        "overhang": 6,
+        "role": "group"
+      }
+    },
+    {
+      "name": "prefers-reduced-motion vypne přechody",
+      "ok": true
+    },
+    {
+      "name": "bez vodorovného posunu stránky (360 px)",
+      "ok": true
+    },
+    {
+      "name": "bez vodorovného posunu stránky (768 px)",
+      "ok": true
+    },
+    {
+      "name": "bez vodorovného posunu stránky (1920 px)",
+      "ok": true
+    },
+    {
+      "name": "WEB-N04 mobilní detail neposouvá stránku pod sebou (360 px)",
+      "ok": true
+    },
+    {
+      "name": "WEB-N26 karusel je region s pořadím snímku a změnu ohlásí",
+      "ok": true,
+      "detail": {
+        "before": "1 z 4",
+        "after": "2 z 4"
+      }
+    },
+    {
+      "name": "WEB-N25 myš posune řadu plakátů tlačítkem, Tab ho přeskočí",
+      "ok": true,
+      "detail": {
+        "start": 0,
+        "moved": 270,
+        "expected": 270,
+        "nextHidden": true,
+        "rails": [
+          {
+            "cards": 3,
+            "overflow": 270
+          },
+          {
+            "cards": 4,
+            "overflow": 106
+          },
+          {
+            "cards": 4,
+            "overflow": 322
+          },
+          {
+            "cards": 3,
+            "overflow": 0
+          },
+          {
+            "cards": 4,
+            "overflow": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "WEB-N25 dotykové zařízení tlačítka stránkování nevidí",
+      "ok": true
+    },
+    {
+      "name": "WEB-N24 písmo prohlížeče 20 px zvětší text a rozvržení nepřeteče (360 i 1280 px)",
+      "ok": true,
+      "detail": {
+        "1280#home": {
+          "root": "20px",
+          "poster": "20px",
+          "overflow": 0
+        },
+        "1280#movies": {
+          "root": "20px",
+          "poster": "20px",
+          "overflow": 0
+        },
+        "360#home": {
+          "root": "20px",
+          "poster": "20px",
+          "overflow": 0
+        },
+        "360#movies": {
+          "root": "20px",
+          "poster": "20px",
+          "overflow": 0
+        }
+      }
+    },
+    {
+      "name": "WEB-N03 úvodní stránka nenačítá skripty z cizích CDN",
+      "ok": true
+    },
+    {
+      "name": "WEB-N03 úvodní stránka funguje i při nedostupném unpkg.com",
+      "ok": true
+    },
+    {
+      "name": "WEB-N03 FAQ je nativní <details> ovladatelné klávesnicí",
+      "ok": true
+    },
+    {
+      "name": "WEB-N13 přihlášení na úvodní stránce má propojené popisky",
+      "ok": true
+    },
+    {
+      "name": "WEB-N12 kořenové stránky mají tmavé systémové schéma",
+      "ok": true
+    },
+    {
+      "name": "WEB-N30 kořenové stránky mají CSP se script-src 'self' a nic neporušují",
+      "ok": true,
+      "detail": {
+        "/": 216,
+        "/privacy.html": 216,
+        "/delete-account.html": 216,
+        "/en/index.html": 216,
+        "/activate": 216,
+        "/devices": 216,
+        "/party/ABCDEF": 216
+      }
+    },
+    {
+      "name": "WEB-N30 přihlášení a instalačky na úvodní stránce (cs i en) fungují pod CSP",
+      "ok": true,
+      "detail": [
+        "login",
+        "downloads",
+        "link",
+        "login",
+        "downloads",
+        "link"
+      ]
+    },
+    {
+      "name": "WEB-N28 tlačítko Pozastavit animace zastaví pásy plakátů a zapamatuje si volbu",
+      "ok": true
+    },
+    {
+      "name": "WEB-N27 úvodní stránka má na telefonu nabídku navigace (cs i en)",
+      "ok": true,
+      "detail": {
+        "/": 0,
+        "/en/index.html": 0
+      }
+    },
+    {
+      "name": "WEB-N03 zásady soukromí a úvodní stránka jsou čitelné bez JavaScriptu",
+      "ok": true
+    }
+  ]
+}

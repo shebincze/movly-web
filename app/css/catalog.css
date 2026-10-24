@@ -20,7 +20,7 @@
 }
 .catalog-page .catalog-heading h1 {
   margin: 0;
-  font-size: clamp(32px, 4vw, 44px);
+  font-size: var(--font-display);
   font-weight: 800;
   line-height: 1.1;
 }
@@ -38,7 +38,7 @@
 .catalog-grid-page .catalog-heading h1,
 .collection-page > h1 {
   margin: 0;
-  font-size: clamp(32px, 4vw, 44px);
+  font-size: var(--font-display);
   font-weight: 800;
   line-height: 1.1;
 }
@@ -70,7 +70,7 @@
   gap: 12px;
   min-height: 64px;
   padding: 0 8px 0 20px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-m);
   background: var(--surface);
   border: 2px solid var(--line-bold);
   transition: border-color 0.15s;
@@ -96,7 +96,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: 20px;
+  font-size: 1.25rem;
 }
 .search-page .search-box input:focus-visible {
   outline: none;
@@ -144,7 +144,7 @@
   padding: 8px 14px;
   border: 0;
   border-bottom: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-s);
   background: transparent;
   color: var(--text);
   text-align: left;
@@ -186,7 +186,7 @@
 }
 .search-history-head h2 {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -216,7 +216,7 @@
   border: 0;
   background: transparent;
   color: var(--text-2);
-  font-size: 15px;
+  font-size: 0.9375rem;
   border-radius: var(--radius-pill);
 }
 .history-term:hover {
@@ -234,7 +234,7 @@
   border-radius: 50%;
   background: var(--surface-3);
   color: var(--text);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 /* Viditelný kruh 28 px, zásahová plocha 44 px. */
 .history-chip .chip-remove::before,
@@ -276,7 +276,7 @@
 }
 .results-heading {
   margin: 0;
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 600;
 }
 .filter-results {
@@ -291,7 +291,7 @@
 .filter-panel.filters-details {
   margin: 0;
   padding: 24px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-l);
   background: var(--surface);
   border: 1px solid var(--line);
 }
@@ -301,7 +301,7 @@
   justify-content: space-between;
   min-height: 44px;
   margin: -8px 0;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 700;
   cursor: pointer;
   list-style: none;
@@ -339,7 +339,7 @@
 .filter-panel .field.range {
   width: 100%;
   min-width: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--muted);
 }
@@ -348,7 +348,7 @@
   width: 100%;
   min-width: 0;
   min-height: 40px;
-  border-radius: 10px;
+  border-radius: var(--radius-s);
   color: var(--text);
 }
 .filter-panel .range-inputs {
@@ -381,7 +381,7 @@
 .filter-group legend {
   margin-bottom: 10px;
   padding: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--muted);
 }
@@ -404,7 +404,7 @@
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
   color: var(--text);
-  font-size: 14px;
+  font-size: 0.875rem;
   cursor: pointer;
 }
 .choice-chip input {
@@ -495,7 +495,7 @@
 .detail-sheet > .detail-loading-title {
   margin: 0;
   padding: 88px var(--gutter) 0;
-  font-size: clamp(32px, 4vw, 48px);
+  font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 800;
 }
 .detail-sheet > .loading,
@@ -549,7 +549,7 @@
   width: 240px;
   aspect-ratio: 2/3;
   object-fit: cover;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-m);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
   background: var(--surface);
 }
@@ -562,7 +562,7 @@
   gap: 16px;
 }
 .detail-kicker {
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -570,7 +570,7 @@
 }
 .detail-hero-copy h2 {
   margin: 0;
-  font-size: clamp(36px, 5vw, 64px);
+  font-size: var(--font-hero);
   font-weight: 800;
   line-height: 1.02;
   overflow-wrap: anywhere;
@@ -581,7 +581,7 @@
   align-items: center;
   gap: 8px 12px;
   color: var(--text-2);
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 .detail-facts > span:not(.detail-ratings) + span:not(.detail-ratings)::before {
   content: "•";
@@ -600,7 +600,7 @@
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .detail-sheet .rating-badge strong {
   color: var(--success);
@@ -618,7 +618,7 @@
 .detail-hero-copy .synopsis {
   margin: 0;
   color: var(--text-2);
-  font-size: 17px;
+  font-size: var(--font-headline);
   line-height: 1.55;
 }
 .detail-progress {
@@ -626,7 +626,7 @@
   flex-direction: column;
   gap: 6px;
   max-width: 420px;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--muted);
 }
 .detail-progress progress {
@@ -656,7 +656,7 @@
 }
 .detail-actions .button.primary {
   padding: 0 28px;
-  font-size: 17px;
+  font-size: var(--font-headline);
 }
 .detail-actions .button.primary svg {
   width: 18px;
@@ -704,7 +704,7 @@
   border-bottom: 2px solid transparent;
   background: none;
   color: var(--muted);
-  font-size: 16px;
+  font-size: 1rem;
 }
 .detail-tabs button:hover {
   color: var(--text);
@@ -719,7 +719,7 @@
 .detail-section > h3,
 .detail-main .rail-section h2 {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--font-title2);
   font-weight: 600;
 }
 .detail-main .rail-section {
@@ -735,13 +735,13 @@
   flex-direction: column;
   gap: 14px;
   padding: 24px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-l);
   background: var(--surface);
   border: 1px solid var(--line);
 }
 .detail-panel h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 700;
 }
 .detail-info {
@@ -749,7 +749,7 @@
   grid-template-columns: minmax(90px, auto) 1fr;
   gap: 8px 16px;
   margin: 0;
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 .detail-info dt {
   color: var(--muted);
@@ -778,7 +778,7 @@
   border: 1px solid var(--line-strong);
   background: var(--bg-surface);
   color: var(--text);
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 .season-pill:not([aria-pressed="true"]):hover {
   border-color: var(--line-bold);
@@ -797,7 +797,7 @@
   align-items: center;
   gap: 16px 20px;
   padding: 12px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-m);
   border: 1px solid transparent;
 }
 .detail-sheet .episode-row:hover {
@@ -816,7 +816,7 @@
   aspect-ratio: 16/9;
   padding: 0;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   overflow: hidden;
   background:
     radial-gradient(110% 80% at 75% 15%, rgba(139, 92, 246, 0.35), transparent 55%),
@@ -840,7 +840,7 @@
   padding: 1px 6px;
   border-radius: var(--radius-xs);
   background: rgba(10, 10, 18, 0.75);
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-weight: 700;
 }
 .episode-play {
@@ -868,12 +868,12 @@
   gap: 4px;
 }
 .episode-copy strong {
-  font-size: 17px;
+  font-size: var(--font-headline);
   font-weight: 600;
 }
 .detail-sheet .episode-copy p {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--muted);
 }
 .detail-sheet .episode-row > .episode-actions {
@@ -909,7 +909,7 @@
   background: none;
   color: var(--text);
   text-align: center;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
 }
 .detail-sheet .cast-person img,
 .detail-sheet .cast-person .person-placeholder {
@@ -922,18 +922,18 @@
 .detail-sheet .person-placeholder {
   display: grid;
   place-items: center;
-  font-size: 30px;
+  font-size: 1.875rem;
   font-weight: 700;
   color: var(--text-2);
 }
 .detail-sheet .cast-person strong {
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 600;
   line-height: 1.2;
 }
 .detail-sheet .cast-person small {
   margin-top: -4px;
-  font-size: 13px;
+  font-size: var(--font-caption);
   color: var(--muted);
 }
 .detail-sheet .cast-person:hover img,
@@ -951,7 +951,7 @@
   padding: 0;
   border: 0;
   background: none;
-  font-size: 15px;
+  font-size: 0.9375rem;
   color: var(--text-2);
 }
 .detail-back svg {
@@ -981,19 +981,19 @@
   width: 100%;
   aspect-ratio: 4/5;
   object-fit: cover;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-l);
   background: var(--surface-2);
 }
 .person-sheet .person-portrait.person-placeholder {
   display: grid;
   place-items: center;
   height: auto;
-  font-size: 72px;
+  font-size: 4.5rem;
   font-weight: 800;
 }
 .person-aside h2 {
   margin: 0;
-  font-size: 36px;
+  font-size: var(--font-title1);
   font-weight: 800;
   line-height: 1.1;
 }
@@ -1003,7 +1003,7 @@
 .person-bio {
   margin: 0;
   color: var(--text-2);
-  font-size: 15px;
+  font-size: 0.9375rem;
   line-height: 1.6;
 }
 .person-filmography {
@@ -1019,7 +1019,7 @@
 }
 .person-filmography h3 {
   margin: 0;
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 700;
 }
 .person-filmography .segmented > button {
@@ -1027,7 +1027,7 @@
 }
 .person-known-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 600;
 }
 .person-known-title[hidden],
@@ -1041,7 +1041,7 @@
 .person-role {
   display: block;
   margin-top: 2px;
-  font-size: 13px;
+  font-size: var(--font-caption);
   color: var(--muted);
 }
 .person-credits {
@@ -1059,12 +1059,12 @@
   gap: 4px 16px;
   padding: 10px 4px;
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .person-credit-year {
   width: 92px;
   color: var(--muted);
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-variant-numeric: tabular-nums;
 }
 .person-credit-title {
@@ -1082,11 +1082,11 @@
   line-height: 1.3;
 }
 .person-credit-title strong {
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 600;
 }
 .person-credit-title span {
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--muted);
 }
 .person-credit-title:hover strong {
@@ -1117,7 +1117,7 @@
   .detail-poster {
     flex-basis: 120px;
     width: 120px;
-    border-radius: var(--radius);
+    border-radius: var(--radius-m);
   }
   .detail-hero-copy {
     flex-basis: 100%;
@@ -1145,7 +1145,7 @@
     padding-left: 14px;
   }
   .search-page .search-box input {
-    font-size: 17px;
+    font-size: var(--font-headline);
     min-height: 48px;
   }
   .search-box .button {
@@ -1177,7 +1177,7 @@
 }
 .watch-providers h4 {
   margin: 14px 0 8px;
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-weight: 600;
   color: var(--muted);
   text-transform: uppercase;
@@ -1197,7 +1197,7 @@
   gap: 10px;
   min-height: 44px;
   padding: 6px 10px 6px 6px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
   background: var(--surface-2);
   color: var(--text);
 }
@@ -1208,7 +1208,7 @@
 .provider-initial {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-s);
   object-fit: cover;
   flex: none;
 }
@@ -1220,7 +1220,7 @@
 }
 .provider-note {
   margin: 12px 0 0;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .season-tools {
   display: flex;
@@ -1233,7 +1233,7 @@
 .episode-meta {
   display: block;
   margin-top: 2px;
-  font-size: 13px;
+  font-size: var(--font-caption);
   color: var(--muted);
 }
 .episode-thumb {

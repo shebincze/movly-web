@@ -37,7 +37,8 @@ import {
 } from "./ui.js";
 function carousel(items, actions) {
   let index = 0;
-  const slide = el("div", {}),
+  // Vzor APG Carousel: region karuselu, snímek „1 z 4“ a zdvořilé ohlášení změny (WEB-N26).
+  const slide = el("div", { class: "home-carousel-slide", "aria-live": "polite" }),
     dots = el("div", {
       class: "hero-dots",
       role: "group",
@@ -53,7 +54,11 @@ function carousel(items, actions) {
   };
   function show(next) {
     index = (next + items.length) % items.length;
-    slide.replaceChildren(hero(items[index], actions.detail, (t) => listButton(t, actions), play));
+    const current = hero(items[index], actions.detail, (t) => listButton(t, actions), play);
+    current.setAttribute("role", "group");
+    current.setAttribute("aria-roledescription", translateUI("snímek"));
+    current.setAttribute("aria-label", translateUI("{0} z {1}", index + 1, items.length));
+    slide.replaceChildren(current);
     const label = items[index].homeHighlight?.label || items[index].homeHeading;
     if (label) slide.querySelector(".hero-content").prepend(el("span", { class: "hero-label" }, label));
     actions.onHero?.(slide.firstElementChild, items[index]);
@@ -74,7 +79,7 @@ function carousel(items, actions) {
   back.classList.add("hero-prev");
   return el(
     "section",
-    { class: "home-carousel" },
+    { class: "home-carousel", "aria-roledescription": translateUI("karusel"), "aria-label": translateUI("Doporučené tituly") },
     slide,
     items.length > 1
       ? el(
@@ -452,6 +457,15 @@ function hasCriteria(d) {
       (d.sort_order && d.sort_order !== (d.sort_by === "title" ? "asc" : "desc")),
   );
 }
+// Souhrn použitých kritérií je jen informace: štítky, ne vybrané chipy (WEB-25).
+function criteriaTags(labels, extra = null) {
+  return el(
+    "div",
+    { class: "filter-chips criteria-tags", role: "group", "aria-label": translateUI("Použitá kritéria") },
+    labels.map((label) => el("span", { class: "criteria-tag" }, label)),
+    extra,
+  );
+}
 function definitionChips(d, genreNames) {
   const chips = [];
   if (d.genre_ids?.length)
@@ -780,11 +794,7 @@ function filterBuilder({
     ...definitionChips(definition, genreNames),
   ];
   const chipsRow = activeChips.length
-    ? el(
-        "div",
-        { class: "filter-chips" },
-        activeChips.map((chip) => el("span", { class: "chip active" }, chip)),
-      )
+    ? criteriaTags(activeChips)
     : null;
   // Moje filtry: uložené na serveru, sledují profil na všech zařízeních.
   let savedRow = null;
@@ -1436,12 +1446,8 @@ export async function search(params, signal, actions) {
         "section",
         { class: "filter-results" },
         el("h2", { class: "results-heading" }, translateUI("Podle filtrů")),
-        el(
-          "div",
-          { class: "filter-chips" },
-          interpretationChips(filtered.parsed).map((c) =>
-            el("span", { class: "chip active" }, c),
-          ),
+        criteriaTags(
+          interpretationChips(filtered.parsed),
           filtered.parsed.text
             ? el(
                 "span",

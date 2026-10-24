@@ -1,5 +1,5 @@
 "use strict";
-// Prohlížečový regresní průchod auditu web-native-2026-10-24 (movly-web #225).
+// Prohlížečový regresní průchod auditu web-native-2026-10-24 (movly-web #225, zbytek P3 #226).
 // Spouští lokální fixture (test-support/app-fixture.cjs, účet test / movly-test)
 // a headless Chromium z playwright-core. Není součástí `npm test`, protože
 // playwright-core není závislost repozitáře.
@@ -236,6 +236,97 @@ const hash = (page) => page.evaluate(() => location.hash);
       await shot(page, "360-detail");
       assert(pageScroll === 0, `stránka pod dialogem se posunula o ${pageScroll}`);
     });
+
+    // #226 – zbytek P3: řady, karusel, písmo prohlížeče.
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`${base}/app/#home`);
+    await page.waitForSelector(".hero-content h1");
+    await check("WEB-N26 karusel je region s pořadím snímku a změnu ohlásí", async () => {
+      const state = () => page.evaluate(() => {
+        const section = document.querySelector(".home-carousel");
+        const slide = section?.querySelector(".home-carousel-slide > *");
+        return { role: section?.getAttribute("aria-roledescription"), label: section?.getAttribute("aria-label"),
+          live: section?.querySelector(".home-carousel-slide")?.getAttribute("aria-live"),
+          slideRole: slide?.getAttribute("role"), slideKind: slide?.getAttribute("aria-roledescription"), position: slide?.getAttribute("aria-label") };
+      });
+      const before = await state();
+      assert(before.role === "karusel" && before.label === "Doporučené tituly", JSON.stringify(before));
+      assert(before.live === "polite" && before.slideRole === "group" && before.slideKind === "snímek", JSON.stringify(before));
+      assert(/^1 z \d+$/.test(before.position || ""), `pořadí ${before.position}`);
+      await page.locator(".hero-controls .button[aria-label='Další']").click();
+      const after = await state();
+      assert(/^2 z \d+$/.test(after.position || ""), `po Další ${after.position}`);
+      return { before: before.position, after: after.position };
+    });
+    await check("WEB-N25 myš posune řadu plakátů tlačítkem, Tab ho přeskočí", async () => {
+      // Fixture má v řadě 3–4 karty, které se na 1280 px vejdou; přetečení vyvolá užší okno
+      // se stejnou myší (hover: hover, pointer: fine). Na 1280 px se řada chová stejně.
+      await page.setViewportSize({ width: 720, height: 800 });
+      await page.goto(`${base}/app/#home`);
+      await page.waitForSelector(".rail-viewport .poster-card");
+      const rails = await page.evaluate(() => [...document.querySelectorAll(".poster-rail")].map((node) => ({ cards: node.children.length, overflow: node.scrollWidth - node.clientWidth })));
+      const index = await page.evaluate(() => [...document.querySelectorAll(".rail-viewport")].findIndex((node) => {
+        const track = node.querySelector(".poster-rail");
+        return track.scrollWidth - track.clientWidth > 0;
+      }));
+      assert(index >= 0, `žádná řada nepřetéká: ${JSON.stringify(rails)}`);
+      const viewport = page.locator(".rail-viewport").nth(index);
+      await viewport.scrollIntoViewIfNeeded();
+      const track = viewport.locator(".poster-rail");
+      await viewport.hover();
+      const next = viewport.locator(".rail-page.next");
+      await page.waitForFunction((node) => getComputedStyle(node).opacity === "1", await next.elementHandle());
+      assert((await viewport.locator(".rail-page.prev").isHidden()), "na začátku je vidět Zpět");
+      assert((await next.getAttribute("tabindex")) === "-1", "tlačítko je v pořadí Tab");
+      await shot(page, "720-rail-paging");
+      const start = await track.evaluate((node) => node.scrollLeft);
+      await next.click();
+      await page.waitForFunction((node) => node.scrollLeft > 0, await track.elementHandle(), { timeout: 3000 });
+      await page.waitForTimeout(900);
+      const { moved, expected, nextHidden } = await track.evaluate((node) => ({
+        moved: Math.round(node.scrollLeft),
+        expected: Math.round(Math.min(node.clientWidth * 0.9, node.scrollWidth - node.clientWidth)),
+        nextHidden: node.parentElement.querySelector(".rail-page.next").hidden,
+      }));
+      assert(Math.abs(moved - expected) <= 2, `posun ${moved}, čekáno ${expected}`);
+      if (expected === Math.round(await track.evaluate((node) => node.scrollWidth - node.clientWidth))) assert(nextHidden, "na konci řady zůstalo Další");
+      await page.waitForFunction((node) => !node.querySelector(".rail-page.prev").hidden, await viewport.elementHandle());
+      await page.setViewportSize({ width: 1280, height: 800 });
+      return { start, moved, expected, nextHidden, rails };
+    });
+    await check("WEB-N25 dotykové zařízení tlačítka stránkování nevidí", async () => {
+      const touch = await browser.newContext({ viewport: { width: 768, height: 1024 }, hasTouch: true, isMobile: true });
+      const mobile = await touch.newPage();
+      await signIn(mobile);
+      await mobile.waitForSelector(".rail-viewport .poster-card");
+      const display = await mobile.evaluate(() => getComputedStyle(document.querySelector(".rail-page.next")).display);
+      await touch.close();
+      assert(display === "none", `display ${display}`);
+    });
+    await check("WEB-N24 písmo prohlížeče 20 px zvětší text a rozvržení nepřeteče (360 i 1280 px)", async () => {
+      const cdp = await context.newCDPSession(page);
+      await cdp.send("Page.setFontSizes", { fontSizes: { standard: 20, fixed: 16 } });
+      const sizes = {};
+      for (const [width, height] of [[1280, 800], [360, 780]]) {
+        await page.setViewportSize({ width, height });
+        for (const route of ["#home", "#movies"]) {
+          await page.goto(`${base}/app/${route}`);
+          await page.waitForSelector(".poster-card");
+          const metric = await page.evaluate(() => ({
+            root: getComputedStyle(document.documentElement).fontSize,
+            poster: getComputedStyle(document.querySelector(".poster-title, .poster-card")).fontSize,
+            overflow: document.documentElement.scrollWidth - innerWidth,
+          }));
+          sizes[`${width}${route}`] = metric;
+          assert(metric.root === "20px", `${width}${route}: kořen ${metric.root}`);
+          assert(metric.overflow <= 0, `${width}${route}: přetéká o ${metric.overflow} px`);
+        }
+        await shot(page, `${width}-font20-movies`);
+      }
+      await cdp.send("Page.setFontSizes", { fontSizes: { standard: 16, fixed: 13 } });
+      await cdp.detach();
+      return sizes;
+    });
     await context.close();
 
     // Kořenové stránky: bez skriptů z CDN, funkční bez JavaScriptu, FAQ z klávesnice.
@@ -282,6 +373,103 @@ const hash = (page) => page.evaluate(() => location.hash);
     await home.waitForTimeout(600);
     await shot(home, "360-landing-cdn-blocked");
     await landing.close();
+
+    // #226 – CSP kořenových stránek, mobilní nabídka a zastavení animací.
+    const strict = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await strict.addInitScript(() => {
+      window.__cspViolations = [];
+      document.addEventListener("securitypolicyviolation", (event) => window.__cspViolations.push(`${event.violatedDirective} ${event.blockedURI}`));
+    });
+    const csp = await strict.newPage();
+    const consoleCsp = [];
+    csp.on("console", (message) => { if (/Refused to|Content Security Policy.*(?:blocked|violat)/i.test(message.text())) consoleCsp.push(message.text().slice(0, 160)); });
+    await check("WEB-N30 kořenové stránky mají CSP se script-src 'self' a nic neporušují", async () => {
+      const seen = {};
+      for (const file of ["/", "/privacy.html", "/delete-account.html", "/en/index.html", "/activate", "/devices", "/party/ABCDEF"]) {
+        const response = await csp.goto(`${base}${file}`, { waitUntil: "networkidle" });
+        const policy = response.headers()["content-security-policy"] || "";
+        assert(/(?:^|;)\s*script-src 'self'(?:;|$)/.test(policy), `${file}: CSP ${policy || "chybí"}`);
+        const violations = await csp.evaluate(() => window.__cspViolations);
+        assert(violations.length === 0, `${file}: ${violations.join(", ")}`);
+        seen[file] = policy.length;
+      }
+      assert(consoleCsp.length === 0, consoleCsp.join(" | "));
+      assert((await csp.locator("#code").textContent()) === "ABCDEF", "skript pozvánky party neběží");
+      return seen;
+    });
+    await check("WEB-N30 přihlášení a instalačky na úvodní stránce (cs i en) fungují pod CSP", async () => {
+      // Fixture účet nesplňuje serverovou kontrolu účtu pro /api/auth/* (chybí email, coins, premium_until),
+      // proto odpovědi API úvodní stránky podvrhneme ve stejném originu. Stránka i CSP jdou ze serveru.
+      const calls = [];
+      const json = (body) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+      await csp.route("**/api/auth/login", (route) => { calls.push("login"); route.fulfill(json({ token: "e2e-mock-token", account: { username: "e2e", displayName: "E2E účet", email: null }, hasDownloadAccess: true })); });
+      await csp.route("**/api/downloads", (route) => { calls.push("downloads"); route.fulfill(json({ downloads: [{ id: "windows-x64", available: true, title: "Movly pro Windows", fileName: "movly-e2e.exe", sizeLabel: "1 MB" }] })); });
+      await csp.route("**/api/downloads/windows-x64/link", (route) => { calls.push("link"); route.fulfill(json({ url: "/#stazeno" })); });
+      for (const [file, user, password, submit] of [["/#stahnout", "#mvUser", "#mvPass", "#mvLoginBtn"], ["/en/index.html#download", "#movly-login-user", "#movly-login-password", "#movly-login-button"]]) {
+        await csp.goto(`${base}${file}`, { waitUntil: "networkidle" });
+        await csp.evaluate(() => localStorage.clear());
+        await csp.locator(user).fill("e2e");
+        await csp.locator(password).fill("e2e-mock");
+        await csp.locator(submit).click();
+        const download = csp.locator("[data-download-id='windows-x64']");
+        await download.waitFor({ timeout: 8000 });
+        await download.scrollIntoViewIfNeeded();
+        if (file.startsWith("/#")) await shot(csp, "1280-landing-login-csp");
+        await download.click();
+        await csp.waitForFunction(() => location.hash === "#stazeno", null, { timeout: 5000 });
+        const violations = await csp.evaluate(() => window.__cspViolations);
+        assert(violations.length === 0, `${file}: ${violations.join(", ")}`);
+      }
+      await csp.unrouteAll();
+      await csp.evaluate(() => localStorage.clear());
+      assert(calls.join(",") === "login,downloads,link,login,downloads,link", `volání ${calls}`);
+      return calls;
+    });
+    await check("WEB-N28 tlačítko Pozastavit animace zastaví pásy plakátů a zapamatuje si volbu", async () => {
+      await csp.goto(`${base}/`);
+      const toggle = csp.getByRole("button", { name: "Pozastavit animace" });
+      await toggle.scrollIntoViewIfNeeded();
+      assert(await toggle.isVisible(), "tlačítko není vidět");
+      const running = await csp.evaluate(() => getComputedStyle(document.querySelector("[data-marquee]")).animationPlayState);
+      await toggle.click();
+      const paused = await csp.evaluate(() => [...document.querySelectorAll("[data-marquee]")].map((node) => getComputedStyle(node).animationPlayState));
+      assert(running === "running" && paused.every((state) => state === "paused"), `${running} → ${paused}`);
+      assert(await csp.getByRole("button", { name: "Spustit animace" }).isVisible(), "popisek se nezměnil");
+      await csp.waitForTimeout(1200);
+      await shot(csp, "1280-landing-motion-paused");
+      await csp.reload();
+      const remembered = await csp.evaluate(() => getComputedStyle(document.querySelector("[data-marquee]")).animationPlayState);
+      await csp.getByRole("button", { name: "Spustit animace" }).click();
+      assert(remembered === "paused", `po obnovení ${remembered}`);
+    });
+    await check("WEB-N27 úvodní stránka má na telefonu nabídku navigace (cs i en)", async () => {
+      await csp.setViewportSize({ width: 360, height: 780 });
+      const result = {};
+      for (const [file, label, link, target] of [["/", "Nabídka", "FAQ", "#faq"], ["/en/index.html", "Menu", "FAQ", "#faq"]]) {
+        await csp.goto(`${base}${file}`, { waitUntil: "networkidle" });
+        const summary = csp.locator("summary", { hasText: label });
+        assert(await summary.isVisible(), `${file}: nabídka není vidět`);
+        const overflow = await csp.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+        assert(overflow <= 0, `${file}: přetéká o ${overflow} px`);
+        await summary.focus();
+        await csp.keyboard.press("Enter");
+        const panelLink = csp.locator("details[open]").getByRole("link", { name: link, exact: true });
+        assert(await panelLink.isVisible(), `${file}: odkaz ${link} v nabídce není vidět`);
+        await shot(csp, `360-${file === "/" ? "landing" : "en-landing"}-menu`);
+        await csp.keyboard.press("Escape");
+        assert(!(await csp.locator("details[open]").filter({ has: summary }).count()), `${file}: Escape nabídku nezavřel`);
+        await summary.click();
+        await panelLink.click();
+        await csp.waitForFunction((hash) => location.hash === hash, target);
+        assert(!(await csp.locator("details[open]").filter({ has: summary }).count()), `${file}: po výběru zůstala otevřená`);
+        result[file] = overflow;
+      }
+      await csp.setViewportSize({ width: 1280, height: 800 });
+      await csp.goto(`${base}/`);
+      assert(await csp.locator("summary", { hasText: "Nabídka" }).isHidden(), "na desktopu je nabídka navíc");
+      return result;
+    });
+    await strict.close();
 
     const noScript = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 800 } });
     const plain = await noScript.newPage();

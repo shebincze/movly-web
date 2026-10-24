@@ -841,6 +841,38 @@ test('Příliš velké JSON tělo vrátí 413 bez resetu spojení', async () => 
   }
 });
 
+test('WEB-N30: kořenové stránky mají CSP bez inline skriptů a jejich skripty se servírují', async () => {
+  const server = createServer();
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  try {
+    for (const route of ['/', '/index.html', '/privacy.html', '/delete-account.html', '/en/index.html', '/en/privacy.html', '/activate', '/devices', '/party/ABCDEF']) {
+      const response = await request(server, 'GET', route);
+      assert.equal(response.status, 200, route);
+      const policy = response.headers['content-security-policy'] || '';
+      const directives = Object.fromEntries(policy.split(';').map((part) => part.trim().split(/\s+/)).filter((part) => part[0]).map(([name, ...values]) => [name, values]));
+      assert.deepEqual(directives['script-src'], ["'self'"], `${route}: skripty jen ze souborů`);
+      assert.deepEqual(directives['object-src'], ["'none'"], route);
+      assert.deepEqual(directives['frame-ancestors'], ["'none'"], route);
+      assert.deepEqual(directives['base-uri'], ["'none'"], route);
+      assert.ok(directives['default-src']?.includes("'self'"), route);
+      assert.doesNotMatch(response.body, /<script(?![^>]*\bsrc=)[^>]*>/, `${route}: inline skript`);
+    }
+    for (const [route, marker] of [['/landing.js', 'mvLoginForm'], ['/en/landing.js', 'mobileNav'], ['/party.js', 'movly://party/']]) {
+      const response = await request(server, 'GET', route);
+      assert.equal(response.status, 200, route);
+      assert.match(response.headers['content-type'], /javascript/, route);
+      assert.ok(response.body.includes(marker), route);
+    }
+    const app = await request(server, 'GET', '/app/');
+    assert.match(app.headers['content-security-policy'], /style-src 'self';/, '/app si drží přísnější vlastní CSP');
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+});
+
 test('Aktivační stránka je dostupná na čisté /activate URL', async () => {
   const server = createServer();
   await new Promise((resolve, reject) => {

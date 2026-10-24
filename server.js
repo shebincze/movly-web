@@ -1923,6 +1923,7 @@ function pipeReadableFileStream(stream, res, label) {
   stream.pipe(res);
 }
 
+const ROOT_PAGE_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://image.tmdb.org; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
 function serveStatic(req, res, pathname) {
   if (pathname === '/app/build-info.js') {
     const configured = process.env.MOVLY_BUILD_VERSION;
@@ -1955,9 +1956,10 @@ function serveStatic(req, res, pathname) {
   // Authorization is based on the final normalized asset, never the spelling
   // of its URL. Server-side files are outside the public asset allowlist.
   relativePath = path.posix.normalize(relativePath);
-  const rootFiles = new Set(["/index.html", "/privacy.html", "/delete-account.html", "/activate.html", "/activate.js", "/activate.css", "/devices.html", "/devices.js", "/devices.css", "/party.html"]);
+  const rootFiles = new Set(["/index.html", "/landing.js", "/privacy.html", "/delete-account.html", "/activate.html", "/activate.js", "/activate.css", "/devices.html", "/devices.js", "/devices.css", "/party.html", "/party.js"]);
   const publicPath = rootFiles.has(relativePath)
     || /^\/(?:en|sk)\/(?:index|privacy|delete-account)\.html$/.test(relativePath)
+    || relativePath === "/en/landing.js"
     || ["/.well-known/apple-app-site-association", "/.well-known/assetlinks.json", "/app/vendor/hls-LICENSE.txt", "/app/vendor/hls-0.14.17-LICENSE.txt", "/app/vendor/feedback-icons/LICENSE"].includes(relativePath)
     || (/^\/(?:app|assets)\//.test(relativePath)
       && !relativePath.split("/").some(segment => segment.startsWith("."))
@@ -1986,6 +1988,9 @@ function serveStatic(req, res, pathname) {
   const contentType = relativePath === '/.well-known/apple-app-site-association'
     ? 'application/json; charset=utf-8'
     : (mimeTypes.get(ext) || 'application/octet-stream');
+  // Kořenové stránky (úvod, soukromí, smazání účtu, aktivace, zařízení, party) mají vlastní CSP;
+  // /app ji dostává v route(). Skripty jen ze souborů, inline zůstávají pouze styly (WEB-N30).
+  if (ext === '.html' && !relativePath.startsWith('/app/')) res.setHeader('Content-Security-Policy', ROOT_PAGE_CSP);
   res.writeHead(200, {
     'Content-Type': contentType,
     'Content-Length': stat.size,

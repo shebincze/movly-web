@@ -222,8 +222,42 @@ export function rail(name, items, onTitle, more) {
           )
         : null,
     ),
-    track,
+    railPaging(track),
   );
+}
+// Myš bez vodorovného kolečka: tlačítka stránkování řady (WEB-N25). CSS je ukáže jen
+// pro pointer: fine při najetí; klávesnice prochází karty, proto tabindex -1.
+export function railPaging(track) {
+  const page = (direction, label) => {
+    const node = el(
+      "button",
+      {
+        type: "button",
+        class: `rail-page ${direction < 0 ? "prev" : "next"}`,
+        tabindex: "-1",
+        "aria-label": label,
+      },
+      icon("chevron"),
+    );
+    node.addEventListener("click", () => {
+      const reduce = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      track.scrollBy({ left: direction * Math.max(track.clientWidth * 0.9, 1), behavior: reduce ? "auto" : "smooth" });
+    });
+    return node;
+  };
+  const prev = page(-1, translateUI("Posunout řadu zpět")),
+    next = page(1, translateUI("Posunout řadu dál"));
+  const update = () => {
+    const max = track.scrollWidth - track.clientWidth;
+    prev.hidden = track.scrollLeft <= 1;
+    next.hidden = max <= 1 || track.scrollLeft >= max - 1;
+  };
+  track.addEventListener("scroll", update, { passive: true });
+  if (typeof ResizeObserver === "function") new ResizeObserver(update).observe(track);
+  prev.hidden = true;
+  next.hidden = true;
+  globalThis.requestAnimationFrame?.(update);
+  return el("div", { class: "rail-viewport" }, prev, track, next);
 }
 export function runtimeLabel(minutes) {
   if (!minutes) return null;
