@@ -4,8 +4,9 @@ let next=0;
 async function fixture(){
  const runtime={context:'adult-owner',hash:'#search',listeners:new Map(),buttons:[]},key='catalog_action_fixture_'+next++;globalThis[key]=runtime;
  const original=await fs.readFile('app/catalog.js','utf8'),names=new Set();
+ const detailRoute=(await fs.readFile('app/detail-route.js','utf8')).replace(/^export /gm,'');
  const source=original.replace(/^import\s*\{([\s\S]*?)\}\s*from\s+["'][^"']+["'];\n/gm,(_,list)=>{for(const n of list.split(','))if(n.trim())names.add(n.trim().split(/\s+as\s+/).pop());return '';});
- const prefix=`const runtime=globalThis[${JSON.stringify(key)}];const location={get hash(){return runtime.hash}};const document={addEventListener(k,f){runtime.listeners.set(k,f)},querySelector(){return runtime.visible||null}};`+[...names].map(n=>n==='button'?'const button=(label,click)=>{const node={label,click};runtime.buttons.push(node);return node;};':n==='apiContextKey'?'const apiContextKey=()=>runtime.context;':`const ${n}=()=>undefined;`).join('');
+ const prefix=`const runtime=globalThis[${JSON.stringify(key)}];const location={get hash(){return runtime.hash}};const document={addEventListener(k,f){runtime.listeners.set(k,f)},querySelector(){return runtime.visible||null}};`+[...names].map(n=>n==='button'?'const button=(label,click)=>{const node={label,click};runtime.buttons.push(node);return node;};':n==='pageKey'?detailRoute:n==='apiContextKey'?'const apiContextKey=()=>runtime.context;':`const ${n}=()=>undefined;`).join('');
  const module=await import('data:text/javascript;base64,'+Buffer.from(prefix+source+'\nexport {catalogActionGuard};').toString('base64'));delete globalThis[key];return {runtime,module};
 }
 test('catalog action admission rejects aborted routes, foreign contexts, hash changes and detached screens before an action',async()=>{
@@ -14,6 +15,16 @@ test('catalog action admission rejects aborted routes, foreign contexts, hash ch
   runtime.context='adult-owner';runtime.hash='#search';const c=new AbortController(),connected={value:true},admit=module.catalogActionGuard(c.signal,()=>connected.value);let mutations=0;
   const queued=()=>{if(admit())mutations++};queued();assert.equal(mutations,1);change(runtime,c,connected);queued();assert.equal(mutations,1);
  }
+});
+test('an open title detail (#…&title=ID, WEB-N01) keeps the page admission; closing it does not strand page actions',async()=>{
+ const {runtime,module}=await fixture();
+ runtime.hash='#search?q=duna';const admit=module.catalogActionGuard(new AbortController().signal,()=>true);
+ assert.equal(admit(),true);
+ runtime.hash='#search?q=duna&title=42';assert.equal(admit(),true,'detail over the page is not a route change');
+ runtime.hash='#search?q=duna';assert.equal(admit(),true);
+ runtime.hash='#search?q=jiny&title=42';assert.equal(admit(),false,'a different page still invalidates');
+ runtime.hash='#search?q=duna&title=7';const deepLink=module.catalogActionGuard(new AbortController().signal,()=>true);
+ runtime.hash='#search?q=duna';assert.equal(deepLink(),true,'a page opened from a shared detail link keeps working after the detail closes');
 });
 test('same-owner effective-policy change invalidates held actions but unrelated catalogue cache refresh does not',async()=>{
  const {runtime,module}=await fixture(),c=new AbortController(),admit=module.catalogActionGuard(c.signal,()=>true);

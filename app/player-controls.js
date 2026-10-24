@@ -65,6 +65,41 @@ export function nextCountdown(remaining, { enabled = true, available = false, ca
   return remaining <= NEXT_COUNTDOWN_SECONDS ? Math.max(1, Math.ceil(remaining)) : null;
 }
 
+// Media Session API (WEB-N11): titul v systémovém „Právě hraje“ (macOS, Windows,
+// Android, iOS) a funkční mediální klávesy / ovladače sluchátek. Vrací úklid.
+const MEDIA_ACTIONS = ["play", "pause", "seekbackward", "seekforward", "stop"];
+export function bindMediaSession({ session, Metadata, media, handlers }) {
+  if (!session || typeof session.setActionHandler !== "function") return () => {};
+  if (media?.title && typeof Metadata === "function") {
+    try {
+      session.metadata = new Metadata({
+        title: media.title,
+        artist: media.subtitle || "",
+        album: "Movly",
+        artwork: media.artwork ? [{ src: media.artwork, sizes: "342x513", type: "image/jpeg" }] : [],
+      });
+    } catch {}
+  }
+  for (const action of MEDIA_ACTIONS) {
+    try {
+      session.setActionHandler(action, handlers[action] || null);
+    } catch {
+      /* Prohlížeč akci nepodporuje. */
+    }
+  }
+  return () => {
+    for (const action of MEDIA_ACTIONS) {
+      try {
+        session.setActionHandler(action, null);
+      } catch {}
+    }
+    try {
+      session.metadata = null;
+      session.playbackState = "none";
+    } catch {}
+  };
+}
+
 export function readVolume(storage) {
   try {
     const saved = JSON.parse(storage.getItem(VOLUME_KEY) || "{}");
@@ -94,7 +129,7 @@ function pipSupported(video) {
 // čtou z celého dokumentu, dokud `active()` platí: fokus po otevření dialogu
 // stojí na zavíracím tlačítku mimo přehrávač. `seekTo` dostává absolutní
 // pozici titulu, `disabled` vrací true během čekání Watch Party.
-export function mountPlayerControls({ el, glyph, translate, video, screen, keyRoot, storage, positionNow, seekTo, togglePlayback = null, active = () => true, disabled = () => false, onInteraction = () => {}, pageFullscreen: startInPage = false }) {
+export function mountPlayerControls({ el, glyph, translate, video, screen, keyRoot, storage, positionNow, seekTo, togglePlayback = null, active = () => true, disabled = () => false, onInteraction = () => {}, pageFullscreen: startInPage = false, media = null, mediaSession = globalThis.navigator?.mediaSession, MediaMetadata: Metadata = globalThis.MediaMetadata }) {
   const saved = readVolume(storage);
   video.volume = saved.volume;
   video.muted = saved.muted;
@@ -201,6 +236,7 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
   );
   const update = () => {
     const off = disabled();
+    if (mediaSession) try { mediaSession.playbackState = !video.paused && !video.ended ? "playing" : "paused"; } catch {}
     for (const button of [playButton, back, forward]) button.disabled = off;
     const playing = !video.paused && !video.ended;
     if (playButton.dataset.playing !== String(playing)) {
@@ -268,6 +304,18 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
     [keyRoot, "pointerdown", onPointer],
   ];
   for (const [target, name, handler] of listeners) target.addEventListener(name, handler);
+  const releaseMediaSession = bindMediaSession({
+    session: mediaSession,
+    Metadata,
+    media,
+    handlers: {
+      play: () => { if (video.paused || video.ended) toggle(); },
+      pause: () => { if (!video.paused && !video.ended) toggle(); },
+      seekbackward: (details) => skip(-(Number(details?.seekOffset) || SKIP_SECONDS)),
+      seekforward: (details) => skip(Number(details?.seekOffset) || SKIP_SECONDS),
+      stop: () => { if (!video.paused) toggle(); },
+    },
+  });
   if (startInPage && !fullscreenElement()) setPageFullscreen(true);
   else update();
   return {
@@ -278,6 +326,7 @@ export function mountPlayerControls({ el, glyph, translate, video, screen, keyRo
       disposed = true;
       clearTimeout(clickTimer);
       for (const [target, name, handler] of listeners) target.removeEventListener(name, handler);
+      releaseMediaSession();
       if (pageFullscreen) setPageFullscreen(false);
       if (fullscreenElement() === screen) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)?.catch?.(() => {});
     },

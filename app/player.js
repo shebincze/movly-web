@@ -19,7 +19,7 @@ import {
   partyPlaybackMatches,
   partyTransport,
 } from "./party.js";
-import { api, array } from "./api.js";
+import { api, array, imageURL } from "./api.js";
 import { setProgress } from "./user-state.js";
 import {
   el,
@@ -241,6 +241,9 @@ export async function sources(
   );
   const dialog = showDialog(content),
     results = new Map();
+  // Po zavření výběru se do dialogu může vrátit detail (WEB-N14); pozdní výsledky
+  // hledání pak nesmí spustit přehrávání ani psát do odpojeného výběru.
+  const pickerOpen = () => dialog.open && content.isConnected;
   sourceDialog = dialog;
   dialog.addEventListener("close", sourceClosed, {once:true});
   const discoveryStartedAt = performance.now();
@@ -249,7 +252,7 @@ export async function sources(
       api(`providers/${name}`),
     ),
   );
-  if (revision !== sourceRevision || !dialog.open) return;
+  if (revision !== sourceRevision || !pickerOpen()) return;
   const connections = Object.fromEntries(
     ["webshare", "fastshare", "sosac", "stremio"].map((name, index) => [
       name,
@@ -598,7 +601,7 @@ export async function sources(
     ].map(async (path, i) => {
       try {
         const data = await api(path, {expectedOwner: sourceOwner, playbackAttempt: sourceTelemetry});
-        if (revision !== sourceRevision || !dialog.open) return;
+        if (revision !== sourceRevision || !pickerOpen()) return;
         const streams = array(data.streams);
         results.set(i, streams);
         rows[i].textContent =
@@ -608,18 +611,18 @@ export async function sources(
         if (data.warnings?.length)
           rows[i].append(el("small", {}, data.warnings.join(" ")));
       } catch (e) {
-        if (revision !== sourceRevision || !dialog.open) return;
+        if (revision !== sourceRevision || !pickerOpen()) return;
         rows[i].textContent = `${origins[i]}: ${e.message}`;
         rows[i].classList.remove("is-pending");
         rows[i].classList.add("source-error", "is-error");
       } finally {
         pending--;
-        if (revision === sourceRevision && dialog.open) render();
+        if (revision === sourceRevision && pickerOpen()) render();
       }
     }),
   );
   sourceTelemetry?.stage("source_discovery", performance.now()-discoveryStartedAt);
-  if (savedLookup && revision === sourceRevision && dialog.open) {
+  if (savedLookup && revision === sourceRevision && pickerOpen()) {
     const reference = savedLookup.selection;
     const matching = [...results].flatMap(([origin, streams]) => streams.map(stream => ({ ...stream, origin })))
       .filter(stream => (stream.provider_name || stream.provider_identifier) === reference.provider && stream.file_name === reference.name
@@ -633,7 +636,7 @@ export async function sources(
   if (
     (autoPlay || autoDownload) &&
     revision === sourceRevision &&
-    dialog.open
+    pickerOpen()
   ) {
     // „Podobné" se automaticky nikdy nepřehrají; pořadí = režim recommended.
     const options = sortStreams([...results]
@@ -1325,6 +1328,11 @@ async function play(
       active: () => current === handle && !handle.cancelled && playerRoot.isConnected && dialog.open,
       disabled: () => inParty && partyWaiting(),
       pageFullscreen: keepPageFullscreen,
+      media: {
+        title: t.title,
+        subtitle: episode ? `S${episode.season_number} E${episode.episode_number}${episode.name ? ` · ${episode.name}` : ""}` : t.year ? String(t.year) : "",
+        artwork: imageURL(t.poster_path, "w342"),
+      },
       onInteraction: () => {
         autoplayChain = 0;
       },

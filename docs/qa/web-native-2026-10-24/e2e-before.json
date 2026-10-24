@@ -1,0 +1,123 @@
+{
+ "root": "<export origin/main 2393d5c>",
+ "passed": 4,
+ "failed": 20,
+ "results": [
+  {
+   "name": "WEB-N02 odkaz Hledat má název i v kompaktní hlavičce (1024 px)",
+   "ok": false,
+   "error": "link Hledat nenalezen podle přístupného názvu"
+  },
+  {
+   "name": "WEB-N06 panel účtu je disclosure a zavře se po odchodu fokusu",
+   "ok": false,
+   "error": "aria-haspopup slibuje role=menu"
+  },
+  {
+   "name": "WEB-N01 karta je odkaz s adresou detailu",
+   "ok": false,
+   "error": "karta Oppenheimer není odkaz"
+  },
+  {
+   "name": "WEB-N01/N04 otevření detailu zapíše adresu, titulek a zamkne scroll stránky",
+   "ok": false,
+   "error": "locator.click: Timeout 30000ms exceeded."
+  },
+  {
+   "name": "WEB-N01 Zpět v prohlížeči zavře detail a vrátí fokus na kartu",
+   "ok": false,
+   "error": "hash "
+  },
+  {
+   "name": "WEB-N01 Vpřed detail znovu otevře",
+   "ok": false,
+   "error": "page.waitForFunction: Timeout 30000ms exceeded."
+  },
+  {
+   "name": "WEB-N14 zavření výběru zdroje i osoby vrátí na detail, zavření detailu na stránku",
+   "ok": false,
+   "error": "locator.click: Timeout 30000ms exceeded."
+  },
+  {
+   "name": "WEB-N01 sdílený odkaz otevře detail nad stránkou",
+   "ok": false,
+   "error": "page.waitForFunction: Timeout 10000ms exceeded."
+  },
+  {
+   "name": "WEB-N05 klepnutí na pozadí zavře dialog",
+   "ok": false,
+   "error": "page.waitForFunction: Timeout 3000ms exceeded."
+  },
+  {
+   "name": "WEB-N07 po navigaci je fokus na nadpisu nové stránky",
+   "ok": false,
+   "error": "locator.click: Timeout 30000ms exceeded."
+  },
+  {
+   "name": "WEB-N08 Hledat přesune fokus do pole hledání",
+   "ok": false,
+   "error": "locator.click: Timeout 30000ms exceeded."
+  },
+  {
+   "name": "WEB-N09 obě pole rozsahu mají vlastní název ve skupině",
+   "ok": false,
+   "error": "pole od"
+  },
+  {
+   "name": "WEB-N10 tečky karuselu mají cíl ≥ 24 px bez překryvu",
+   "ok": false,
+   "error": "{\"width\":20,\"height\":44,\"spacing\":8,\"gap\":8,\"overhang\":4,\"role\":null}"
+  },
+  {
+   "name": "prefers-reduced-motion vypne přechody",
+   "ok": true
+  },
+  {
+   "name": "bez vodorovného posunu stránky (360 px)",
+   "ok": true
+  },
+  {
+   "name": "bez vodorovného posunu stránky (768 px)",
+   "ok": true
+  },
+  {
+   "name": "bez vodorovného posunu stránky (1920 px)",
+   "ok": true
+  },
+  {
+   "name": "WEB-N04 mobilní detail neposouvá stránku pod sebou (360 px)",
+   "ok": false,
+   "error": "page.waitForFunction: Timeout 30000ms exceeded."
+  },
+  {
+   "name": "WEB-N03 úvodní stránka nenačítá skripty z cizích CDN",
+   "ok": false,
+   "error": "https://unpkg.com/react@18.3.1/umd/react.production.min.js, https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"
+  },
+  {
+   "name": "WEB-N03 úvodní stránka funguje i při nedostupném unpkg.com",
+   "ok": false,
+   "error": "úvodní stránka bez H1"
+  },
+  {
+   "name": "WEB-N03 FAQ je nativní <details> ovladatelné klávesnicí",
+   "ok": false,
+   "error": "FAQ není <details>/<summary>"
+  },
+  {
+   "name": "WEB-N13 přihlášení na úvodní stránce má propojené popisky",
+   "ok": false,
+   "error": "locator.getAttribute: Timeout 30000ms exceeded."
+  },
+  {
+   "name": "WEB-N12 kořenové stránky mají tmavé systémové schéma",
+   "ok": false,
+   "error": "/: normal"
+  },
+  {
+   "name": "WEB-N03 zásady soukromí a úvodní stránka jsou čitelné bez JavaScriptu",
+   "ok": false,
+   "error": "privacy bez <main>/H1"
+  }
+ ]
+}

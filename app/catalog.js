@@ -11,6 +11,8 @@ import {
 } from "./search-history.js";
 import { api, apiContextKey, apiContextOwner, array, title, imageURL } from "./api.js";
 import { listButton } from "./library.js";
+// Otevřený detail (#…&title=ID) nemění stránku pod ním; akce stránky platí dál.
+import { pageKey } from "./detail-route.js";
 import { effectiveContentPolicy, assertEffectivePolicyUnchanged } from "./effective-policy.js";
 import {
   applyUserState,
@@ -38,6 +40,7 @@ function carousel(items, actions) {
   const slide = el("div", {}),
     dots = el("div", {
       class: "hero-dots",
+      role: "group",
       "aria-label": translateUI("Výběr doporučeného titulu"),
     });
   const play = async (t) => {
@@ -132,7 +135,7 @@ export function resetCatalogCache() {
 function refreshCatalogActionPage(page) {
   queueMicrotask(() => {
     if (!page?.isConnected || page.movlyActionSignal?.aborted ||
-        page.movlyActionContext !== apiContextKey() || page.movlyActionHash !== location.hash ||
+        page.movlyActionContext !== apiContextKey() || page.movlyActionHash !== pageKey(location.hash) ||
         page.movlyActionPolicyGeneration === catalogPolicyGeneration) return;
     page.movlyActions?.refresh();
   });
@@ -527,8 +530,8 @@ export function interpretationChips(p) {
 // Filmy/Seriály (typ daný stránkou) i pro Hledání (typ volitelný).
 // Response cancellation does not cancel a previously queued DOM action.
 function catalogActionGuard(signal, connected) {
-  const context = apiContextKey(), policyGeneration = catalogPolicyGeneration, hash = location.hash;
-  const admit = () => !signal?.aborted && context === apiContextKey() && policyGeneration === catalogPolicyGeneration && hash === location.hash && connected();
+  const context = apiContextKey(), policyGeneration = catalogPolicyGeneration, hash = pageKey(location.hash);
+  const admit = () => !signal?.aborted && context === apiContextKey() && policyGeneration === catalogPolicyGeneration && hash === pageKey(location.hash) && connected();
   admit.attach = (node, actions) => {
     node.movlyActions = actions;
     node.movlyActionContext = context;
@@ -646,11 +649,11 @@ function filterBuilder({
   const retryFacets = button(translateUI("Zkusit znovu"), () => { if (actionCurrent()) void loadFacets(); });
   retryFacets.type = "button";
   retryFacets.hidden = true;
-  const facetContext = apiContextKey(), facetHash = location.hash;
+  const facetContext = apiContextKey(), facetHash = pageKey(location.hash);
   let facetGeneration = 0;
   async function loadFacets() {
     const generation = ++facetGeneration;
-    const current = () => !signal?.aborted && generation === facetGeneration && facetContext === apiContextKey() && facetHash === location.hash;
+    const current = () => !signal?.aborted && generation === facetGeneration && facetContext === apiContextKey() && facetHash === pageKey(location.hash);
     retryFacets.hidden = true;
     facetStatus.textContent = translateUI("Načítání filtrů…");
     try {
@@ -690,13 +693,17 @@ function filterBuilder({
   const sort = select("sort", SORT_OPTIONS, definition.sort_by);
   const order = select("order", [["desc", translateUI("Sestupně")], ["asc", translateUI("Vzestupně")]], definition.sort_order);
   order.setAttribute("aria-label", translateUI("Směr řazení"));
-  const range = (label, from, to) =>
-    el(
-      "label",
-      { class: "field range" },
-      el("span", {}, label),
-      el("div", { class: "range-inputs" }, from, "–", to),
+  // Dvojice polí od–do je skupina s názvem; každé pole má vlastní název
+  // (dříve „label“ pojmenoval jen první pole a druhé mělo jen placeholder, WEB-N09).
+  const range = (label, from, to) => {
+    for (const input of [from, to]) input.setAttribute("aria-label", input.getAttribute("placeholder"));
+    return el(
+      "div",
+      { class: "field range", role: "group", "aria-label": label },
+      el("span", { "aria-hidden": "true" }, label),
+      el("div", { class: "range-inputs" }, from, el("span", { "aria-hidden": "true" }, "–"), to),
     );
+  };
   const filters = el(
     "form",
     {
